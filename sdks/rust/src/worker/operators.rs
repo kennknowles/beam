@@ -1,8 +1,8 @@
 use std::any::Any;
-use std::borrow::Borrow;
-use std::boxed::Box;
 use std::collections::HashMap;
 use std::iter::Iterator;
+
+use std::rc::Rc;
 
 
 //use beam_api::org::apache::beam::model::pipeline::v1::Pipeline;
@@ -73,56 +73,35 @@ pub fn create_bundle_processor<'a>(bundle_descriptor: &ProcessBundleDescriptor) 
   let mut operators_by_id = HashMap::new();
   let mut rev_topo_order = Vec::new();
 
-  let create_operator = |transform_id: &String| -> Box<dyn Operator> {
-    return Box::new(DoOperator{consumers: [].to_vec()});
+  let create_operator = |transform_id: &String| -> Rc<dyn Operator> {
+    return Rc::new(DoOperator{consumers: [].to_vec()});
   };
 
-  let ensure_operator = |transform_id: &String| { //-> &'a dyn Operator{
+  let get_operator = |transform_id: &String| -> Rc<dyn Operator> {
     if !operators_by_id.contains_key(transform_id) {
       operators_by_id.insert(transform_id.to_string(), create_operator(transform_id));
       rev_topo_order.push(transform_id.to_string());
     }
-    //return operators_by_id.get(transform_id).unwrap().borrow();
+    return operators_by_id.get(transform_id).unwrap().clone();
   };
 
-  // rev_topo_order.iter().rev().map(|transform_id| { operators_by_id.get(transform_id).unwrap().borrow() })
-  let mut topo_order = Vec::new();
+  let mut operators = Vec::new();
   for transform_id in rev_topo_order.iter().rev() {
-    topo_order.push(transform_id.to_string());
+    operators.push(operators_by_id.get(transform_id).unwrap().clone());
   }
 
-  BundleProcessor::new(operators_by_id.into(), &topo_order)
+  BundleProcessor{operators: operators, operators_by_id: operators_by_id}
 }
 
 pub struct BundleProcessor {
     //bundle_descriptor: ProcessBundleDescriptor,
-    operators: Vec<String>, //Vec<&'a dyn Operator>,
-    operators_by_id: HashMap<String, Box<dyn Operator>>
+    operators: Vec<Rc<dyn Operator>>,
+    operators_by_id: HashMap<String, Rc<dyn Operator>>
 }
 
 impl BundleProcessor {
-    pub fn new(operators_by_id: HashMap<String, Box<dyn Operator>>, topo_order: &Vec<String>) -> Self {
-      let mut result = Self { operators: [].to_vec(), operators_by_id: operators_by_id };
-      result.populate_operators(topo_order);
-      result
-    }
-
-    fn populate_operators(&mut self, topo_order: &Vec<String>) {
-      self.operators = topo_order.to_vec();
-      /*
-      for transform_id in topo_order {
-        self.operators.push(self.operators_by_id.get(transform_id).unwrap().borrow());
-      }
-      */
-    }
-
     fn start(&self) -> Result<(), SomeError> {
-        let mut self_operators : Vec<&dyn Operator> = Vec::new();
-        for transform_id in self.operators.iter() {
-          self_operators.push(self.operators_by_id.get(transform_id).unwrap().borrow());
-        }
-
-        for operator in self_operators.iter().rev() {
+        for operator in self.operators.iter().rev() {
             operator.start()?;
         }
 
@@ -130,12 +109,7 @@ impl BundleProcessor {
     }
 
     fn finish(&self) -> Result<(), SomeError> {
-        let mut self_operators : Vec<&dyn Operator> = Vec::new();
-        for transform_id in self.operators.iter() {
-          self_operators.push(self.operators_by_id.get(transform_id).unwrap().borrow());
-        }
-
-        for operator in self_operators.iter() {
+        for operator in self.operators.iter() {
             operator.start()?;
         }
 

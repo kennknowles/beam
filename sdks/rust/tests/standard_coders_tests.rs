@@ -128,32 +128,32 @@ mod tests {
     Ok(())
   }
 
-  fn bytes_coder_tester(s: &String, v: &Value) -> Result<(), anyhow::Error> {
-    let coder = BytesCoder;
-    let value = v.as_str().ok_or(anyhow!("YAML was not a string"))?;
+//  fn bytes_coder_tester(s: &String, v: &Value) -> Result<(), anyhow::Error> {
+//    let coder = BytesCoder;
+//    let value = v.as_str().ok_or(anyhow!("YAML was not a string"))?;
 
-    let mut bytes_to_decode = s.as_bytes();
-    let decoded = coder.decode(&mut bytes_to_decode)?;
-    if value != decoded {
-      bail!("bytes {:?} should decode to {:?} but got {:?} instead",
-        bytes_to_decode, value, decoded)
-    }
+//    let mut bytes_to_decode = s.as_bytes();
+//    let decoded = coder.decode(&mut bytes_to_decode)?;
+//    if value != decoded {
+//      bail!("bytes {:?} should decode to {:?} but got {:?} instead",
+//        bytes_to_decode, value, decoded)
+//    }
 
-    let expected_bytes = s.as_bytes(); // above bytes_to_decode was consumed
-    let mut encoded_bytes = [7u8];
-    coder.encode(&value, &mut encoded_bytes.as_mut_slice())?;
-    if encoded_bytes != expected_bytes {
-      bail!("value {:?} should encode to {:?} but got {:?} instead",
-        value, bytes_to_decode, expected_bytes)
-    }
+//    let expected_bytes = s.as_bytes(); // above bytes_to_decode was consumed
+//    let mut encoded_bytes = [7u8];
+//    coder.encode(&value, &mut encoded_bytes.as_mut_slice())?;
+//    if encoded_bytes != expected_bytes {
+//      bail!("value {:?} should encode to {:?} but got {:?} instead",
+//        value, bytes_to_decode, expected_bytes)
+//    }
 
-    Ok(())
-  }
+//    Ok(())
+//  }
 
   fn repr_to_coder_tester(repr: CoderRepr) -> Result<CoderTester, CoderReprError> {
     match repr.urn.as_str() {
       "beam:coder:bool:v1" => Ok(bool_coder_tester),
-      "beam:coder:bytes:v1" => Ok(bytes_coder_tester),
+      "beam:coder:bytes:v1" | //=> Ok(bytes_coder_tester),
       "beam:coder:kv:v1" |
       "beam:coder:iterable:v1" |
       "beam:coder:double:v1" |

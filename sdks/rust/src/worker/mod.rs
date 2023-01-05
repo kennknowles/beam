@@ -1,2 +1,2 @@
 mod worker;
-mod operators;
+pub mod operators;

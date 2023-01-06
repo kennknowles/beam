@@ -119,7 +119,23 @@ impl<'a, T: 'static> PCollection<'a, T> {
     ) -> PCollection<O> {
         self.pipeline.apply(name, transform, &self, &[&self.id])
     }
+
+    // flat_map(name, func: Box<Fn>) would be a generic fn that calls
+    // .apply() on a PPTransform that wraps the func with serialize_fn
+    // and to_generic_dofn (currently found in operators.rs) and populates
+    // the transform_proto with the right spec as seen in worker_test
+    // and below.
+
+    // map(name, func) could then call
+    //     flat_map(name, |x: T| -> O { vec![func(x)] }).
 }
+
+// Create would be a PTransform<Root, PCollection<T>> that simply implements
+// expand to call Impulse + FlatMap.
+// Other composites could be created as well.
+
+// GroupByKey should be just like Impulse. It should be a
+// PTransform<PCollection<(K, V)>, PCollection<(K, Vec<V>)>>
 
 struct Impulse {}
 

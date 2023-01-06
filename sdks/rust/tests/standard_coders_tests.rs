@@ -78,7 +78,9 @@ mod tests {
   use serde_yaml::Value;
   use std::collections::HashMap;
   use anyhow::{anyhow, bail, Context};
-  use apache_beam::coders::{BoolCoder, Coder};
+  use apache_beam::coders::{BoolCoder, BytesCoder, Coder, CoderContext};
+  // use std::{thread, time};
+
 
   const STANDARD_CODERS_FILE: &str =
     "../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml";
@@ -104,11 +106,11 @@ mod tests {
     BadYaml(CoderRepr),
   }
 
-  type CoderTester = fn(&String, &Value) -> Result<(), anyhow::Error>;
+  type CoderTester = fn(&String, &Value, &CoderContext) -> Result<(), anyhow::Error>;
 
-  fn bool_coder_tester(s: &String, v: &Value) -> Result<(), anyhow::Error> {
+  fn bool_coder_tester(s: &String, v: &Value, _context: &CoderContext) -> Result<(), anyhow::Error> {
     let coder = BoolCoder;
-    let value = v.as_bool().ok_or(anyhow!("YAML was not a bool"))?;
+    let value = v.as_bool().ok_or(anyhow!("YAML was not a bool"))?;      
 
     let mut bytes_to_decode = s.as_bytes();
     let decoded = coder.decode(&mut bytes_to_decode)?;
@@ -127,33 +129,56 @@ mod tests {
 
     Ok(())
   }
+  fn string_to_bytes(s: &String) -> Vec<u8> {
+    let mut v = vec![0u8; 0];
+    for c in s.chars() {
+      v.push(c as u8);
+    }
+    v
+  }
 
-//  fn bytes_coder_tester(s: &String, v: &Value) -> Result<(), anyhow::Error> {
-//    let coder = BytesCoder;
-//    let value = v.as_str().ok_or(anyhow!("YAML was not a string"))?;
+  fn bytes_coder_tester(s: &String, v: &Value, context: &CoderContext) -> Result<(), anyhow::Error> {
 
-//    let mut bytes_to_decode = s.as_bytes();
-//    let decoded = coder.decode(&mut bytes_to_decode)?;
-//    if value != decoded {
-//      bail!("bytes {:?} should decode to {:?} but got {:?} instead",
-//        bytes_to_decode, value, decoded)
-//    }
+    let coder = BytesCoder;
+    let value_str: &str  = v.as_str().ok_or(anyhow!("YAML was not a string"))?;
+    let value_string: String = value_str.to_string();
+    println!("bytes_coder_tester, {:?} {:?} {:?}", s, value_string, context);
 
-//    let expected_bytes = s.as_bytes(); // above bytes_to_decode was consumed
-//    let mut encoded_bytes = [7u8];
-//    coder.encode(&value, &mut encoded_bytes.as_mut_slice())?;
-//    if encoded_bytes != expected_bytes {
-//      bail!("value {:?} should encode to {:?} but got {:?} instead",
-//        value, bytes_to_decode, expected_bytes)
-//    }
+    let value: Vec<u8> = value_string.into_bytes();
 
-//    Ok(())
-//  }
+    println!("chars {:?}", s.chars().nth(0).unwrap());
+    println!("chars {:?}", s.chars().nth(0).unwrap() as u32);
+    
+    let mut bytes_to_decode_vec: Vec<u8> = string_to_bytes(s);
+    
+    println!("bytes_to_decode {:?}", bytes_to_decode_vec);
+    
+    let mut bytes_to_decode_reader: &[u8] = bytes_to_decode_vec.as_mut_slice();
+    
+    let decoded = coder.decode_in_context(&mut bytes_to_decode_reader, context)?;
+
+    println!("decoded {:?}", decoded);
+    
+    if value != decoded {
+      bail!("bytes {:?} should decode to {:?} but got {:?} instead",
+          s.as_bytes(), value, decoded)
+    }
+
+    let expected_bytes = string_to_bytes(s); // above bytes_to_decode was consumed
+    let mut encoded_bytes = vec![0u8; expected_bytes.len()];
+    coder.encode_in_context(&value, &mut encoded_bytes.as_mut_slice(), context)?;
+    if encoded_bytes != expected_bytes {
+      bail!("value {:?} should encode to {:?} but got {:?} instead",
+          value, expected_bytes, encoded_bytes)
+    }
+
+    Ok(())
+  }
 
   fn repr_to_coder_tester(repr: CoderRepr) -> Result<CoderTester, CoderReprError> {
     match repr.urn.as_str() {
       "beam:coder:bool:v1" => Ok(bool_coder_tester),
-      "beam:coder:bytes:v1" | //=> Ok(bytes_coder_tester),
+      "beam:coder:bytes:v1" => Ok(bytes_coder_tester),
       "beam:coder:kv:v1" |
       "beam:coder:iterable:v1" |
       "beam:coder:double:v1" |
@@ -184,9 +209,13 @@ mod tests {
         Err(CoderReprError::BadYaml(repr)) => bail!("could not understand coder YAML: {:?}", repr),
 
         Ok(coder_tester) => {
+          let mut context = CoderContext::WholeStream;
+          if spec.nested.unwrap_or("".to_string()).as_str() == "true" {
+            context = CoderContext::NeedsDelimiters
+          }
           for (serialized, yaml_value) in spec.examples {
-            coder_tester(&serialized, &yaml_value)
-                .with_context(|| format!("{:?}: {:?}", serialized, yaml_value))?;
+            coder_tester(&serialized, &yaml_value, &context)
+              .with_context(|| format!("{:?}: {:?}", serialized, yaml_value))?;
           }
         },
       }

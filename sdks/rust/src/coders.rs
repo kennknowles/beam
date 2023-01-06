@@ -1,4 +1,9 @@
+extern crate varint;
+use varint::{ VarintRead, VarintWrite };
+
+use std::io::Cursor;
 use std::io::{ErrorKind, Read, Write};
+use std::io::Error;
 
 pub trait Coder {
     type T;
@@ -53,7 +58,7 @@ impl Coder for BoolCoder {
         Ok(())
     }
 
-    fn decode_in_context<R: Read>(&self, reader: &mut R, _context: Context) -> DecodingResult<bool> {
+    fn decode_in_context<R: Read>(&self, reader: &mut R, _context: Context) -> DecodingResult<Self::T> {
         let mut buf = [0u8];
         reader.read(&mut buf)?;
         if buf[0] == 1 {
@@ -69,21 +74,61 @@ impl Coder for BoolCoder {
     }
 }
 
-// pub struct BytesCoder;
-//
-// impl Coder for BytesCoder {
-//     type T = [u8];
-//
-//     fn encode_in_context<W: Write>(&self, element: &Self::T, writer: &mut W, context: Context) -> EncodingResult {
-//         if context == Context::NeedsDelimiters {
-//             writer.write(From::from(element.len()))?
-//         }
-//         writer.write(element)?;
-//         Ok(())
-//     }
-//
-//     fn decode_in_context<R: Read>(&self, reader: &mut R, context: Context) -> DecodingResult<Self::T> {
-//         let mut size_buf = [0u8; 4];
-//         VarIntCoder.read(reader, Context::NeedsDelimiters)
-//     }
-// }
+fn write_signed_varint_32_to_stream<W: Write>(val: i32, writer: &mut W) -> Result<usize, Error> {
+    let mut vector = Cursor::new(vec![0u8; 0]);
+    assert!(vector.write_signed_varint_32(val).is_ok());
+    writer.write(vector.into_inner().as_slice())
+}
+
+fn read_signed_varint_32_from_vector(vec: Vec<u8>) -> Result<i32, Error> {
+    let mut vector = Cursor::new(vec);
+    vector.read_signed_varint_32()
+}
+
+// This awkward setup is needed(?) since varint libary only supports reading from vectors but not byte slices.
+fn read_signed_varint_32_from_stream<R: Read>(reader: &mut R) -> Result<i32, Error> {
+    let mut vec = vec![0u8; 0];
+    for _ in 1..6 { // five bytes is enough to fit varint32
+        // read one more byte
+        let mut buf = [0u8; 1];
+        match reader.read(&mut buf) {
+            Ok(_) => (),
+            Err(err) => return Err(err)
+        };
+        vec.push(buf[0]);
+
+        // try parsing again with the extra byte
+        let val_or = read_signed_varint_32_from_vector(vec.clone());
+        if val_or.is_ok() {
+            return Ok(val_or.unwrap());
+        }
+    }
+    return Err(Error::new(ErrorKind::Other, "oh no!"));
+}
+
+pub struct BytesCoder;
+
+impl Coder for BytesCoder {
+    type T = Vec<u8>;
+
+    fn encode_in_context<W: Write>(&self, bytes: &Self::T, writer: &mut W, context: Context) -> EncodingResult {
+        if matches!(context, Context::NeedsDelimiters) {
+            write_signed_varint_32_to_stream(bytes.len() as i32, writer)?;
+        }
+        writer.write(bytes.as_slice())?;
+        Ok(())
+    }
+
+    fn decode_in_context<R: Read>(&self, reader: &mut R, context: Context) -> DecodingResult<Self::T> {
+        let mut bytes = Vec::<u8>::new();
+        
+        if matches!(context, Context::NeedsDelimiters) {
+            let sz: i32 = read_signed_varint_32_from_stream(reader)?;
+            bytes.resize(sz as usize, 0);
+            reader.read_exact(bytes.as_mut_slice())?;
+        } else {
+            reader.read_to_end(&mut bytes)?;
+        }
+        Ok(bytes)
+    }
+}

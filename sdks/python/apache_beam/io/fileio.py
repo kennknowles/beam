@@ -90,6 +90,7 @@ parameter can be anything, as long as elements can be grouped by it.
 
 import collections
 import logging
+import os
 import random
 import uuid
 from collections import namedtuple
@@ -118,6 +119,7 @@ from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.utils.annotations import experimental
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
@@ -257,9 +259,7 @@ class _ReadMatchesFn(beam.DoFn):
     yield ReadableFile(metadata, self._compression)
 
 
-# TODO(BEAM-14401) experimental() decoration causes docstring not rendering when
-# docstring contains constructor argument documentation.
-# @experimental()
+@experimental()
 class MatchContinuously(beam.PTransform):
   """Checks for new files for a given pattern every interval.
 
@@ -471,6 +471,15 @@ def default_file_naming(prefix, suffix=None):
   return _inner
 
 
+def single_file_naming(prefix, suffix=None):
+  def _inner(window, pane, shard_index, total_shards, compression, destination):
+    assert shard_index in (0, None), shard_index
+    assert total_shards in (1, None), total_shards
+    return _format_shard(window, pane, None, None, compression, prefix, suffix)
+
+  return _inner
+
+
 _FileResult = collections.namedtuple(
     'FileResult', [
         'file_name',
@@ -488,9 +497,7 @@ class FileResult(_FileResult):
   pass
 
 
-# TODO(BEAM-14401) experimental() decoration causes docstring not rendering when
-# docstring contains constructor argument documentation.
-# @experimental()
+@experimental()
 class WriteToFiles(beam.PTransform):
   r"""Write the incoming PCollection to a set of output files.
 
@@ -661,40 +668,49 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
 
   def process(self, element, w=beam.DoFn.WindowParam):
     destination = element[0]
-    file_results = list(element[1])
+    # list of FileResult objects for temp files
+    temp_file_results = list(element[1])
+    # list of FileResult objects for final files
+    final_file_results = []
 
-    for i, r in enumerate(file_results):
+    for i, r in enumerate(temp_file_results):
       # TODO(pabloem): Handle compression for files.
       final_file_name = self.file_naming_fn(
-          r.window, r.pane, i, len(file_results), '', destination)
+          r.window, r.pane, i, len(temp_file_results), '', destination)
 
-      _LOGGER.info(
-          'Moving temporary file %s to dir: %s as %s. Res: %s',
-          r.file_name,
-          self.path.get(),
-          final_file_name,
-          r)
+      final_file_results.append(
+          FileResult(
+              final_file_name,
+              i,
+              len(temp_file_results),
+              r.window,
+              r.pane,
+              destination))
 
-      final_full_path = filesystems.FileSystems.join(
-          self.path.get(), final_file_name)
-
-      # TODO(pabloem): Batch rename requests?
-      try:
-        filesystems.FileSystems.rename([r.file_name], [final_full_path])
-      except BeamIOError:
-        # This error is not serious, because it may happen on a retry of the
-        # bundle. We simply log it.
-        _LOGGER.debug(
-            'File %s failed to be copied. This may be due to a bundle'
-            ' being retried.',
-            r.file_name)
-
-      yield FileResult(
-          final_file_name, i, len(file_results), r.window, r.pane, destination)
-
+    move_from = [f.file_name for f in temp_file_results]
+    move_to = [f.file_name for f in final_file_results]
     _LOGGER.info(
-        'Checking orphaned temporary files for'
-        ' destination %s and window %s',
+        'Moving temporary files %s to dir: %s as %s',
+        map(os.path.basename, move_from),
+        self.path.get(),
+        move_to)
+
+    try:
+      filesystems.FileSystems.rename(
+          move_from,
+          [filesystems.FileSystems.join(self.path.get(), f) for f in move_to])
+    except BeamIOError:
+      # This error is not serious, because it may happen on a retry of the
+      # bundle. We simply log it.
+      _LOGGER.debug(
+          'Exception occurred during moving files: %s. This may be due to a'
+          ' bundle being retried.',
+          move_from)
+
+    yield from final_file_results
+
+    _LOGGER.debug(
+        'Checking orphaned temporary files for destination %s and window %s',
         destination,
         w)
     writer_key = (destination, w)
@@ -707,9 +723,10 @@ class _MoveTempFilesIntoFinalDestinationFn(beam.DoFn):
       match_result = filesystems.FileSystems.match(['%s*' % prefix])
       orphaned_files = [m.path for m in match_result[0].metadata_list]
 
-      _LOGGER.info(
-          'Some files may be left orphaned in the temporary folder: %s',
-          orphaned_files)
+      if len(orphaned_files) > 0:
+        _LOGGER.info(
+            'Some files may be left orphaned in the temporary folder: %s',
+            orphaned_files)
     except BeamIOError as e:
       _LOGGER.info('Exceptions when checking orphaned files: %s', e)
 

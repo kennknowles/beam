@@ -72,7 +72,7 @@ dependencies {
     implementation project(it)
   }
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow library.java.vendored_grpc_1_43_2
+  shadow library.java.vendored_grpc_1_48_1
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
@@ -93,7 +93,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
-  permitUnusedDeclared library.java.vendored_grpc_1_43_2
+  permitUnusedDeclared library.java.vendored_grpc_1_48_1
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
   examplesJavaIntegrationTest project(project.path)
@@ -118,8 +118,6 @@ static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
 def sickbayTests = [
         // https://github.com/apache/beam/issues/18499
         'org.apache.beam.sdk.testing.UsesLoopingTimer',
-        // https://github.com/apache/beam/issues/19734
-        'org.apache.beam.sdk.transforms.WatchTest.testMultiplePollsWithManyResults',
         // https://github.com/apache/beam/issues/19344
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]

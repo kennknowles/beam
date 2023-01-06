@@ -113,6 +113,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageId
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -124,6 +125,7 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -160,8 +162,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -535,6 +537,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
 
       overridesBuilder.add(KafkaIO.Read.KAFKA_READ_OVERRIDE);
+      overridesBuilder.add(SubscribeTransform.V1_READ_OVERRIDE);
 
       if (!hasExperiment(options, "enable_file_dynamic_sharding")) {
         overridesBuilder.add(
@@ -872,12 +875,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   protected RunnerApi.Pipeline applySdkEnvironmentOverrides(
-      RunnerApi.Pipeline pipeline, DataflowPipelineDebugOptions options) {
+      RunnerApi.Pipeline pipeline, DataflowPipelineOptions options) {
     String sdkHarnessContainerImageOverrides = options.getSdkHarnessContainerImageOverrides();
-    if (Strings.isNullOrEmpty(sdkHarnessContainerImageOverrides)) {
-      return pipeline;
-    }
-    String[] overrides = sdkHarnessContainerImageOverrides.split(",", -1);
+    String[] overrides =
+        Strings.isNullOrEmpty(sdkHarnessContainerImageOverrides)
+            ? new String[0]
+            : sdkHarnessContainerImageOverrides.split(",", -1);
     if (overrides.length % 2 != 0) {
       throw new RuntimeException(
           "invalid syntax for SdkHarnessContainerImageOverrides: "
@@ -898,8 +901,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           throw new RuntimeException("Error parsing environment docker payload.", e);
         }
         String containerImage = dockerPayload.getContainerImage();
+        boolean updated = false;
         for (int i = 0; i < overrides.length; i += 2) {
           containerImage = containerImage.replaceAll(overrides[i], overrides[i + 1]);
+          if (!containerImage.equals(dockerPayload.getContainerImage())) {
+            updated = true;
+          }
+        }
+        if (containerImage.startsWith("apache/beam")
+            && !updated
+            // don't update if the container image is already configured by DataflowRunner
+            && !containerImage.equals(getContainerImageForJob(options))) {
+          containerImage =
+              DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository()
+                  + containerImage.substring(containerImage.lastIndexOf("/"));
         }
         environmentBuilder.setPayload(
             RunnerApi.DockerPayload.newBuilder()
@@ -1081,6 +1096,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
     }
     if (useUnifiedWorker(options)) {
+      if (hasExperiment(options, "disable_runner_v2")
+          || hasExperiment(options, "disable_runner_v2_until_2023")
+          || hasExperiment(options, "disable_prime_runner_v2")) {
+        throw new IllegalArgumentException(
+            "Runner V2 both disabled and enabled: at least one of ['beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
+      }
       List<String> experiments =
           new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
       if (!experiments.contains("use_runner_v2")) {
@@ -1101,10 +1122,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
     if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
+
+      if (useUnifiedWorker(options)) {
+        options.setEnableStreamingEngine(true);
+        List<String> experiments =
+            new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
+        if (!experiments.contains("enable_streaming_engine")) {
+          experiments.add("enable_streaming_engine");
+        }
+        if (!experiments.contains("enable_windmill_service")) {
+          experiments.add("enable_windmill_service");
+        }
+      }
     }
 
-    if (!options.isStreaming()
-        && !ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
+    if (!ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
       ProjectionPushdownOptimizer.optimize(pipeline);
     }
 
@@ -2285,7 +2317,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
 
-    // We pick 10 as a a default, as it works well with the default number of workers started
+    // We pick 10 as a default, as it works well with the default number of workers started
     // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
     DataflowPipelineWorkerPoolOptions options;
@@ -2398,7 +2430,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
-        || hasExperiment(options, "use_unified_worker");
+        || hasExperiment(options, "use_unified_worker")
+        || hasExperiment(options, "use_portable_job_submission");
   }
 
   static boolean useStreamingEngine(DataflowPipelineOptions options) {
@@ -2408,6 +2441,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   static void verifyDoFnSupported(
       DoFn<?, ?> fn, boolean streaming, DataflowPipelineOptions options) {
+    if (DoFnSignatures.usesMultimapState(fn)) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s does not currently support %s",
+              DataflowRunner.class.getSimpleName(), MultimapState.class.getSimpleName()));
+    }
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
       throw new UnsupportedOperationException(
           String.format(

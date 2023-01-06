@@ -92,7 +92,6 @@ import org.slf4j.LoggerFactory;
  * example usage.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
   // errorprone is released (2.11.0)
   "unused"
@@ -102,7 +101,7 @@ class KafkaExactlyOnceSink<K, V>
 
   // Dataflow ensures at-least once processing for side effects like sinks. In order to provide
   // exactly-once semantics, a sink needs to be idempotent or it should avoid writing records
-  // that have already been written. This snk does the latter. All the the records are ordered
+  // that have already been written. This snk does the latter. All the records are ordered
   // across a fixed number of shards and records in each shard are written in order. It drops
   // any records that are already written and buffers those arriving out of order.
   //
@@ -655,7 +654,7 @@ class KafkaExactlyOnceSink<K, V>
                 .<Integer, ShardWriter<K, V>>removalListener(
                     notification -> {
                       if (notification.getCause() != RemovalCause.EXPLICIT) {
-                        ShardWriter writer = notification.getValue();
+                        ShardWriter<K, V> writer = notification.getValue();
                         LOG.info(
                             "{} : Closing idle shard writer {} after 1 minute of idle time.",
                             writer.shard,

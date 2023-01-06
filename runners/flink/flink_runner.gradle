@@ -136,7 +136,7 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  implementation library.java.vendored_grpc_1_43_2
+  implementation library.java.vendored_grpc_1_48_1
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
@@ -272,6 +272,7 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'

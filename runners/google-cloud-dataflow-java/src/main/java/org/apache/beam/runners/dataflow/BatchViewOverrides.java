@@ -119,8 +119,8 @@ class BatchViewOverrides {
    * </ul>
    *
    * <p>The {@code [META, Window, 0]} record stores the number of unique keys per window, while
-   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores a the users key.
-   * This allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
+   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores the users key. This
+   * allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
    * iterate over all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1,
    * size of map]}.
    *
@@ -180,6 +180,7 @@ class BatchViewOverrides {
               "Multiple values [%s, %s] found for single key [%s] within window [%s].",
               map.get(kv.getValue().getValue().getKey()),
               kv.getValue().getValue().getValue(),
+              kv.getValue().getValue().getKey(),
               kv.getKey());
           map.put(
               kv.getValue().getValue().getKey(),
@@ -284,8 +285,8 @@ class BatchViewOverrides {
    * </ul>
    *
    * <p>The {@code [META, Window, 0]} record stores the number of unique keys per window, while
-   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores a the users key.
-   * This allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
+   * {@code [META, Window, i]} for {@code i} in {@code [1, size of map]} stores the users key. This
+   * allows for one to access the size of the map by looking at {@code [META, Window, 0]} and
    * iterate over all the keys by accessing {@code [META, Window, i]} for {@code i} in {@code [1,
    * size of map]}.
    *

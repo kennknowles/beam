@@ -55,6 +55,7 @@ current_minor_version=`echo ${python_version} | sed -E "s/Python 3.([0-9])\..*/\
 excluded_patterns=(
     'apache_beam/coders/coder_impl.*'
     'apache_beam/coders/stream.*'
+    'apache_beam/coders/coder_impl_row_encoders.*'
     'apache_beam/examples/'
     'apache_beam/io/gcp/tests/'
     'apache_beam/metrics/execution.*'
@@ -64,8 +65,10 @@ excluded_patterns=(
     'apache_beam/runners/test/'
     'apache_beam/runners/worker/'
     'apache_beam/testing/benchmarks/chicago_taxi/'
+    'apache_beam/testing/benchmarks/inference/'
     'apache_beam/testing/benchmarks/data/'
     'apache_beam/testing/benchmarks/load_tests/'
+    'apache_beam/testing/analyzers'
     'apache_beam/testing/.*test.py'
     'apache_beam/tools/'
     'apache_beam/tools/map_fn_microbenchmark.*'
@@ -126,6 +129,7 @@ release = version
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
+autodoc_mock_imports = ["tensorrt", "cuda"]
 
 # Allow a special section for documenting DataFrame API
 napoleon_custom_sections = ['Differences from pandas']
@@ -252,8 +256,8 @@ EOF
 # documentation verbatim.
 python $(type -p sphinx-build) -v -a -E -q target/docs/source \
   target/docs/_build -c target/docs/source \
-  |& grep -E -v 'apache_beam\.dataframe.*WARNING:' \
-  |& tee "target/docs/sphinx-build.log"
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | tee "target/docs/sphinx-build.log"
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-build.log || exit 1
@@ -264,8 +268,8 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 # - Interactive code starting with '>>>'
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
-  |& grep -E -v 'apache_beam\.dataframe.*WARNING:' \
-  |& tee "target/docs/sphinx-doctest.log"
+  2>&1 | grep -E -v 'apache_beam\.dataframe.*WARNING:' \
+  2>&1 | tee "target/docs/sphinx-doctest.log"
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-doctest.log || exit 1

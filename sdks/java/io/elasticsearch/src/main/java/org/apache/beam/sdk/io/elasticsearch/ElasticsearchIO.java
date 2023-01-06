@@ -873,9 +873,8 @@ public class ElasticsearchIO {
         return estimatedByteSize;
       }
       final ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
-      JsonNode statsJson = getStats(connectionConfiguration, false);
-      JsonNode indexStats =
-          statsJson.path("indices").path(connectionConfiguration.getIndex()).path("primaries");
+      JsonNode statsJson = getStats(connectionConfiguration);
+      JsonNode indexStats = statsJson.path("_all").path("primaries");
       long indexSize = indexStats.path("store").path("size_in_bytes").asLong();
       LOG.debug("estimate source byte size: total index size {}", indexSize);
 
@@ -927,9 +926,8 @@ public class ElasticsearchIO {
       // NB: Elasticsearch 5.x+ now provides the slice API.
       // (https://www.elastic.co/guide/en/elasticsearch/reference/5.0/search-request-scroll.html
       // #sliced-scroll)
-      JsonNode statsJson = getStats(connectionConfiguration, false);
-      JsonNode indexStats =
-          statsJson.path("indices").path(connectionConfiguration.getIndex()).path("primaries");
+      JsonNode statsJson = getStats(connectionConfiguration);
+      JsonNode indexStats = statsJson.path("_all").path("primaries");
       JsonNode store = indexStats.path("store");
       return store.path("size_in_bytes").asLong();
     }
@@ -956,12 +954,9 @@ public class ElasticsearchIO {
       return StringUtf8Coder.of();
     }
 
-    private static JsonNode getStats(
-        ConnectionConfiguration connectionConfiguration, boolean shardLevel) throws IOException {
+    private static JsonNode getStats(ConnectionConfiguration connectionConfiguration)
+        throws IOException {
       HashMap<String, String> params = new HashMap<>();
-      if (shardLevel) {
-        params.put("level", "shards");
-      }
       String endpoint = String.format("/%s/_stats", connectionConfiguration.getIndex());
       try (RestClient restClient = connectionConfiguration.createClient()) {
         Request request = new Request("GET", endpoint);
@@ -1720,8 +1715,8 @@ public class ElasticsearchIO {
 
     /**
      * Sets the input document i.e. desired document that will end up in Elasticsearch for this
-     * WriteSummary object. The inputDoc will be the a document that was part of the input
-     * PCollection to either {@link Write} or {@link DocToBulk}
+     * WriteSummary object. The inputDoc will be a document that was part of the input PCollection
+     * to either {@link Write} or {@link DocToBulk}
      *
      * @param inputDoc Serialized json input document destined to end up in Elasticsearch.
      * @return WriteSummary with inputDocument set.
@@ -2305,17 +2300,12 @@ public class ElasticsearchIO {
     }
 
     private static class ResultFilteringFn extends DoFn<Document, Document> {
-      @Override
-      public Duration getAllowedTimestampSkew() {
-        return Duration.millis(Long.MAX_VALUE);
-      }
-
       @ProcessElement
       public void processElement(@Element Document doc, MultiOutputReceiver out) {
         if (doc.getHasError()) {
-          out.get(Write.FAILED_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
+          out.get(Write.FAILED_WRITES).output(doc);
         } else {
-          out.get(Write.SUCCESSFUL_WRITES).outputWithTimestamp(doc, doc.getTimestamp());
+          out.get(Write.SUCCESSFUL_WRITES).output(doc);
         }
       }
     }
@@ -2364,6 +2354,11 @@ public class ElasticsearchIO {
 
       protected BulkIOBaseFn(BulkIO bulkSpec) {
         this.spec = bulkSpec;
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return Duration.millis(Long.MAX_VALUE);
       }
 
       @Setup
@@ -2465,7 +2460,7 @@ public class ElasticsearchIO {
           return new ArrayList<>();
         }
 
-        LOG.info(
+        LOG.debug(
             "ElasticsearchIO batch size: {}, batch size bytes: {}",
             batch.size(),
             currentBatchSizeBytes);

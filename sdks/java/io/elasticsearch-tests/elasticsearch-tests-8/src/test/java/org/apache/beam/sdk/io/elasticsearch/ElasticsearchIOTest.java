@@ -88,6 +88,14 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
+  public void testSizesWithAlias() throws Exception {
+    // need to create the index using the helper method (not create it at first insertion)
+    // for the indexSettings() to be run
+    createIndex(elasticsearchIOTestCommon.restClient, getEsIndex(), true);
+    elasticsearchIOTestCommon.testSizes();
+  }
+
+  @Test
   public void testRead() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
@@ -277,5 +285,11 @@ public class ElasticsearchIOTest implements Serializable {
     Path filePath = Paths.get(fileUrl.toURI());
     elasticsearchIOTestCommon.testValidSSLAndUsernameConfiguration(
         filePath.toAbsolutePath().toString());
+  }
+
+  @Test
+  public void testWriteWindowPreservation() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWindowPreservation();
   }
 }

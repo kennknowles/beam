@@ -29,6 +29,7 @@ For an example implementation of :class:`FileBasedSource` see
 # pytype: skip-file
 
 from typing import Callable
+from typing import Iterable
 from typing import Tuple
 from typing import Union
 
@@ -195,11 +196,8 @@ class FileBasedSource(iobase.BoundedSource):
         start_position=start_position,
         stop_position=stop_position)
 
-  @check_accessible(['_pattern'])
   def estimate_size(self):
-    pattern = self._pattern.get()
-    match_result = FileSystems.match([pattern])[0]
-    return sum([f.size_in_bytes for f in match_result.metadata_list])
+    return self._get_concat_source().estimate_size()
 
   def read(self, range_tracker):
     return self._get_concat_source().read(range_tracker)
@@ -347,7 +345,7 @@ class _ExpandIntoRanges(DoFn):
     self._compression_type = compression_type
 
   def process(self, element: Union[str, FileMetadata], *args,
-              **kwargs) -> Tuple[FileMetadata, OffsetRange]:
+              **kwargs) -> Iterable[Tuple[FileMetadata, OffsetRange]]:
     if isinstance(element, FileMetadata):
       metadata_list = [element]
     else:

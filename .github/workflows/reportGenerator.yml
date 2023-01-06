@@ -24,15 +24,19 @@ on:
 jobs:
   assign:
     name: Generate issue report
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
     - uses: actions/checkout@v3
+    - name: Setup Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
     - run: |
-        npm install
+        npm ci
         node generateReport.js
       working-directory: 'scripts/ci/issue-report'
       env:
         ISSUE_REPORT_SENDER_EMAIL_SERVICE: "gmail"
         ISSUE_REPORT_SENDER_EMAIL_ADDRESS: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
         ISSUE_REPORT_SENDER_EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
-        ISSUE_REPORT_RECIPIENT_EMAIL_ADDRESS: "dev@beam.apache.com"
+        ISSUE_REPORT_RECIPIENT_EMAIL_ADDRESS: "dev@beam.apache.org"

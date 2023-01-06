@@ -15,9 +15,10 @@
 
 // native_wordcap is a toy streaming pipeline that uses PubSub. It
 // does the following:
-//    (1) create a topic and publish a few messages to it
-//    (2) start a streaming pipeline that converts the messages to
-//        upper case and logs the result.
+//
+//	(1) create a topic and publish a few messages to it
+//	(2) start a streaming pipeline that converts the messages to
+//	    upper case and logs the result.
 //
 // This is a portable PubSub option and does not need to be run on Dataflow.
 package main
@@ -30,7 +31,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/examples/native_wordcap/nativepubsubio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/stringx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/pubsubx"
@@ -69,7 +69,9 @@ func main() {
 	s := p.Root()
 
 	col := nativepubsubio.Read(ctx, s, project, *input, sub.ID())
-	str := beam.ParDo(s, stringx.FromBytes, col)
+	str := beam.ParDo(s, func(b []byte) string {
+		return (string)(b)
+	}, col)
 	cap := beam.ParDo(s, strings.ToUpper, str)
 	debug.Print(s, cap)
 

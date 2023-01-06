@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-const kExampleParam = 'example';
-const kIsEditable = 'enabled';
-const kSourceCode = 'code';
+import 'package:playground_components/playground_components.dart';
+
+const kDescriptorParam = 'descriptor';
 const kContextLine = 'line';
-const kIsEmbedded = 'embedded';
 
 const kQuickStartCategoryName = 'quick start';
+
+const defaultSdk = Sdk.java;

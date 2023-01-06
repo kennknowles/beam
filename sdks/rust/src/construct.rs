@@ -25,6 +25,8 @@ impl PipelineHolder {
         }
     }
 
+    // Actually "applies" a transform, i.e. adds it (and any transforms it
+    // calls in its expansion method) to the underlying graph.
     fn apply<'a, PIn, O: Any + 'static>(
         &self,
         name: &String,
@@ -54,6 +56,7 @@ impl PipelineHolder {
             environment_id: "rust_environment".to_string(),
             subtransforms: [].to_vec(),
         };
+        // Push some stuff onto the stack for use by sub-transforms.
         self.name_prefix
             .borrow_mut()
             .push(format!("{}/", unique_name));
@@ -68,17 +71,21 @@ impl PipelineHolder {
         // of a plain reference to keep it alive?
         let self_with_static_lifetime =
             unsafe { std::mem::transmute::<&PipelineHolder, &'static PipelineHolder>(&self) };
+        // Actually call expand.
         let out_pcoll =
             transform.expand_internal(input, self_with_static_lifetime, &mut transform_proto);
+        // Record subtransforms and pop the stacks.
         for sibling in self.sibling_transforms.borrow().last().unwrap().iter() {
             transform_proto.subtransforms.push(sibling.to_string());
         }
         self.sibling_transforms.borrow_mut().pop();
         self.name_prefix.borrow_mut().pop();
+        // Populate any outputs.
         // TODO: Allow multiple outputs.
         transform_proto
             .outputs
             .insert("out".to_string(), out_pcoll.id.to_string());
+        // Actually stick the fully-constructed proto into the graph.
         self.pipeline
             .borrow_mut()
             .components
@@ -129,7 +136,14 @@ impl PipelineHolder {
 }
 
 pub trait PTransform<'a, PIn, POut> {
+    // This is what a typical transform author would implement,
+    // using the public API to apply transformations to `input`
+    // and returning the resulting PCollection(s).
     fn expand(&self, input: &PIn) -> POut;
+
+    // This is for implementing primitives or other transforms that need
+    // to augment the proto spec directly and/or create new PCollections
+    // ex nihilo as outputs.
     fn expand_internal(
         &self,
         input: &PIn,
@@ -141,6 +155,9 @@ pub trait PTransform<'a, PIn, POut> {
 }
 
 #[derive(Copy, Clone)]
+// The root pipeline object, from which everything derives.
+// Transformations such as Impulse, Create, and Reads can be applied
+// to this.
 pub struct Root<'a> {
     pipeline: &'a PipelineHolder,
 }
@@ -157,6 +174,7 @@ impl<'a> Root<'a> {
 }
 
 #[derive(Clone)]
+// A Beam PCollection...
 pub struct PCollection<'a, T: Any + 'static> {
     pipeline: &'a PipelineHolder,
     id: String,

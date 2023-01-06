@@ -35,3 +35,8 @@ impl<'x> PTransform<'x, Root<'x>, PCollection<'x, String>> for Impulse {
         pipeline.create_pcollection_internal()
     }
 }
+
+// For demo purposes, we could consider adding a "primitive" ReadFromText/WriteToText
+// and its corresponding Operator. The Read's start() would open the file and
+// pass all lines to its consumers, and Write would open/write/close in its
+// start(), process(), finish() methods.

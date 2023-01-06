@@ -115,9 +115,9 @@ mod worker_tests {
     }
 
     #[test]
-    fn direct_runner() -> Result<(), String> {
+    fn direct_runner_with_proto() -> Result<(), String> {
         let dr = DirectRunner {};
-        dr.run(Pipeline {
+        dr.run_proto(Pipeline {
             components: Some(Components {
                 transforms: HashMap::new(),
                 pcollections: HashMap::new(),

@@ -8,6 +8,9 @@ mod construct_tests {
     use apache_beam::construct::Root;
     use apache_beam::transforms::Impulse;
 
+    use apache_beam::runners::direct_runner::Runner;
+    use apache_beam::runners::direct_runner::DirectRunner;
+
     #[test]
     fn apply_impulse() {
         let proto = build_pipeline(&|root: Root| {
@@ -61,5 +64,14 @@ mod construct_tests {
 
         assert_eq!(transform3.inputs.get("pcoll1").unwrap(), "pcoll1");
         assert_eq!(transform3.unique_name, "Empty");
+    }
+
+    #[test]
+    fn direct_runner() -> Result<(), String> {
+        let dr = DirectRunner {};
+        dr.run(&|root: Root| {
+            root.apply(&"impulse".to_string(), &Impulse {});
+        })?;
+        Ok(())
     }
 }

@@ -6,6 +6,9 @@ use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::
 use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::PTransform;
 use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::Pipeline;
 
+use crate::construct::Root;
+use crate::construct::build_pipeline;
+
 use crate::worker::operators::create_bundle_processor;
 use crate::worker::operators::serialize_fn;
 use crate::worker::operators::to_generic_dofn;
@@ -45,7 +48,11 @@ fn make_transform(
 }
 
 pub trait Runner {
-    fn run(&self, _pipeline: Pipeline) -> Result<(), String>;
+    fn run(&self, pipeline: &dyn Fn(Root) -> ()) -> Result<(), String> {
+        self.run_proto(build_pipeline(pipeline))
+    }
+
+    fn run_proto(&self, _pipeline: Pipeline) -> Result<(), String>;
 }
 
 pub struct DirectRunner {
@@ -133,7 +140,7 @@ impl DirectRunner {
 }
 
 impl Runner for DirectRunner {
-    fn run(&self, pipeline: Pipeline) -> Result<(), String> {
+    fn run_proto(&self, pipeline: Pipeline) -> Result<(), String> {
         let descriptor = DirectRunner::convert(pipeline);
 
         let processor = create_bundle_processor(&descriptor);

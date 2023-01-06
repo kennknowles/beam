@@ -10,6 +10,9 @@ mod worker_tests {
 
     use apache_beam::worker::operators::beam_api::org::apache::beam::model::fn_execution::v1::ProcessBundleDescriptor;
     use apache_beam::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::FunctionSpec;
+    use apache_beam::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::Components;
+    use apache_beam::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::DisplayData;
+    use apache_beam::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::Pipeline;
     use apache_beam::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::PTransform;
 
     use apache_beam::worker::operators::serialize_fn;
@@ -18,6 +21,10 @@ mod worker_tests {
     use apache_beam::worker::operators::GBK_URN;
     use apache_beam::worker::operators::IMPULSE_URN;
     use apache_beam::worker::operators::PAR_DO_URN;
+
+    use apache_beam::runners::direct_runner::DirectRunner;
+    use apache_beam::runners::direct_runner::Runner;
+
 
     fn make_transform(
         input: Option<String>,
@@ -104,6 +111,27 @@ mod worker_tests {
         let processor = apache_beam::worker::operators::create_bundle_processor(&descriptor);
         processor.start()?;
         processor.finish()?;
+        Ok(())
+    }
+
+    #[test]
+    fn direct_runner() -> Result<(), String> {
+        let dr = DirectRunner {};
+        dr.run(Pipeline {
+            components: Some(Components {
+                transforms: HashMap::new(),
+                pcollections: HashMap::new(),
+                windowing_strategies: HashMap::new(),
+                coders: HashMap::new(),
+                environments: HashMap::new(),
+            }),
+            display_data: vec![DisplayData {
+                urn: "".to_string(),
+                payload: b"".to_vec(),
+            }],
+            requirements: vec!["".to_string()],
+            root_transform_ids: vec!["id".to_string()],
+        })?;
         Ok(())
     }
 

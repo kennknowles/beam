@@ -198,7 +198,7 @@ impl<'a, T: 'static> PCollection<'a, T> {
         &self,
         name: &String,
         func: fn(&T) -> I
-    ) -> PCollection<T> {
+    ) -> PCollection<O> {
         let payload: String = serialize_fn(to_generic_dofn(func));
         self.apply(name, &FlatMapTransform{payload: payload})
     }

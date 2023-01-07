@@ -66,17 +66,22 @@ mod construct_tests {
         assert_eq!(transform3.unique_name, "Empty");
     }
     
-    fn do_fn(s: &String) -> Vec<String> {
-        vec![s.clone(), "hello".to_string(), s.clone()]
+    fn do_fn_str(s: &String) -> Vec<i32> {
+        vec![s.len() as i32, 23, 24]
     }
 
+    fn do_fn_int(n: &i32) -> Vec<String> {
+        vec!["1".to_string(), n.to_string()]
+    }
+    
     // cargo test construct_tests::flat_map -- --nocapture
     #[test]
     fn flat_map() {
         println!("\nhello!\n");
         let proto = build_pipeline(&|root: Root| {
             root.apply(&"impulse".to_string(), &Impulse {})
-                .flat_map(&"Empty".to_string(), do_fn);
+                .flat_map(&"map 1".to_string(), do_fn_str)
+                .flat_map(&"map 2".to_string(), do_fn_int);
         });
 
         println!("{:#?}", proto);

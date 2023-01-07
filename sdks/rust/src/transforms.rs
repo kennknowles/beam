@@ -46,8 +46,8 @@ pub struct FlatMapTransform {
     pub payload: String
 }
 
-impl<'x, T: 'static> PTransform<'x, PCollection<'x, T>, PCollection<'x, T>> for FlatMapTransform {
-    fn expand(&self, _input: &PCollection<'x, T>) -> PCollection<'x, T> {
+impl<'x, T: 'static, O: 'static> PTransform<'x, PCollection<'x, T>, PCollection<'x, O>> for FlatMapTransform {
+    fn expand(&self, _input: &PCollection<'x, T>) -> PCollection<'x, O> {
         panic!("TODO: Provide default impl when exandInternal implemented.");
     }
     fn expand_internal(
@@ -55,7 +55,7 @@ impl<'x, T: 'static> PTransform<'x, PCollection<'x, T>, PCollection<'x, T>> for 
         _input: &PCollection<'x, T>,
         pipeline: &'x PipelineHolder,
         transform_proto: &mut proto::PTransform,
-    ) -> PCollection<'x, T> {
+    ) -> PCollection<'x, O> {
         // Update the spec to say how it's created.
         transform_proto.spec = Some(proto::FunctionSpec {
             urn: PAR_DO_URN.to_string(),

@@ -10,12 +10,6 @@ use crate::construct::Root;
 use crate::construct::build_pipeline;
 
 use crate::worker::operators::create_bundle_processor;
-use crate::worker::operators::serialize_fn;
-use crate::worker::operators::to_generic_dofn;
-use crate::worker::operators::FLATTEN_URN;
-use crate::worker::operators::IMPULSE_URN;
-use crate::worker::operators::PAR_DO_URN;
-
 
 
 pub mod beam_api {
@@ -59,80 +53,25 @@ pub struct DirectRunner {
 }
 
 impl DirectRunner {
-    fn convert(_pipeline: Pipeline) -> ProcessBundleDescriptor {
-        // return ProcessBundleDescriptor {
-        //     // assign id
-        //     id: "id".to_string,
-
-        //     // Read pipeline PTransforms into pbd
-        //     transforms: pipeline.components.transforms,
-
-        //     // Read pipeline PCollections into pbd
-        //     pcollections: pipeline.components.pcollections,
-
-        //     // Read Coders
-        //     coders: pipeline.components.coders,
-
-        //     // Read Envs
-        //     environments: pipeline.components.envs
-
-        //     windowing_strategies: HashMap::new(),
-        //     environments: HashMap::new(),
-
-        //     state_api_service_descriptor: None,
-        //     timer_api_service_descriptor: None,
-        // };
+    fn convert(pipeline: Pipeline) -> ProcessBundleDescriptor {
         return ProcessBundleDescriptor {
+            // assign id
             id: "id".to_string(),
-            transforms: HashMap::from([
-                (
-                    "create1".to_string(),
-                    make_transform(
-                        None,
-                        Some("pc1".to_string()),
-                        FunctionSpec {
-                            urn: IMPULSE_URN.to_string(),
-                            payload: [].to_vec(),
-                        },
-                    ),
-                ),
-                (
-                    "1to2".to_string(),
-                    make_transform(
-                        Some("pc1".to_string()),
-                        Some("pc2".to_string()),
-                        FunctionSpec {
-                            urn: PAR_DO_URN.to_string(),
-                            //                            payload: serialize_fn(Box::new(|x: &dyn Any| {
-                            //                                Box::new(
-                            //                                    vec![Box::new(format!("got {:?}", x)) as Box<dyn Any>]
-                            //                                        .into_iter(),
-                            //                                )
-                            //                            }))
-                            //                            .into_bytes(),
-                            payload: serialize_fn(to_generic_dofn(|x: &String| {
-                                [format!("here {:?}", x)]
-                            }))
-                            .into_bytes(),
-                        },
-                    ),
-                ),
-                (
-                    "consume2".to_string(),
-                    make_transform(
-                        Some("pc2".to_string()),
-                        None,
-                        FunctionSpec {
-                            urn: FLATTEN_URN.to_string(),
-                            payload: [].to_vec(),
-                        },
-                    ),
-                ),
-            ]),
-            pcollections: HashMap::new(),
-            coders: HashMap::new(),
-            windowing_strategies: HashMap::new(),
-            environments: HashMap::new(),
+
+            // Read pipeline PTransforms into pbd
+            transforms: pipeline.components.transforms.clone(),
+
+            // Read pipeline PCollections into pbd
+            pcollections: pipeline.components.pcollections.clone(),
+
+            // Read Coders
+            coders: pipeline.components.coders.clone(),
+
+            // Read Envs
+            environments: pipeline.components.environments.clone(),
+
+            windowing_strategies: pipeline.components.windowing_strategies.clone(),
+
             state_api_service_descriptor: None,
             timer_api_service_descriptor: None,
         };

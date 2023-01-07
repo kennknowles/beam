@@ -1,7 +1,7 @@
+use crate::construct::{PCollection, PTransform, PipelineHolder, Root};
 use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1 as proto;
-use crate::construct::{Root, PCollection, PTransform, PipelineHolder};
-use crate::worker::operators::IMPULSE_URN;
 use crate::worker::operators::PAR_DO_URN;
+use crate::worker::operators::{GBK_URN, IMPULSE_URN};
 
 // Create would be a PTransform<Root, PCollection<T>> that simply implements
 // expand to call Impulse + FlatMap.
@@ -37,16 +37,42 @@ impl<'x> PTransform<'x, Root<'x>, PCollection<'x, String>> for Impulse {
     }
 }
 
+pub struct Gbk {
+    /// One of [StringString, StringInt32, StringInt64] for now.
+    tuple_type: String,
+}
+
+impl<'x, K, V> PTransform<'x, PCollection<'x, (K, V)>, PCollection<'x, (K, Vec<V>)>> for Gbk {
+    fn expand(&self, _input: &PCollection<'x, (K, V)>) -> PCollection<'x, (K, Vec<V>)> {
+        panic!("TODO: Provide default impl when expandInternal implemented.");
+    }
+
+    fn expand_internal(
+        &self,
+        _input: &PCollection<'x, (K, V)>,
+        _pipeline: &'x PipelineHolder,
+        _transform_proto: &mut proto::PTransform,
+    ) -> PCollection<'x, (K, Vec<V>)> {
+        _transform_proto.spec = Some(proto::FunctionSpec {
+            urn: GBK_URN.to_string(),
+            payload: self.tuple_type.to_string().into_bytes(),
+        });
+        _pipeline.create_pcollection_internal()
+    }
+}
+
 // For demo purposes, we could consider adding a "primitive" ReadFromText/WriteToText
 // and its corresponding Operator. The Read's start() would open the file and
 // pass all lines to its consumers, and Write would open/write/close in its
 // start(), process(), finish() methods.
 
 pub struct FlatMapTransform {
-    pub payload: String
+    pub payload: String,
 }
 
-impl<'x, T: 'static, O: 'static> PTransform<'x, PCollection<'x, T>, PCollection<'x, O>> for FlatMapTransform {
+impl<'x, T: 'static, O: 'static> PTransform<'x, PCollection<'x, T>, PCollection<'x, O>>
+    for FlatMapTransform
+{
     fn expand(&self, _input: &PCollection<'x, T>) -> PCollection<'x, O> {
         panic!("TODO: Provide default impl when exandInternal implemented.");
     }

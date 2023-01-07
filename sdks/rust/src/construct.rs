@@ -6,6 +6,10 @@ use std::collections::HashMap;
 
 use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1 as proto;
 
+use crate::transforms::FlatMapTransform;
+use crate::worker::operators::serialize_fn;
+use crate::worker::operators::to_generic_dofn;
+
 pub struct PipelineHolder {
     pipeline: RefCell<proto::Pipeline>,
     name_prefix: RefCell<Box<Vec<String>>>,
@@ -190,6 +194,15 @@ impl<'a, T: 'static> PCollection<'a, T> {
         self.pipeline.apply(name, transform, &self, &[&self.id])
     }
 
+    pub fn flat_map<O: Any, I: IntoIterator<Item = O> + 'static>(
+        &self,
+        name: &String,
+        func: fn(&T) -> I
+    ) -> PCollection<T> {
+        let payload: String = serialize_fn(to_generic_dofn(func));
+        self.apply(name, &FlatMapTransform{payload: payload})
+    }
+    
     // flat_map(name, func: Box<Fn>) would be a generic fn that calls
     // .apply() on a PPTransform that wraps the func with serialize_fn
     // and to_generic_dofn (currently found in operators.rs) and populates

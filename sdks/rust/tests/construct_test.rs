@@ -65,6 +65,24 @@ mod construct_tests {
         assert_eq!(transform3.inputs.get("pcoll1").unwrap(), "pcoll1");
         assert_eq!(transform3.unique_name, "Empty");
     }
+    
+    fn do_fn(s: &String) -> Vec<String> {
+        vec![s.clone(), "hello".to_string(), s.clone()]
+    }
+
+    // cargo test construct_tests::flat_map -- --nocapture
+    #[test]
+    fn flat_map() {
+        println!("\nhello!\n");
+        let proto = build_pipeline(&|root: Root| {
+            root.apply(&"impulse".to_string(), &Impulse {})
+                .flat_map(&"Empty".to_string(), do_fn);
+        });
+
+        println!("{:#?}", proto);
+        
+        println!("\nhello!\n");
+    }
 
     #[test]
     fn direct_runner() -> Result<(), String> {

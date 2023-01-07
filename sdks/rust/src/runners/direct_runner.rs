@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-use std::option::Option;
-
 use crate::worker::operators::beam_api::org::apache::beam::model::fn_execution::v1::ProcessBundleDescriptor;
-use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::FunctionSpec;
-use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::PTransform;
 use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1::Pipeline;
+use crate::worker::operators::beam_api::org::apache::beam::model::pipeline::v1 as proto;
 
 use crate::construct::Root;
 use crate::construct::build_pipeline;
@@ -14,31 +10,6 @@ use crate::worker::operators::create_bundle_processor;
 
 pub mod beam_api {
     tonic::include_proto!("beam_api");
-}
-
-fn make_transform(
-    input: Option<String>,
-    output: Option<String>,
-    spec: FunctionSpec,
-) -> PTransform {
-    let inputs = match input {
-        Some(x) => HashMap::from([("input_name".to_string(), x)]),
-        None => HashMap::new(),
-    };
-    let outputs = match output {
-        Some(x) => HashMap::from([("output_name".to_string(), x)]),
-        None => HashMap::new(),
-    };
-    PTransform {
-        inputs: inputs,
-        outputs: outputs,
-        annotations: HashMap::new(),
-        display_data: [].to_vec(),
-        environment_id: "environment_id".to_string(),
-        spec: Some(spec),
-        subtransforms: [].to_vec(),
-        unique_name: "unique_name".to_string(),
-    }
 }
 
 pub trait Runner {
@@ -59,18 +30,18 @@ impl DirectRunner {
             id: "id".to_string(),
 
             // Read pipeline PTransforms into pbd
-            transforms: pipeline.components.transforms.clone(),
+            transforms: pipeline.components.as_ref().unwrap().transforms.clone(),
 
             // Read pipeline PCollections into pbd
-            pcollections: pipeline.components.pcollections.clone(),
+            pcollections: pipeline.components.as_ref().unwrap().pcollections.clone(),
 
             // Read Coders
-            coders: pipeline.components.coders.clone(),
+            coders: pipeline.components.as_ref().unwrap().coders.clone(),
 
             // Read Envs
-            environments: pipeline.components.environments.clone(),
+            environments: pipeline.components.as_ref().unwrap().environments.clone(),
 
-            windowing_strategies: pipeline.components.windowing_strategies.clone(),
+            windowing_strategies: pipeline.components.as_ref().unwrap().windowing_strategies.clone(),
 
             state_api_service_descriptor: None,
             timer_api_service_descriptor: None,

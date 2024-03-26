@@ -37,7 +37,6 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.expressions.Expression;
 
-@SuppressWarnings("all") // TODO: Remove this once development is stable.
 public class Iceberg {
 
   public static String DEFAULT_CATALOG_NAME = "default";
@@ -346,9 +345,9 @@ public class Iceberg {
   @AutoValue
   public abstract static class Table implements Serializable {
 
-    public abstract @Nullable Catalog catalog();
+    public abstract Catalog catalog();
 
-    public abstract @Nullable List<String> tablePath();
+    public abstract List<String> tablePath();
 
     public TableIdentifier identifier() {
       return TableIdentifier.of(tablePath().toArray(new String[0]));
@@ -370,7 +369,7 @@ public class Iceberg {
   }
 
   public static class Write<ElementT>
-      extends PTransform<PCollection<ElementT>, IcebergWriteResult> {
+      extends PTransform<PCollection<ElementT>, IcebergWriteResult<ElementT>> {
 
     private final DynamicDestinations<ElementT, String> dynamicDestinations;
     private final Catalog catalog;
@@ -387,7 +386,7 @@ public class Iceberg {
     }
 
     @Override
-    public IcebergWriteResult expand(PCollection<ElementT> input) {
+    public IcebergWriteResult<ElementT> expand(PCollection<ElementT> input) {
       try {
         return input
             .apply(

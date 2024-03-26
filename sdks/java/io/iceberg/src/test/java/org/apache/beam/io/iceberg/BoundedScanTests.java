@@ -20,7 +20,9 @@ package org.apache.beam.io.iceberg;
 import org.apache.beam.io.iceberg.util.SchemaHelper;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -92,5 +94,37 @@ public class BoundedScanTests {
             .setCoder(RowCoder.of(SchemaHelper.convert(TestFixtures.SCHEMA)));
     PAssert.that(output);
     testPipeline.run();
+  }
+
+  @Test
+  public void testBoundedSourceExhaustive() throws Exception {
+    Table simpleTable = warehouse.createTable(TestFixtures.SCHEMA);
+    simpleTable
+        .newFastAppend()
+        .appendFile(
+            warehouse.writeRecords(
+                "file1s1.parquet", simpleTable.schema(), TestFixtures.FILE1SNAPSHOT1))
+        .appendFile(
+            warehouse.writeRecords(
+                "file2s1.parquet", simpleTable.schema(), TestFixtures.FILE2SNAPSHOT1))
+        .appendFile(
+            warehouse.writeRecords(
+                "file3s1.parquet", simpleTable.schema(), TestFixtures.FILE3SNAPSHOT1))
+        .commit();
+
+    SourceTestUtils.assertSplitAtFractionExhaustive(
+        new IcebergBoundedSource(
+            Iceberg.Scan.builder()
+                .catalog(
+                    Iceberg.Catalog.builder()
+                        .name("hadoop")
+                        .icebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+                        .warehouseLocation(warehouse.location)
+                        .build())
+                .type(Iceberg.ScanType.TABLE)
+                .table(simpleTable.name().replace("hadoop.", "").split("\\."))
+                .schema(SchemaHelper.convert(TestFixtures.SCHEMA))
+                .build()),
+        PipelineOptionsFactory.create());
   }
 }

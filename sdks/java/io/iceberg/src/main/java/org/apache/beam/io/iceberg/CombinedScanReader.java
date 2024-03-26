@@ -18,8 +18,9 @@
 package org.apache.beam.io.iceberg;
 
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.ArrayDeque;
 import java.util.NoSuchElementException;
+import java.util.Queue;
 import javax.annotation.Nullable;
 import org.apache.beam.io.iceberg.util.SchemaHelper;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -42,39 +43,38 @@ import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("all")
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
   private static final Logger LOG = LoggerFactory.getLogger(CombinedScanReader.class);
 
-  IcebergBoundedSource source;
+  private final IcebergBoundedSource source;
+  private final Table table;
 
-  @Nullable CombinedScanTask task;
+  private final CombinedScanTask task;
 
-  @Nullable Schema schema;
+  private final Schema schema;
 
   transient @Nullable org.apache.iceberg.Schema project;
-
   transient @Nullable FileIO io;
-  transient @Nullable EncryptionManager encryptionManager;
-
   transient @Nullable InputFilesDecryptor decryptor;
-
-  transient LinkedList<FileScanTask> files = new LinkedList<>();
-
-  transient CloseableIterator<Record> baseIter = null;
-
-  transient Record current;
+  transient @Nullable Queue<FileScanTask> files;
+  transient @Nullable CloseableIterator<Record> baseIter;
+  transient @Nullable Record current;
 
   public CombinedScanReader(
-      IcebergBoundedSource source, @Nullable CombinedScanTask task, @Nullable Schema schema) {
+      IcebergBoundedSource source, CombinedScanTask task, Schema schema) {
     this.source = source;
+    this.table = checkStateNotNull(source.table(),
+        "CombinedScanReader requires an IcebergBoundedSource with a table");
     this.task = task;
     this.schema = schema;
     if (this.schema != null) {
-      project = SchemaHelper.convert(schema);
+      project = SchemaHelper.convert(this.schema);
     }
   }
 
@@ -84,12 +84,11 @@ public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
       return false;
     }
 
-    Table table = source.table();
-
+    EncryptionManager encryptionManager = table.encryption();
     io = table.io();
-    encryptionManager = table.encryption();
     decryptor = new InputFilesDecryptor(task, io, encryptionManager);
 
+    files = new ArrayDeque<>();
     files.addAll(task.files());
 
     return advance();
@@ -97,6 +96,16 @@ public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
 
   @Override
   public boolean advance() throws IOException {
+    Queue<FileScanTask> files = checkStateNotNull(this.files,
+        "files null in advance() - did you call start()?");
+    InputFilesDecryptor decryptor = checkStateNotNull(this.decryptor,
+    "decryptor null in adance() - did you call start()?");
+
+    // This is a lie, but the most expedient way to work with Iceberg's
+    // which are not null-safe.
+    @SuppressWarnings("nullness")
+    org.apache.iceberg.@NonNull Schema project = this.project;
+
     do {
       // If our current iterator is working... do that.
       if (baseIter != null && baseIter.hasNext()) {
@@ -111,9 +120,9 @@ public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
       }
 
       LOG.info("Trying to open new file.");
-      FileScanTask fileTask = null;
-      while (files.size() > 0 && fileTask == null) {
-        fileTask = files.removeFirst();
+      @Nullable FileScanTask fileTask = null;
+      while (!files.isEmpty() && fileTask == null) {
+        fileTask = files.remove();
         if (fileTask.isDataTask()) {
           LOG.error("{} is a DataTask. Skipping.", fileTask.toString());
           fileTask = null;
@@ -125,7 +134,7 @@ public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
         DataFile file = fileTask.file();
         InputFile input = decryptor.getInputFile(fileTask);
 
-        CloseableIterable<Record> iterable = null;
+        @Nullable CloseableIterable<Record> iterable = null;
         switch (file.format()) {
           case ORC:
             LOG.info("Preparing ORC input");
@@ -189,8 +198,13 @@ public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
     if (baseIter != null) {
       baseIter.close();
     }
-    files.clear();
-    io.close();
+    if (files != null) {
+      files.clear();
+      files = null;
+    }
+    if (io != null) {
+      io.close();
+    }
   }
 
   @Override

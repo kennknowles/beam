@@ -79,14 +79,14 @@ public class BoundedScanTests {
             .apply(
                 Read.from(
                     new IcebergBoundedSource(
-                        Iceberg.Scan.builder()
+                        IcebergIO.Scan.builder()
                             .catalog(
-                                Iceberg.Catalog.builder()
+                                IcebergIO.Catalog.builder()
                                     .name("hadoop")
                                     .icebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
                                     .warehouseLocation(warehouse.location)
                                     .build())
-                            .type(Iceberg.ScanType.TABLE)
+                            .type(IcebergIO.ScanType.TABLE)
                             .table(simpleTable.name().replace("hadoop.", "").split("\\."))
                             .schema(SchemaHelper.convert(TestFixtures.SCHEMA))
                             .build())))
@@ -114,14 +114,14 @@ public class BoundedScanTests {
 
     SourceTestUtils.assertSplitAtFractionExhaustive(
         new IcebergBoundedSource(
-            Iceberg.Scan.builder()
+            IcebergIO.Scan.builder()
                 .catalog(
-                    Iceberg.Catalog.builder()
+                    IcebergIO.Catalog.builder()
                         .name("hadoop")
                         .icebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
                         .warehouseLocation(warehouse.location)
                         .build())
-                .type(Iceberg.ScanType.TABLE)
+                .type(IcebergIO.ScanType.TABLE)
                 .table(simpleTable.name().replace("hadoop.", "").split("\\."))
                 .schema(SchemaHelper.convert(TestFixtures.SCHEMA))
                 .build()),

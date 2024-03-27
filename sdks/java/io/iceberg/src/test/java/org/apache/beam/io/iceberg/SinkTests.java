@@ -47,8 +47,8 @@ public class SinkTests {
     // Create a table and add records to it.
     Table table = warehouse.createTable(TestFixtures.SCHEMA);
 
-    Iceberg.Catalog catalog =
-        Iceberg.Catalog.builder()
+    IcebergIO.Catalog catalog =
+        IcebergIO.Catalog.builder()
             .name("hadoop")
             .icebergCatalogType(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
             .warehouseLocation(warehouse.location)
@@ -63,7 +63,7 @@ public class SinkTests {
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
         .apply(
             "Append To Table",
-            new Iceberg.Write(catalog, destination, RowHelper.recordsFromRows()));
+            new IcebergIO.Write(catalog, destination, RowHelper.recordsFromRows()));
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
     LOG.info("Done running pipeline");

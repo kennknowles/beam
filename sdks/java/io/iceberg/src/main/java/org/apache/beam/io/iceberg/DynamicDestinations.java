@@ -125,9 +125,9 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   public static class StaticTableDestination<ElementT>
       extends DynamicDestinations<ElementT, String> {
 
-    final Iceberg.Table table;
+    final IcebergIO.Table table;
 
-    public StaticTableDestination(Iceberg.Table table) {
+    public StaticTableDestination(IcebergIO.Table table) {
       this.table = table;
     }
 
@@ -157,7 +157,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     }
   }
 
-  public static <ElementT> StaticTableDestination<ElementT> constant(Iceberg.Table table) {
+  public static <ElementT> StaticTableDestination<ElementT> constant(IcebergIO.Table table) {
     return new StaticTableDestination<>(table);
   }
 }

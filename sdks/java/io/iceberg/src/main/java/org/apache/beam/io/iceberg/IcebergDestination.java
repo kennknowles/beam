@@ -26,17 +26,17 @@ public class IcebergDestination implements Serializable {
   ResourceId resourceId;
   String table;
   Schema schema;
-  Iceberg.WriteFormat writeFormat;
+  IcebergIO.WriteFormat writeFormat;
 
   public IcebergDestination(
-      ResourceId resourceId, String table, Schema schema, Iceberg.WriteFormat writeFormat) {
+      ResourceId resourceId, String table, Schema schema, IcebergIO.WriteFormat writeFormat) {
     this.resourceId = resourceId;
     this.table = table;
     this.schema = schema;
     this.writeFormat = writeFormat;
   }
 
-  public Iceberg.WriteFormat getWriteFormat() {
+  public IcebergIO.WriteFormat getWriteFormat() {
     return writeFormat;
   }
 

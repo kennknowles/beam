@@ -30,7 +30,7 @@ public abstract class TableFactory<IdentifierT> implements Serializable {
 
   public abstract Table getTable(IdentifierT id);
 
-  public static TableFactory<String> forCatalog(final Iceberg.Catalog catalog) {
+  public static TableFactory<String> forCatalog(final IcebergIO.Catalog catalog) {
     return new TableFactory<String>() {
       @Override
       public Table getTable(String id) {

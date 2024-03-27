@@ -62,7 +62,7 @@ public class SchemaHelper {
             fieldTypeForType(type.asMapType().keyType()),
             fieldTypeForType(type.asMapType().valueType()));
     }
-    throw new RuntimeException("Unrecognized Iceberg Type");
+    throw new RuntimeException("Unrecognized IcebergIO Type");
   }
 
   public static Schema.Field convert(final Types.NestedField field) {

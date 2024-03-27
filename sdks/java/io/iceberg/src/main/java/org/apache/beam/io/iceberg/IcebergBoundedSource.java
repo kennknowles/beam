@@ -43,14 +43,14 @@ public class IcebergBoundedSource extends BoundedSource<Row> {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergBoundedSource.class);
 
   private @Nullable CombinedScanTask task;
-  private Iceberg.Scan scan;
+  private IcebergIO.Scan scan;
 
-  public IcebergBoundedSource(Iceberg.Scan scan, @Nullable CombinedScanTask task) {
+  public IcebergBoundedSource(IcebergIO.Scan scan, @Nullable CombinedScanTask task) {
     this.task = task;
     this.scan = scan;
   }
 
-  public IcebergBoundedSource(Iceberg.Scan scan) {
+  public IcebergBoundedSource(IcebergIO.Scan scan) {
     this(scan, null);
   }
 

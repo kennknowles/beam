@@ -37,7 +37,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.expressions.Expression;
 
-public class Iceberg {
+public class IcebergIO {
 
   public static String DEFAULT_CATALOG_NAME = "default";
 

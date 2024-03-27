@@ -17,20 +17,20 @@
  */
 package org.apache.beam.io.iceberg.util;
 
-import org.apache.beam.io.iceberg.Iceberg;
+import org.apache.beam.io.iceberg.IcebergIO;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
 
 public class ScanHelper {
 
-  public static boolean isIncremental(Iceberg.Scan scan) {
+  public static boolean isIncremental(IcebergIO.Scan scan) {
     if (scan.getFromSnapshotExclusive() != null) {
       return true;
     }
     return false;
   }
 
-  public static TableScan tableScan(Table table, Iceberg.Scan scan) {
+  public static TableScan tableScan(Table table, IcebergIO.Scan scan) {
     TableScan tableScan = table.newScan();
     return tableScan;
   }

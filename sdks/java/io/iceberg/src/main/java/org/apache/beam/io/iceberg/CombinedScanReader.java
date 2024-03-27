@@ -101,7 +101,7 @@ public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
     InputFilesDecryptor decryptor = checkStateNotNull(this.decryptor,
     "decryptor null in adance() - did you call start()?");
 
-    // This is a lie, but the most expedient way to work with Iceberg's
+    // This is a lie, but the most expedient way to work with IcebergIO's
     // which are not null-safe.
     @SuppressWarnings("nullness")
     org.apache.iceberg.@NonNull Schema project = this.project;

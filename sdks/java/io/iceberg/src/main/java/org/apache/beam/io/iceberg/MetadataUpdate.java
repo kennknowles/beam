@@ -39,13 +39,13 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.types.Types.StructType;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
-@SuppressWarnings("all")
 public class MetadataUpdate implements IndexedRecord, SchemaConstructable {
 
-  private List<DataFile> dataFiles;
-  private List<DeleteFile> deleteFiles;
+  private @Nullable List<DataFile> dataFiles;
+  private @Nullable List<DeleteFile> deleteFiles;
 
   private final Schema avroSchema;
 
@@ -95,11 +95,11 @@ public class MetadataUpdate implements IndexedRecord, SchemaConstructable {
     return new MetadataUpdate(partitionSpec.partitionType(), ImmutableList.of(dataFile), null);
   }
 
-  public List<DataFile> getDataFiles() {
+  public @Nullable List<DataFile> getDataFiles() {
     return this.dataFiles;
   }
 
-  public List<DeleteFile> getDeleteFiles() {
+  public @Nullable List<DeleteFile> getDeleteFiles() {
     return this.deleteFiles;
   }
 

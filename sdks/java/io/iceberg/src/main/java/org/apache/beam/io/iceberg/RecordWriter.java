@@ -34,7 +34,6 @@ import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
 
-@SuppressWarnings("all") // TODO: Remove this once development is stable.
 class RecordWriter<ElementT> {
 
   final Table table;

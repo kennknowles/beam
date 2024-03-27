@@ -26,18 +26,18 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.Snapshot;
 
-@SuppressWarnings("all")
-public final class IcebergWriteResult<ElementT> implements POutput {
+public final class IcebergWriteResult<DestinationT, ElementT> implements POutput {
 
   private final Pipeline pipeline;
-  @Nullable PCollection<ElementT> successfulInserts;
-  @Nullable TupleTag<ElementT> successfulInsertsTag;
+  @Nullable PCollection<KV<ShardedKey<DestinationT>, ElementT>> successfulInserts;
+  @Nullable TupleTag<KV<ShardedKey<DestinationT>, ElementT>> successfulInsertsTag;
 
   @Nullable PCollection<KV<String, KV<String, DataFile>>> catalogUpdates;
   @Nullable TupleTag<KV<String, KV<String, DataFile>>> catalogUpdatesTag;
@@ -48,7 +48,7 @@ public final class IcebergWriteResult<ElementT> implements POutput {
 
   public IcebergWriteResult(
       Pipeline pipeline,
-      @Nullable PCollection<ElementT> successfulInserts,
+      @Nullable PCollection<KV<ShardedKey<DestinationT>, ElementT>> successfulInserts,
       @Nullable PCollection<KV<String, KV<String, DataFile>>> catalogUpdates,
       @Nullable PCollection<KV<String, Snapshot>> snapshots,
       @Nullable TupleTag<ElementT> successfulInsertsTag,

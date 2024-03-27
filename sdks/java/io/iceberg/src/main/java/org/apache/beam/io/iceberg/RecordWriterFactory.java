@@ -26,7 +26,6 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
 
-@SuppressWarnings("all") // TODO: Remove this once development is stable.
 abstract class RecordWriterFactory<ElementT, DestinationT> implements Serializable {
   private RecordWriterFactory() {}
 

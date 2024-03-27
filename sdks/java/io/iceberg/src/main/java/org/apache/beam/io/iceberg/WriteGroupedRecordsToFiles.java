@@ -22,7 +22,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 
-@SuppressWarnings("all")
 public class WriteGroupedRecordsToFiles<DestinationT, ElementT>
     extends DoFn<KV<DestinationT, Iterable<ElementT>>, Result<DestinationT>> {
 

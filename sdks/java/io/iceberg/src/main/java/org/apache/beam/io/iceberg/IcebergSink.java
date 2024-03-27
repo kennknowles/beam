@@ -54,7 +54,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.log4j.Logger;
 
 public class IcebergSink<DestinationT extends Object, ElementT>
-    extends PTransform<PCollection<KV<DestinationT, ElementT>>, IcebergWriteResult> {
+    extends PTransform<PCollection<KV<DestinationT, ElementT>>, IcebergWriteResult<ElementT>> {
 
   private static final Logger LOG = Logger.getLogger(IcebergSink.class);
 
@@ -85,12 +85,12 @@ public class IcebergSink<DestinationT extends Object, ElementT>
     this.tableFactory = tableFactory;
   }
 
-  private IcebergWriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
+  private IcebergWriteResult<ElementT> expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
 
     throw new NotImplementedException("Not yet implemented");
   }
 
-  private IcebergWriteResult expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
+  private IcebergWriteResult<ElementT> expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
 
     final PCollectionView<String> fileView = createJobIdPrefixView(input.getPipeline());
     // We always do the equivalent of a dynamically sharded file creation
@@ -186,7 +186,7 @@ public class IcebergSink<DestinationT extends Object, ElementT>
             .apply("Write Metadata Updates", ParDo.of(new MetadataUpdates<>(tableFactory)))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableCoder.of(Snapshot.class)));
 
-    return new IcebergWriteResult(
+    return new IcebergWriteResult<>(
         input.getPipeline(),
         successfulWrites,
         catalogUpdates,
@@ -213,7 +213,7 @@ public class IcebergSink<DestinationT extends Object, ElementT>
         .apply("JobIdSideInput", View.asSingleton());
   }
 
-  public IcebergWriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
+  public IcebergWriteResult<ElementT> expand(PCollection<KV<DestinationT, ElementT>> input) {
 
     String jobName = input.getPipeline().getOptions().getJobName();
 

@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class SinkTests {
-  private static Logger LOG = LoggerFactory.getLogger(SinkTests.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SinkTests.class);
   @ClassRule public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Rule public TestDataWarehouse warehouse = new TestDataWarehouse(temporaryFolder, "default");
@@ -63,7 +63,7 @@ public class SinkTests {
         .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
         .apply(
             "Append To Table",
-            new IcebergIO.Write(catalog, destination, RowHelper.recordsFromRows()));
+            new IcebergIO.Write<>(catalog, destination, RowHelper.recordsFromRows()));
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
     LOG.info("Done running pipeline");

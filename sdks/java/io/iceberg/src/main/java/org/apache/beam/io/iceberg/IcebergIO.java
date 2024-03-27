@@ -36,6 +36,7 @@ import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.expressions.Expression;
+import org.checkerframework.dataflow.qual.Pure;
 
 public class IcebergIO {
 
@@ -63,42 +64,60 @@ public class IcebergIO {
   @AutoValue
   public abstract static class Scan implements Serializable {
 
+    @Pure
     public abstract ScanType getType();
 
+    @Pure
     public abstract Catalog getCatalog();
 
+    @Pure
     public abstract ImmutableList<String> getTable();
 
+    @Pure
     public abstract Schema getSchema();
 
+    @Pure
     public abstract @Nullable Expression getFilter();
 
+    @Pure
     public abstract @Nullable Boolean getCaseSensitive();
 
+    @Pure
     public abstract ImmutableMap<String, String> getOptions();
 
+    @Pure
     public abstract @Nullable Long getSnapshot();
 
+    @Pure
     public abstract @Nullable Long getTimestamp();
 
+    @Pure
     public abstract @Nullable Long getFromSnapshotInclusive();
 
+    @Pure
     public abstract @Nullable String getFromSnapshotRefInclusive();
 
+    @Pure
     public abstract @Nullable Long getFromSnapshotExclusive();
 
+    @Pure
     public abstract @Nullable String getFromSnapshotRefExclusive();
 
+    @Pure
     public abstract @Nullable Long getToSnapshot();
 
+    @Pure
     public abstract @Nullable String getToSnapshotRef();
 
+    @Pure
     public abstract @Nullable String getTag();
 
+    @Pure
     public abstract @Nullable String getBranch();
 
+    @Pure
     public static Scan.Builder builder() {
-      return new AutoValue_Iceberg_Scan.Builder()
+      return new AutoValue_IcebergIO_Scan.Builder()
           .type(ScanType.TABLE)
           .filter(null)
           .caseSensitive(null)
@@ -162,64 +181,92 @@ public class IcebergIO {
   @AutoValue
   public abstract static class Catalog implements Serializable {
 
+    @Pure
     public abstract String getName();
 
     /* Core Properties */
+    @Pure
     public abstract @Nullable String getIcebergCatalogType();
 
+    @Pure
     public abstract @Nullable String getCatalogImplementation();
 
+    @Pure
     public abstract @Nullable String getFileIOImplementation();
 
+    @Pure
     public abstract @Nullable String getWarehouseLocation();
 
+    @Pure
     public abstract @Nullable String getMetricsReporterImplementation();
 
     /* Caching */
+    @Pure
     public abstract boolean getCacheEnabled();
 
+    @Pure
     public abstract boolean getCacheCaseSensitive();
 
+    @Pure
     public abstract long getCacheExpirationIntervalMillis();
 
+    @Pure
     public abstract boolean getIOManifestCacheEnabled();
 
+    @Pure
     public abstract long getIOManifestCacheExpirationIntervalMillis();
 
+    @Pure
     public abstract long getIOManifestCacheMaxTotalBytes();
 
+    @Pure
     public abstract long getIOManifestCacheMaxContentLength();
 
+    @Pure
     public abstract @Nullable String getUri();
 
+    @Pure
     public abstract int getClientPoolSize();
 
+    @Pure
     public abstract long getClientPoolEvictionIntervalMs();
 
+    @Pure
     public abstract @Nullable String getClientPoolCacheKeys();
 
+    @Pure
     public abstract @Nullable String getLockImplementation();
 
+    @Pure
     public abstract long getLockHeartbeatIntervalMillis();
 
+    @Pure
     public abstract long getLockHeartbeatTimeoutMillis();
 
+    @Pure
     public abstract int getLockHeartbeatThreads();
 
+    @Pure
     public abstract long getLockAcquireIntervalMillis();
 
+    @Pure
     public abstract long getLockAcquireTimeoutMillis();
 
+    @Pure
     public abstract @Nullable String getAppIdentifier();
 
+    @Pure
     public abstract @Nullable String getUser();
 
+    @Pure
     public abstract long getAuthSessionTimeoutMillis();
 
+    @Pure
     public abstract @Nullable Configuration getConfiguration();
 
+    @Pure
     public static Catalog.Builder builder() {
-      return new AutoValue_Iceberg_Catalog.Builder()
+      return new AutoValue_IcebergIO_Catalog.Builder()
           .icebergCatalogType(null)
           .catalogImplementation(null)
           .fileIOImplementation(null)
@@ -251,6 +298,7 @@ public class IcebergIO {
           .configuration(null);
     }
 
+    @Pure
     public ImmutableMap<String, String> properties() {
       return new PropertyBuilder()
           .put(CatalogUtil.ICEBERG_CATALOG_TYPE, getIcebergCatalogType())
@@ -273,7 +321,7 @@ public class IcebergIO {
     }
 
     public Table.Builder table() {
-      return new AutoValue_Iceberg_Table.Builder().catalog(this);
+      return new AutoValue_IcebergIO_Table.Builder().catalog(this);
     }
 
     @AutoValue.Builder

@@ -23,7 +23,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 
-@SuppressWarnings("all")
 public abstract class TableFactory<IdentifierT> implements Serializable {
 
   private TableFactory() {}

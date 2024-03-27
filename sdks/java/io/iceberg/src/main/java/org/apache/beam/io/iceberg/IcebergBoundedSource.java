@@ -38,9 +38,7 @@ import org.apache.iceberg.io.CloseableIterable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings("all") // TODO: Remove this once development is stable.
 public class IcebergBoundedSource extends BoundedSource<Row> {
-  private static final Logger LOG = LoggerFactory.getLogger(IcebergBoundedSource.class);
 
   private @Nullable CombinedScanTask task;
   private IcebergIO.Scan scan;

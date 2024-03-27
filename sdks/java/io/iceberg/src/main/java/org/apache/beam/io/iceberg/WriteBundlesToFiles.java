@@ -46,9 +46,9 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
-@SuppressWarnings("all") // TODO: Remove this once development is stable.
 public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
     extends DoFn<KV<DestinationT, ElementT>, Result<DestinationT>> {
 
@@ -94,9 +94,9 @@ public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (obj instanceof Result) {
-        Result result = (Result) obj;
+        Result<DestinationT> result = (Result<DestinationT>) obj;
         return Objects.equal(result.tableId, tableId)
             && Objects.equal(result.location, location)
             && Objects.equal(result.partitionSpec, partitionSpec)

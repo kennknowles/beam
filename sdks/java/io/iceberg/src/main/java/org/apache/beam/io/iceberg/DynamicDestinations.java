@@ -36,16 +36,16 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings("all") // TODO: Remove this once development is stable.
 public abstract class DynamicDestinations<T, DestinationT> implements Serializable {
 
   interface SideInputAccessor {
     <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
   }
 
-  private transient SideInputAccessor sideInputAccessor;
-  private transient PipelineOptions options;
+  private transient @Nullable SideInputAccessor sideInputAccessor;
+  private transient @Nullable PipelineOptions options;
 
   static class ProcessContextSideInputAccessor implements SideInputAccessor {
     private DoFn<?, ?>.ProcessContext processContext;
@@ -60,7 +60,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     }
   }
 
-  public PipelineOptions getOptions() {
+  public @Nullable PipelineOptions getOptions() {
     return options;
   }
 
@@ -87,7 +87,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
 
   public abstract DestinationT getDestination(ValueInSingleWindow<T> element);
 
-  public Coder<DestinationT> getDestinationCoder() {
+  public @Nullable Coder<DestinationT> getDestinationCoder() {
     return null;
   }
 

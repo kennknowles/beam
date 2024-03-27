@@ -42,7 +42,8 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class BoundedScanTests {
 
-  private static Logger LOG = LoggerFactory.getLogger(BoundedScanTests.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BoundedScanTests.class);
+
   @ClassRule public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Rule public TestDataWarehouse warehouse = new TestDataWarehouse(temporaryFolder, "default");

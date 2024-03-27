@@ -31,18 +31,17 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Instant;
 
-@SuppressWarnings("all") // TODO: Remove this once development is stable.
 public class PrepareWrite<InputT, DestinationT, OutputT>
     extends PTransform<PCollection<InputT>, PCollection<KV<DestinationT, OutputT>>> {
 
   private DynamicDestinations<InputT, DestinationT> dynamicDestinations;
   private SerializableFunction<InputT, OutputT> formatFunction;
-  private Coder outputCoder;
+  private Coder<OutputT> outputCoder;
 
   public PrepareWrite(
       DynamicDestinations<InputT, DestinationT> dynamicDestinations,
       SerializableFunction<InputT, OutputT> formatFunction,
-      Coder outputCoder) {
+      Coder<OutputT> outputCoder) {
     this.dynamicDestinations = dynamicDestinations;
     this.formatFunction = formatFunction;
     this.outputCoder = outputCoder;
@@ -51,7 +50,7 @@ public class PrepareWrite<InputT, DestinationT, OutputT>
   @Override
   public PCollection<KV<DestinationT, OutputT>> expand(PCollection<InputT> input) {
 
-    final Coder destCoder;
+    final Coder<KV<DestinationT, OutputT>> destCoder;
     try {
       destCoder =
           KvCoder.of(

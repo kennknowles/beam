@@ -26,7 +26,10 @@ public class WriteGroupedRecordsToFiles<DestinationT, ElementT>
     extends DoFn<KV<DestinationT, Iterable<ElementT>>, Result<DestinationT>> {
 
   private final PCollectionView<String> locationPrefixView;
+
+  @SuppressWarnings("unused") // will be used soon?
   private final long maxFileSize;
+
   private final RecordWriterFactory<ElementT, DestinationT> recordWriterFactory;
 
   WriteGroupedRecordsToFiles(

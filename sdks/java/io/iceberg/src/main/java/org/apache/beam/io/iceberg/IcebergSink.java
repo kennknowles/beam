@@ -18,6 +18,7 @@
 package org.apache.beam.io.iceberg;
 
 import com.google.common.collect.ImmutableList;
+import java.util.Collections;
 import java.util.UUID;
 import org.apache.beam.io.iceberg.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.Pipeline;
@@ -36,9 +37,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -51,10 +49,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.log4j.Logger;
 
 public class IcebergSink<DestinationT extends Object, ElementT>
-    extends PTransform<PCollection<KV<DestinationT, ElementT>>, IcebergWriteResult<DestinationT, ElementT>> {
+    extends PTransform<
+        PCollection<KV<DestinationT, ElementT>>, IcebergWriteResult<DestinationT, ElementT>> {
 
   @VisibleForTesting static final int DEFAULT_MAX_WRITERS_PER_BUNDLE = 20;
   @VisibleForTesting static final int DEFAULT_MAX_FILES_PER_PARTITION = 10_000;
@@ -83,12 +81,15 @@ public class IcebergSink<DestinationT extends Object, ElementT>
     this.tableFactory = tableFactory;
   }
 
-  private IcebergWriteResult<DestinationT, ElementT> expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
+  @SuppressWarnings("unused")
+  private IcebergWriteResult<DestinationT, ElementT> expandTriggered(
+      PCollection<KV<DestinationT, ElementT>> input) {
 
     throw new NotImplementedException("Not yet implemented");
   }
 
-  private IcebergWriteResult<DestinationT, ElementT> expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
+  private IcebergWriteResult<DestinationT, ElementT> expandUntriggered(
+      PCollection<KV<DestinationT, ElementT>> input) {
 
     final PCollectionView<String> fileView = createJobIdPrefixView(input.getPipeline());
     // We always do the equivalent of a dynamically sharded file creation
@@ -175,8 +176,10 @@ public class IcebergSink<DestinationT extends Object, ElementT>
                         c.output(
                             KV.of(
                                 element.tableId,
-                                MetadataUpdate.of(
-                                    element.partitionSpec, element.update.dataFile)));
+                                new MetadataUpdate(
+                                    element.partitionSpec.partitionType(),
+                                    element.update.getDataFiles(),
+                                    Collections.emptyList())));
                       }
                     }))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), MetadataUpdate.coder()))
@@ -211,17 +214,17 @@ public class IcebergSink<DestinationT extends Object, ElementT>
         .apply("JobIdSideInput", View.asSingleton());
   }
 
-  public IcebergWriteResult<DestinationT, ElementT> expand(PCollection<KV<DestinationT, ElementT>> input) {
-
-    String jobName = input.getPipeline().getOptions().getJobName();
+  @Override
+  public IcebergWriteResult<DestinationT, ElementT> expand(
+      PCollection<KV<DestinationT, ElementT>> input) {
 
     // We always window into global as far as I can tell?
-    PCollection<KV<DestinationT, ElementT>> globalInput =
-        input.apply(
-            "rewindowIntoGlobal",
-            Window.<KV<DestinationT, ElementT>>into(new GlobalWindows())
-                .triggering(DefaultTrigger.of())
-                .discardingFiredPanes());
+    //    PCollection<KV<DestinationT, ElementT>> globalInput =
+    //        input.apply(
+    //            "rewindowIntoGlobal",
+    //            Window.<KV<DestinationT, ElementT>>into(new GlobalWindows())
+    //                .triggering(DefaultTrigger.of())
+    //                .discardingFiredPanes());
     return triggered ? expandTriggered(input) : expandUntriggered(input);
   }
 }

@@ -18,7 +18,6 @@
 package org.apache.beam.io.iceberg;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
@@ -37,7 +36,7 @@ abstract class RecordWriterFactory<ElementT, DestinationT> implements Serializab
 
   static <ElementT, DestinationT> TableRecordWriterFactory<ElementT, DestinationT> tableRecords(
       SerializableBiFunction<Record, ElementT, Record> toRecord,
-      @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
     return new TableRecordWriterFactory<>(toRecord, dynamicDestinations);
   }
 

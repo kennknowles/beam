@@ -17,6 +17,8 @@
  */
 package org.apache.beam.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -52,8 +54,8 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
     extends DoFn<KV<DestinationT, ElementT>, Result<DestinationT>> {
 
-  private transient Map<DestinationT, RecordWriter<ElementT>> writers;
-  private transient Map<DestinationT, BoundedWindow> windows;
+  private transient @Nullable Map<DestinationT, RecordWriter<ElementT>> writers;
+  private transient @Nullable Map<DestinationT, BoundedWindow> windows;
 
   private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
 
@@ -110,8 +112,7 @@ public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(
-          tableId, location, dataFile, partitionSpec, destination);
+      return Objects.hashCode(tableId, location, dataFile, partitionSpec, destination);
     }
 
     @Override
@@ -291,8 +292,9 @@ public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
         DestinationT destination = entry.getKey();
 
         RecordWriter<ElementT> writer = entry.getValue();
-        BoundedWindow window = windows.get(destination);
-        Preconditions.checkNotNull(window);
+        BoundedWindow window =
+            checkStateNotNull(
+                windows.get(destination), "internal error: no windows for destination");
         Table t = writer.table();
         c.output(
             new Result<>(t.name(), writer.location(), writer.dataFile(), t.spec(), destination),

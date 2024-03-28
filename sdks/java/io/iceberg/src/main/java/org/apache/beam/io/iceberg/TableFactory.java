@@ -41,7 +41,8 @@ public abstract class TableFactory<IdentifierT> implements Serializable {
           if (catalog.catalog().name().equals(ns.level(0))) {
             String[] levels = ns.levels();
             @SuppressWarnings("nullness") // we know that copyOfRange will not do any padding
-            @NonNull String[] levelsMinusFirst = Arrays.copyOfRange(levels, 1, levels.length);
+            @NonNull
+            String[] levelsMinusFirst = Arrays.copyOfRange(levels, 1, levels.length);
             tableId = TableIdentifier.of(Namespace.of(levelsMinusFirst), tableId.name());
           }
         }

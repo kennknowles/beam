@@ -17,6 +17,8 @@
  */
 package org.apache.beam.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.NoSuchElementException;
@@ -47,15 +49,13 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
 public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
   private static final Logger LOG = LoggerFactory.getLogger(CombinedScanReader.class);
 
   private final IcebergBoundedSource source;
   private final Table table;
 
-  private final CombinedScanTask task;
+  private final @Nullable CombinedScanTask task;
 
   private final Schema schema;
 
@@ -67,10 +67,11 @@ public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
   transient @Nullable Record current;
 
   public CombinedScanReader(
-      IcebergBoundedSource source, CombinedScanTask task, Schema schema) {
+      IcebergBoundedSource source, @Nullable CombinedScanTask task, Schema schema) {
     this.source = source;
-    this.table = checkStateNotNull(source.table(),
-        "CombinedScanReader requires an IcebergBoundedSource with a table");
+    this.table =
+        checkStateNotNull(
+            source.table(), "CombinedScanReader requires an IcebergBoundedSource with a table");
     this.task = task;
     this.schema = schema;
     if (this.schema != null) {
@@ -96,10 +97,10 @@ public class CombinedScanReader extends BoundedSource.BoundedReader<Row> {
 
   @Override
   public boolean advance() throws IOException {
-    Queue<FileScanTask> files = checkStateNotNull(this.files,
-        "files null in advance() - did you call start()?");
-    InputFilesDecryptor decryptor = checkStateNotNull(this.decryptor,
-    "decryptor null in adance() - did you call start()?");
+    Queue<FileScanTask> files =
+        checkStateNotNull(this.files, "files null in advance() - did you call start()?");
+    InputFilesDecryptor decryptor =
+        checkStateNotNull(this.decryptor, "decryptor null in adance() - did you call start()?");
 
     // This is a lie, but the most expedient way to work with IcebergIO's
     // which are not null-safe.

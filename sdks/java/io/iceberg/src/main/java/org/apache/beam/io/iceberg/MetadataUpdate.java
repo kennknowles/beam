@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.avro.Schema;
@@ -37,18 +38,15 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.avro.AvroEncoderUtil;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.types.Types.StructType;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 public class MetadataUpdate implements IndexedRecord, SchemaConstructable {
 
-  private @Nullable List<DataFile> dataFiles;
-  private @Nullable List<DeleteFile> deleteFiles;
+  private List<DataFile> dataFiles;
+  private List<DeleteFile> deleteFiles;
 
   private final Schema avroSchema;
 
+  @SuppressWarnings({"unused", "nullness"}) // used by Avro, which initializes fields separately
   public MetadataUpdate(Schema avroSchema) {
     this.avroSchema = avroSchema;
   }
@@ -92,14 +90,15 @@ public class MetadataUpdate implements IndexedRecord, SchemaConstructable {
   }
 
   public static MetadataUpdate of(PartitionSpec partitionSpec, DataFile dataFile) {
-    return new MetadataUpdate(partitionSpec.partitionType(), ImmutableList.of(dataFile), null);
+    return new MetadataUpdate(
+        partitionSpec.partitionType(), ImmutableList.of(dataFile), Collections.emptyList());
   }
 
-  public @Nullable List<DataFile> getDataFiles() {
+  public List<DataFile> getDataFiles() {
     return this.dataFiles;
   }
 
-  public @Nullable List<DeleteFile> getDeleteFiles() {
+  public List<DeleteFile> getDeleteFiles() {
     return this.deleteFiles;
   }
 
@@ -138,32 +137,24 @@ public class MetadataUpdate implements IndexedRecord, SchemaConstructable {
     private static final ByteArrayCoder bytesCoder = ByteArrayCoder.of();
 
     @Override
-    public void encode(
-        MetadataUpdate value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+    public void encode(MetadataUpdate value, OutputStream outStream)
+        throws CoderException, IOException {
       bytesCoder.encode(AvroEncoderUtil.encode(value, value.getSchema()), outStream);
     }
 
     @Override
-    public MetadataUpdate decode(@UnknownKeyFor @NonNull @Initialized InputStream inStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+    public MetadataUpdate decode(InputStream inStream) throws CoderException, IOException {
       byte[] updateBytes = bytesCoder.decode(inStream);
       return AvroEncoderUtil.decode(updateBytes);
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized List<
-            ? extends
-                @UnknownKeyFor @NonNull @Initialized Coder<@UnknownKeyFor @NonNull @Initialized ?>>
-        getCoderArguments() {
+    public List<? extends Coder<?>> getCoderArguments() {
       return ImmutableList.of();
     }
 
     @Override
-    public void verifyDeterministic()
-        throws @UnknownKeyFor @NonNull @Initialized NonDeterministicException {}
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 
   public static Coder<MetadataUpdate> coder() {

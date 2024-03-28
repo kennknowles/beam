@@ -18,7 +18,6 @@
 package org.apache.beam.io.iceberg;
 
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
@@ -30,31 +29,30 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.iceberg.DataFile;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 public final class IcebergWriteResult<DestinationT, ElementT> implements POutput {
 
   private final Pipeline pipeline;
-  @Nullable PCollection<KV<ShardedKey<DestinationT>, ElementT>> successfulInserts;
-  @Nullable TupleTag<KV<ShardedKey<DestinationT>, ElementT>> successfulInsertsTag;
+  PCollection<KV<ShardedKey<DestinationT>, ElementT>> successfulInserts;
+  TupleTag<KV<ShardedKey<DestinationT>, ElementT>> successfulInsertsTag;
 
-  @Nullable PCollection<WriteBundlesToFiles.Result<DestinationT>> catalogUpdates;
-  @Nullable TupleTag<WriteBundlesToFiles.Result<DestinationT>> catalogUpdatesTag;
+  PCollection<WriteBundlesToFiles.Result<DestinationT>> catalogUpdates;
+  TupleTag<WriteBundlesToFiles.Result<DestinationT>> catalogUpdatesTag;
 
-  @Nullable PCollection<KV<String, Snapshot>> snapshots;
+  PCollection<KV<String, Snapshot>> snapshots;
 
-  @Nullable TupleTag<KV<TableIdentifier, Snapshot>> snapshotsTag;
+  TupleTag<KV<TableIdentifier, Snapshot>> snapshotsTag;
 
   public IcebergWriteResult(
       Pipeline pipeline,
-      @Nullable PCollection<KV<ShardedKey<DestinationT>, ElementT>> successfulInserts,
-      @Nullable PCollection<WriteBundlesToFiles.Result<DestinationT>> catalogUpdates,
-      @Nullable PCollection<KV<String, Snapshot>> snapshots,
-      @Nullable TupleTag<KV<ShardedKey<DestinationT>, ElementT>> successfulInsertsTag,
-      @Nullable TupleTag<WriteBundlesToFiles.Result<DestinationT>> catalogUpdatesTag,
-      @Nullable TupleTag<KV<TableIdentifier, Snapshot>> snapshotsTag) {
+      PCollection<KV<ShardedKey<DestinationT>, ElementT>> successfulInserts,
+      PCollection<WriteBundlesToFiles.Result<DestinationT>> catalogUpdates,
+      PCollection<KV<String, Snapshot>> snapshots,
+      TupleTag<KV<ShardedKey<DestinationT>, ElementT>> successfulInsertsTag,
+      TupleTag<WriteBundlesToFiles.Result<DestinationT>> catalogUpdatesTag,
+      TupleTag<KV<TableIdentifier, Snapshot>> snapshotsTag) {
     this.pipeline = pipeline;
     this.successfulInserts = successfulInserts;
     this.catalogUpdates = catalogUpdates;

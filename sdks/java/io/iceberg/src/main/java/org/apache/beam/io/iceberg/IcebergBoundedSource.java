@@ -20,7 +20,6 @@ package org.apache.beam.io.iceberg;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.io.iceberg.util.SchemaHelper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -35,8 +34,7 @@ import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.CloseableIterable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class IcebergBoundedSource extends BoundedSource<Row> {
 
@@ -52,65 +50,56 @@ public class IcebergBoundedSource extends BoundedSource<Row> {
     this(scan, null);
   }
 
-  public @Nullable Catalog catalog() {
+  public Catalog catalog() {
     return scan.getCatalog().catalog();
   }
 
-  public @Nullable Table table() {
-    Catalog catalog = catalog();
-    if (catalog != null) {
-      return catalog.loadTable(
-          TableIdentifier.of(scan.getTable().toArray(new String[scan.getTable().size()])));
-    } else {
-      return null;
-    }
+  public Table table() {
+    return catalog()
+        .loadTable(TableIdentifier.of(scan.getTable().toArray(new String[scan.getTable().size()])));
   }
 
   @Override
   public List<? extends BoundedSource<Row>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     ArrayList<IcebergBoundedSource> tasks = new ArrayList<>();
-    Table table = table();
-    if (table != null) {
+    switch (scan.getType()) {
+      case TABLE:
+        // Override the split size with our desired size
+        TableScan tableScan = table().newScan();
 
-      switch (scan.getType()) {
-        case TABLE:
-          // Override the split size with our desired size
-          TableScan tableScan = table.newScan();
+        if (desiredBundleSizeBytes > 0) {
+          tableScan = tableScan.option(TableProperties.SPLIT_SIZE, "" + desiredBundleSizeBytes);
+        }
 
-          if (desiredBundleSizeBytes > 0) {
-            tableScan = tableScan.option(TableProperties.SPLIT_SIZE, "" + desiredBundleSizeBytes);
-          }
+        // Always project to our destination schema
+        tableScan = tableScan.project(SchemaHelper.convert(scan.getSchema()));
 
-          // Always project to our destination schema
-          tableScan = tableScan.project(SchemaHelper.convert(scan.getSchema()));
-
-          if (scan.getFilter() != null) {
-            tableScan = tableScan.filter(scan.getFilter());
+        if (scan.getFilter() != null) {
+          tableScan = tableScan.filter(scan.getFilter());
+        }
+        if (scan.getCaseSensitive() != null) {
+          tableScan = tableScan.caseSensitive(scan.getCaseSensitive());
+        }
+        if (scan.getSnapshot() != null) {
+          tableScan = tableScan.useSnapshot(scan.getSnapshot());
+        }
+        if (scan.getBranch() != null) {
+          tableScan = tableScan.useRef(scan.getBranch());
+        } else if (scan.getTag() != null) {
+          tableScan = tableScan.useRef(scan.getTag());
+        }
+        try (CloseableIterable<CombinedScanTask> t = tableScan.planTasks()) {
+          for (CombinedScanTask c : t) {
+            tasks.add(new IcebergBoundedSource(scan, c));
           }
-          if (scan.getCaseSensitive() != null) {
-            tableScan = tableScan.caseSensitive(scan.getCaseSensitive());
-          }
-          if (scan.getSnapshot() != null) {
-            tableScan = tableScan.useSnapshot(scan.getSnapshot());
-          }
-          if (scan.getBranch() != null) {
-            tableScan = tableScan.useRef(scan.getBranch());
-          } else if (scan.getTag() != null) {
-            tableScan = tableScan.useRef(scan.getTag());
-          }
-          try (CloseableIterable<CombinedScanTask> t = tableScan.planTasks()) {
-            for (CombinedScanTask c : t) {
-              tasks.add(new IcebergBoundedSource(scan, c));
-            }
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-          break;
-        case BATCH:
-          // TODO: Add batch scan
-          break;
-      }
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        break;
+      case BATCH:
+        // TODO: Add batch scan
+        break;
     }
     return tasks;
   }

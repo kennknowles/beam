@@ -25,11 +25,14 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.io.iceberg.util.PropertyBuilder;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
@@ -413,6 +416,24 @@ public class IcebergIO {
       public abstract Builder tablePath(List<String> tablePath);
 
       public abstract Table build();
+    }
+  }
+
+  public static class Read extends PTransform<PBegin, PCollection<Row>> {
+
+    private final Scan scan;
+
+    private Read(Scan scan) {
+      this.scan = scan;
+    }
+
+    public static Read from(Scan scan) {
+      return new Read(scan);
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      return input.apply(org.apache.beam.sdk.io.Read.from(new IcebergBoundedSource(this.scan)));
     }
   }
 

@@ -32,6 +32,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.catalog.TableIdentifier;
 
 public final class IcebergWriteResult<DestinationT, ElementT> implements POutput {
 
@@ -39,21 +40,21 @@ public final class IcebergWriteResult<DestinationT, ElementT> implements POutput
   @Nullable PCollection<KV<ShardedKey<DestinationT>, ElementT>> successfulInserts;
   @Nullable TupleTag<KV<ShardedKey<DestinationT>, ElementT>> successfulInsertsTag;
 
-  @Nullable PCollection<KV<String, KV<String, DataFile>>> catalogUpdates;
-  @Nullable TupleTag<KV<String, KV<String, DataFile>>> catalogUpdatesTag;
+  @Nullable PCollection<WriteBundlesToFiles.Result<DestinationT>> catalogUpdates;
+  @Nullable TupleTag<WriteBundlesToFiles.Result<DestinationT>> catalogUpdatesTag;
 
   @Nullable PCollection<KV<String, Snapshot>> snapshots;
 
-  @Nullable TupleTag<KV<String, Snapshot>> snapshotsTag;
+  @Nullable TupleTag<KV<TableIdentifier, Snapshot>> snapshotsTag;
 
   public IcebergWriteResult(
       Pipeline pipeline,
       @Nullable PCollection<KV<ShardedKey<DestinationT>, ElementT>> successfulInserts,
-      @Nullable PCollection<KV<String, KV<String, DataFile>>> catalogUpdates,
+      @Nullable PCollection<WriteBundlesToFiles.Result<DestinationT>> catalogUpdates,
       @Nullable PCollection<KV<String, Snapshot>> snapshots,
-      @Nullable TupleTag<ElementT> successfulInsertsTag,
-      @Nullable TupleTag<KV<String, KV<String, DataFile>>> catalogUpdatesTag,
-      @Nullable TupleTag<KV<String, Snapshot>> snapshotsTag) {
+      @Nullable TupleTag<KV<ShardedKey<DestinationT>, ElementT>> successfulInsertsTag,
+      @Nullable TupleTag<WriteBundlesToFiles.Result<DestinationT>> catalogUpdatesTag,
+      @Nullable TupleTag<KV<TableIdentifier, Snapshot>> snapshotsTag) {
     this.pipeline = pipeline;
     this.successfulInserts = successfulInserts;
     this.catalogUpdates = catalogUpdates;
@@ -69,7 +70,7 @@ public final class IcebergWriteResult<DestinationT, ElementT> implements POutput
     return pipeline;
   }
 
-  public PCollection<ElementT> getSuccessfulInserts() {
+  public PCollection<KV<ShardedKey<DestinationT>, ElementT>> getSuccessfulInserts() {
     return successfulInserts;
   }
 

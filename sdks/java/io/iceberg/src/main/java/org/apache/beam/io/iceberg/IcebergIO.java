@@ -417,7 +417,7 @@ public class IcebergIO {
   }
 
   public static class Write<ElementT>
-      extends PTransform<PCollection<ElementT>, IcebergWriteResult<ElementT>> {
+      extends PTransform<PCollection<ElementT>, IcebergWriteResult<String, ElementT>> {
 
     private final DynamicDestinations<ElementT, String> dynamicDestinations;
     private final Catalog catalog;
@@ -434,7 +434,7 @@ public class IcebergIO {
     }
 
     @Override
-    public IcebergWriteResult<ElementT> expand(PCollection<ElementT> input) {
+    public IcebergWriteResult<String, ElementT> expand(PCollection<ElementT> input) {
       try {
         return input
             .apply(

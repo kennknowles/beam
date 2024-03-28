@@ -22,6 +22,7 @@ import java.util.Arrays;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 public abstract class TableFactory<IdentifierT> implements Serializable {
 
@@ -39,8 +40,9 @@ public abstract class TableFactory<IdentifierT> implements Serializable {
           Namespace ns = tableId.namespace();
           if (catalog.catalog().name().equals(ns.level(0))) {
             String[] levels = ns.levels();
-            levels = Arrays.copyOfRange(levels, 1, levels.length);
-            tableId = TableIdentifier.of(Namespace.of(levels), tableId.name());
+            @SuppressWarnings("nullness") // we know that copyOfRange will not do any padding
+            @NonNull String[] levelsMinusFirst = Arrays.copyOfRange(levels, 1, levels.length);
+            tableId = TableIdentifier.of(Namespace.of(levelsMinusFirst), tableId.name());
           }
         }
         return catalog.catalog().loadTable(tableId);

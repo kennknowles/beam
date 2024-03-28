@@ -73,12 +73,12 @@ public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
 
     public final String tableId;
     public final String location;
-
     public final PartitionSpec partitionSpec;
-
-    public final MetadataUpdate update;
-
+    public final DataFile dataFile;
     public final DestinationT destination;
+
+    // Derived from partitionSpec and dataFile
+    public final MetadataUpdate update;
 
     public Result(
         String tableId,
@@ -88,9 +88,11 @@ public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
         DestinationT destination) {
       this.tableId = tableId;
       this.location = location;
-      this.update = MetadataUpdate.of(partitionSpec, dataFile);
       this.partitionSpec = partitionSpec;
       this.destination = destination;
+      this.dataFile = dataFile;
+
+      this.update = MetadataUpdate.of(partitionSpec, dataFile);
     }
 
     @Override
@@ -100,7 +102,7 @@ public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
         return Objects.equal(result.tableId, tableId)
             && Objects.equal(result.location, location)
             && Objects.equal(result.partitionSpec, partitionSpec)
-            && Objects.equal(result.update.getDataFiles().get(0), update.getDataFiles().get(0))
+            && Objects.equal(result.dataFile, dataFile)
             && Objects.equal(destination, result.destination);
       }
       return false;
@@ -109,7 +111,7 @@ public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
     @Override
     public int hashCode() {
       return Objects.hashCode(
-          tableId, location, update.getDataFiles().get(0), partitionSpec, destination);
+          tableId, location, dataFile, partitionSpec, destination);
     }
 
     @Override
@@ -122,7 +124,7 @@ public class WriteBundlesToFiles<DestinationT extends Object, ElementT>
           + location
           + '\''
           + ", fileByteSize="
-          + update.getDataFiles().get(0).fileSizeInBytes()
+          + dataFile.fileSizeInBytes()
           + ", destination="
           + destination
           + '}';

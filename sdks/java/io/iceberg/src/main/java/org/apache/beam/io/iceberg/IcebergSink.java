@@ -54,9 +54,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.log4j.Logger;
 
 public class IcebergSink<DestinationT extends Object, ElementT>
-    extends PTransform<PCollection<KV<DestinationT, ElementT>>, IcebergWriteResult<ElementT>> {
-
-  private static final Logger LOG = Logger.getLogger(IcebergSink.class);
+    extends PTransform<PCollection<KV<DestinationT, ElementT>>, IcebergWriteResult<DestinationT, ElementT>> {
 
   @VisibleForTesting static final int DEFAULT_MAX_WRITERS_PER_BUNDLE = 20;
   @VisibleForTesting static final int DEFAULT_MAX_FILES_PER_PARTITION = 10_000;
@@ -85,12 +83,12 @@ public class IcebergSink<DestinationT extends Object, ElementT>
     this.tableFactory = tableFactory;
   }
 
-  private IcebergWriteResult<ElementT> expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
+  private IcebergWriteResult<DestinationT, ElementT> expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
 
     throw new NotImplementedException("Not yet implemented");
   }
 
-  private IcebergWriteResult<ElementT> expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
+  private IcebergWriteResult<DestinationT, ElementT> expandUntriggered(PCollection<KV<DestinationT, ElementT>> input) {
 
     final PCollectionView<String> fileView = createJobIdPrefixView(input.getPipeline());
     // We always do the equivalent of a dynamically sharded file creation
@@ -178,7 +176,7 @@ public class IcebergSink<DestinationT extends Object, ElementT>
                             KV.of(
                                 element.tableId,
                                 MetadataUpdate.of(
-                                    element.partitionSpec, element.update.getDataFiles().get(0))));
+                                    element.partitionSpec, element.update.dataFile)));
                       }
                     }))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), MetadataUpdate.coder()))
@@ -213,7 +211,7 @@ public class IcebergSink<DestinationT extends Object, ElementT>
         .apply("JobIdSideInput", View.asSingleton());
   }
 
-  public IcebergWriteResult<ElementT> expand(PCollection<KV<DestinationT, ElementT>> input) {
+  public IcebergWriteResult<DestinationT, ElementT> expand(PCollection<KV<DestinationT, ElementT>> input) {
 
     String jobName = input.getPipeline().getOptions().getJobName();
 

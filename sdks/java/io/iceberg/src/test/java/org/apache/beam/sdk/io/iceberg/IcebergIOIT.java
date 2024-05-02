@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.iceberg;
+package org.apache.beam.sdk.io.iceberg;
 
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.options.Default;
@@ -136,7 +136,10 @@ public class IcebergIOIT implements Serializable {
   public void testRead() throws Exception {
     IcebergIOTestPipelineOptions options = TestPipeline.testingPipelineOptions().as(IcebergIOTestPipelineOptions.class);
 
-    long maxRecordsPerShard = Math.round(Math.ceil(options.getNumRecords().doubleValue() / options.getNumShards()));
+    Long numRecords = options.getNumRecords();
+    Integer numShards = options.getNumShards();
+    double recordsPerShardFraction = numRecords.doubleValue() / numShards.doubleValue();
+    long maxRecordsPerShard = Math.round(Math.ceil(recordsPerShardFraction));
 
     Configuration catalogHadoopConf = new Configuration();
     String warehouseLocation =
@@ -147,7 +150,7 @@ public class IcebergIOIT implements Serializable {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     org.apache.iceberg.Schema icebergSchema = new org.apache.iceberg.Schema(
-        NestedField.required(1, "v", Types.LongType.get()));
+        Types.NestedField.required(1, "v", Types.LongType.get()));
     Table table = catalog.createTable(tableId, icebergSchema);
 
     // Populate via laptop and remember the xor

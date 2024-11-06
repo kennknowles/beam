@@ -100,6 +100,8 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     env.translate(pipeline);
 
     try {
+      LOG.info("Configuration: {}", env.getStreamExecutionEnvironment().getConfiguration());
+      LOG.info("ExecutionConfig: {}", env.getStreamExecutionEnvironment().getConfig());
       LOG.info("Starting execution of Flink program.");
       return env.executePipeline();
     } catch (Exception e) {

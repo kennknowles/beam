@@ -21,15 +21,19 @@ import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironm
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.cloud.hosted.managedflink.client.GoogleCloudClusterClientOptions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.options.FileStagingOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.construction.resources.PipelineResources;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -41,12 +45,7 @@ import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
@@ -90,6 +89,7 @@ public class FlinkExecutionEnvironments {
 
     // Although Flink uses Rest, it expects the address not to contain a http scheme
     String flinkMasterHostPort = stripHttpSchema(options.getFlinkMaster());
+    LOG.info("flink master is {}", flinkMasterHostPort);
     Configuration flinkConfiguration = getFlinkConfiguration(confDir);
     ExecutionEnvironment flinkBatchEnv;
 
@@ -103,10 +103,28 @@ public class FlinkExecutionEnvironments {
     } else if ("[auto]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
       if (flinkBatchEnv instanceof LocalEnvironment) {
+        LOG.info("auto batch env... local... but why?");
         disableClassLoaderLeakCheck(flinkConfiguration);
         flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
         flinkBatchEnv.setParallelism(getDefaultLocalParallelism());
       }
+    } else if ("[google-cloud]".equals(flinkMasterHostPort)) {
+      flinkConfiguration.set(DeploymentOptions.TARGET, "google-cloud");
+      flinkConfiguration.set(GoogleCloudClusterClientOptions.PROJECT, "apache-beam-testing");
+      flinkConfiguration.set(
+          GoogleCloudClusterClientOptions.STAGING_LOCATION,
+          "gs://apache-beam-testing-kenn/flink-staging");
+      flinkConfiguration.set(GoogleCloudClusterClientOptions.DEPLOYMENT, "kenn-testing");
+      flinkConfiguration.set(GoogleCloudClusterClientOptions.LOCATION, "us-east1");
+
+      PipelineResources.prepareFilesForStaging(options.as(FileStagingOptions.class));
+      flinkConfiguration.set(
+          ConfigOptions.key("gcloud.jars").stringType().noDefaultValue(),
+          Joiner.on(",").join(options.getFilesToStage()));
+      // flinkConfiguration.setInteger("min-parallelism", 3);
+      // flinkConfiguration.setInteger("max-parallelism", 100);
+      flinkBatchEnv = new ExecutionEnvironment(flinkConfiguration);
+      LOG.info("Using google cloud environment with config {}", flinkBatchEnv.getConfiguration());
     } else {
       int defaultPort = flinkConfiguration.getInteger(RestOptions.PORT);
       HostAndPort hostAndPort =

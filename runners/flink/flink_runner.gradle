@@ -173,6 +173,9 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.args4j
 
+  implementation "com.google.cloud:google-cloud-managedflink-cluster-client:1.0-SNAPSHOT"
+  implementation "org.apache.flink:flink-gs-fs-hadoop:$flink_version"
+
   implementation "org.apache.flink:flink-clients:$flink_version"
   // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
   // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
@@ -199,7 +202,7 @@ dependencies {
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest
-  testImplementation library.java.junit
+  implementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.powermock
   testImplementation library.java.google_api_services_bigquery
@@ -229,6 +232,7 @@ class ValidatesRunnerConfig {
   String name
   boolean streaming
   boolean checkpointing
+  String runner = "TestFlinkRunner"
   boolean useDataStreamForBatch
   ArrayList<String> sickbayTests
 }
@@ -246,7 +250,7 @@ def createValidatesRunnerTask(Map m) {
     outputs.upToDateWhen { false }
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
-    def pipelineOptionsArray = ["--runner=TestFlinkRunner",
+    def pipelineOptionsArray = ["--runner=${config.runner}",
                                 "--streaming=${config.streaming}",
                                 "--useDataStreamForBatch=${config.useDataStreamForBatch}",
                                 "--parallelism=2",
@@ -334,6 +338,10 @@ createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true, sic
 // can shutdown because of https://issues.apache.org/jira/browse/FLINK-2491
 // not supporting checkpointing when an operator has been shutdown.
 createValidatesRunnerTask(name: "validatesRunnerStreamingCheckpointing", streaming: true, checkpointing: true, sickbayTests: sickbayTests)
+
+if (flink_major=="1.19") {
+  createValidatesRunnerTask(name: "validatesRunnerGcp", streaming: true, sickbayTests: sickbayTests, runner: "TestGcpFlinkRunner")
+}
 
 tasks.register('validatesRunner') {
   group = 'Verification'

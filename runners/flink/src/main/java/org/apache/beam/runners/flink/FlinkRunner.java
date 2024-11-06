@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +73,8 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
+    options.setFlinkMaster("[google-cloud]");
+
     // Portable flink only support SDF as read.
     // TODO(https://github.com/apache/beam/issues/20530): Use SDF read as default when we address
     // performance issue.
@@ -99,8 +102,17 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     LOG.info("Translating pipeline to Flink program.");
     env.translate(pipeline);
 
+    LOG.info("The execution environment config {}", env.getBatchExecutionEnvironment().getConfig());
+
     try {
       LOG.info("Starting execution of Flink program.");
+      LOG.info(
+          "execution.target: {}",
+          env.getBatchExecutionEnvironment() != null
+              ? env.getBatchExecutionEnvironment().getConfiguration().get(DeploymentOptions.TARGET)
+              : env.getStreamExecutionEnvironment()
+                  .getConfiguration()
+                  .get(DeploymentOptions.TARGET));
       return env.executePipeline();
     } catch (Exception e) {
       LOG.error("Pipeline execution failed", e);

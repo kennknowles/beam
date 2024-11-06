@@ -53,7 +53,7 @@ public interface FlinkPipelineOptions
   @Description(
       "Address of the Flink Master where the Pipeline should be executed. Can"
           + " either be of the form \"host:port\" or one of the special values [local], "
-          + "[collection] or [auto].")
+          + "[collection] or [auto] or [google-cloud].")
   @Default.String(AUTO)
   String getFlinkMaster();
 

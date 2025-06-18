@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -32,7 +33,7 @@ import org.joda.time.Instant;
  * <p>Not intended to be implemented by Beam users. This interface will be expanded in ways that are
  * backwards-incompatible, by requiring implementors to add methods.
  */
-public interface OutputBuilder<T> extends WindowedValue<T> {
+public interface OutputBuilder<T extends @Nullable Object> extends WindowedValue<T> {
   OutputBuilder<T> setValue(T value);
 
   OutputBuilder<T> setTimestamp(Instant timestamp);

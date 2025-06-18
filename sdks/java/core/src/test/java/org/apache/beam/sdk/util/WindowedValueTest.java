@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -51,6 +52,11 @@ import org.junit.runners.JUnit4;
 public class WindowedValueTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testNullBuilder() throws Exception {
+    WindowedValues.<@Nullable Object>builder().setValue(null);
+  }
 
   @Test
   public void testWindowedValueCoder() throws CoderException {

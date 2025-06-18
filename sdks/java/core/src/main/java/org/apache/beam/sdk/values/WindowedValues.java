@@ -36,7 +36,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -80,7 +79,7 @@ public class WindowedValues {
   }
 
   @AutoBuilder(callMethod = "of")
-  public abstract static class Builder<T> implements OutputBuilder<T> {
+  public abstract static class Builder<T extends @Nullable Object> implements OutputBuilder<T> {
 
     private @MonotonicNonNull WindowedValueReceiver<T> receiver;
 
@@ -130,9 +129,8 @@ public class WindowedValues {
 
     @Override
     public Collection<Builder<T>> explodeWindows() {
-      return getWindows().stream()
-          .map(window -> builder(this).setWindow(window))
-          .collect(Collectors.toList());
+      throw new UnsupportedOperationException(
+          "Cannot explodeWindows() on WindowedValue builder; use build().explodeWindows()");
     }
 
     @Override

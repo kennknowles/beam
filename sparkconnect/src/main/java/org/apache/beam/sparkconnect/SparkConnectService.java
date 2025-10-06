@@ -17,7 +17,37 @@
  */
 package org.apache.beam.sparkconnect;
 
+import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.dictionary.DictionaryProvider;
+import org.apache.arrow.vector.ipc.ArrowStreamWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.connect.proto.AddArtifactsRequest;
 import org.apache.spark.connect.proto.AddArtifactsResponse;
 import org.apache.spark.connect.proto.AnalyzePlanRequest;
@@ -31,18 +61,36 @@ import org.apache.spark.connect.proto.ExecutePlanResponse;
 import org.apache.spark.connect.proto.FetchErrorDetailsRequest;
 import org.apache.spark.connect.proto.FetchErrorDetailsResponse;
 import org.apache.spark.connect.proto.InterruptRequest;
+import org.apache.spark.connect.proto.InterruptResponse;
+import org.apache.spark.connect.proto.KeyValue;
+import org.apache.spark.connect.proto.LocalRelation;
 import org.apache.spark.connect.proto.ReattachExecuteRequest;
+import org.apache.spark.connect.proto.Relation;
 import org.apache.spark.connect.proto.ReleaseExecuteRequest;
 import org.apache.spark.connect.proto.ReleaseExecuteResponse;
 import org.apache.spark.connect.proto.ReleaseSessionRequest;
 import org.apache.spark.connect.proto.ReleaseSessionResponse;
+import org.apache.spark.connect.proto.ShowString;
 import org.apache.spark.connect.proto.SparkConnectServiceGrpc;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectServiceImplBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkConnectService.class);
+
+  // This will need to be a per-session conf
+  private final Map<String, String> conf = new HashMap<>();
+
+  SparkConnectService() {
+    conf.put("spark.sql.session.localRelationCacheThreshold", "" + (64 * 1024 * 1024));
+    conf.put("spark.sql.execution.arrow.useLargeVarTypes", "false");
+  }
+
+  // HACK: map OperationId to the fake response(s) for it
+  private final Map<String, List<ExecutePlanResponse>> operationToExecutePlanResponse =
+      new HashMap<>();
 
   /**
    * Executes a request that contains the query and returns a stream of [[Response]]. It is
@@ -51,9 +99,178 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void executePlan(
       ExecutePlanRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
-    LOG.info("executePlan request");
-    super.executePlan(request, responseObserver);
+    LOG.info("executePlan request {}", request);
+
+    ExecutePlanResponse.Builder responseBuilder =
+        ExecutePlanResponse.newBuilder()
+            .setSessionId(request.getSessionId())
+            .setResponseId(UUID.randomUUID().toString())
+            .setOperationId(
+                request
+                    .getOperationId()); // this can be set by the server if the client didn't set it
+
+    try {
+      switch (request.getPlan().getOpTypeCase()) {
+        case ROOT:
+          handleRootPlan(request.getPlan().getRoot(), responseBuilder);
+          break;
+        case COMMAND:
+          throw new UnsupportedOperationException("OpType COMMAND not yet supported");
+        case OPTYPE_NOT_SET:
+          throw new IllegalArgumentException("OpType not set");
+        default:
+          throw new UnsupportedOperationException(
+              "Unrecognized OpType for plan: " + request.getPlan().getOpTypeCase().name());
+      }
+
+      operationToExecutePlanResponse.put(
+          request.getOperationId(), ImmutableList.of(responseBuilder.build()));
+
+      sendResponses(request.getOperationId(), responseObserver);
+    } catch (IOException exc) {
+      responseObserver.onError(exc);
+    }
   }
+
+  private void sendResponses(
+      String operationId, StreamObserver<ExecutePlanResponse> responseObserver) {
+    List<ExecutePlanResponse> responses = operationToExecutePlanResponse.get(operationId);
+
+    if (responses == null) {
+      throw new IllegalArgumentException("operation not found: " + operationId);
+    }
+
+    for (ExecutePlanResponse response : responses) {
+      responseObserver.onNext(response);
+    }
+    responseObserver.onCompleted();
+  }
+
+  // hack for bounded stuff, not streaming results, so we can just mutate the one and only response
+  // builder
+  private void handleRootPlan(Relation root, ExecutePlanResponse.Builder responseBuilder)
+      throws IOException {
+    // TableProvider tableProvider = new TestTableProvider();
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    BeamSqlEnv.BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
+
+    sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    sqlEnvBuilder.setPipelineOptions(options);
+
+    BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
+    RelBuilder relBuilder = sqlEnv.getRelBuilder();
+
+    RelNode relNode = translateRelationToRel(root, relBuilder);
+    sqlEnv.convertToBeamRel(relNode);
+
+    // fake arrow batch that is a response for show_string
+    ExecutePlanResponse.ArrowBatch.Builder arrowBatchBuilder =
+        ExecutePlanResponse.ArrowBatch.newBuilder();
+
+    arrowBatchBuilder.setRowCount(1);
+
+    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
+
+      // 1. Define the Schema
+      Field showStringField =
+          new Field(
+              "show_string", FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
+      Schema schema = new Schema(Collections.singletonList(showStringField));
+
+      // 2. Create VectorSchemaRoot
+      try (VectorSchemaRoot arrowRoot = VectorSchemaRoot.create(schema, allocator)) {
+
+        // Get the vector from the root
+        VarCharVector varCharVector = (VarCharVector) arrowRoot.getVector("show_string");
+
+        // 3. Allocate and Populate the Vector
+        varCharVector.allocateNew(1);
+        varCharVector.setSafe(1, "test test test".getBytes(StandardCharsets.UTF_8));
+        varCharVector.setValueCount(1);
+        arrowRoot.setRowCount(1);
+
+        // 4. Serialize the VectorSchemaRoot to byte array
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (ArrowStreamWriter writer = newArrowStreamWriter(arrowRoot, null, out)) {
+          writer.start();
+          writer.writeBatch();
+          writer.end();
+        } // writer is closed here
+
+        arrowBatchBuilder.setData(ByteString.copyFrom(out.toByteArray()));
+      } // root is closed here
+    } // allocator is closed here
+
+    // fake zero length arrow batch
+    responseBuilder.setArrowBatch(arrowBatchBuilder.build());
+  }
+
+  /** Wrapper for non-annotated Arrow library call that accepts nulls. */
+  @SuppressWarnings("nullness")
+  private ArrowStreamWriter newArrowStreamWriter(
+      VectorSchemaRoot arrowRoot,
+      @Nullable DictionaryProvider provider,
+      OutputStream outputstream) {
+    return new ArrowStreamWriter(arrowRoot, provider, outputstream);
+  }
+
+  private RelNode translateRelationToRel(Relation sparkRelation, RelBuilder relBuilder) {
+    switch (sparkRelation.getRelTypeCase()) {
+      case LOCAL_RELATION:
+        return translateLocalRelation(sparkRelation.getLocalRelation(), relBuilder);
+      case SHOW_STRING:
+        return translateShowString(sparkRelation.getShowString(), relBuilder);
+      default:
+        throw new UnsupportedOperationException("Relation not supported: " + sparkRelation);
+    }
+  }
+
+  private RelNode translateShowString(ShowString showString, RelBuilder relBuilder) {
+
+    translateRelationToRel(showString.getInput(), relBuilder);
+
+    RelDataType rowType =
+        relBuilder.getTypeFactory().builder().add("foo", SqlTypeName.INTEGER).build();
+
+    // Create a values node with that schema
+    return relBuilder.values(rowType, 3).build();
+  }
+
+  private RelNode translateLocalRelation(LocalRelation localRelation, RelBuilder relBuilder) {
+    // Parse this into a struct type then convert to Calcite schema. For now, fake
+    // localRelation.getSchema();
+    //    DataType.parseTypeWithFallback(
+    //      localRelation.getSchema(),
+    //      DataType::fromJson);
+
+    RelDataType rowType =
+        relBuilder.getTypeFactory().builder().add("foo", SqlTypeName.INTEGER).build();
+
+    // Create a values node with that schema
+    return relBuilder.values(rowType, 3).build();
+  }
+
+  // directly lifted - can't share because private
+  //  private DataType parseDatatypeString(String sqlText) {
+  //    DataTypeParserInterface parser = Parsers
+  //    try {
+  //      return parser.parseTableSchema(sqlText)
+  //    } catch(ParseException e) {
+  //        try {
+  //          parser.parseDataType(sqlText);
+  //        } catch {
+  //        case _: ParseException =>
+  //          try {
+  //            parser.parseDataType(s"struct<${sqlText.trim}>")
+  //          } catch {
+  //          case _: ParseException =>
+  //            throw e
+  //        }
+  //      }
+  //    }
+  //
 
   /** Analyzes a query and returns a [[AnalyzeResponse]] containing metadata about the query. */
   @Override
@@ -66,9 +283,53 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   /** Update or fetch the configurations and returns a [[ConfigResponse]] containing the result. */
   @Override
   public void config(ConfigRequest request, StreamObserver<ConfigResponse> responseObserver) {
-    LOG.info("config request");
-    responseObserver.onNext(
-    super.config(request, responseObserver);
+    LOG.info("config request: {}", request);
+
+    ConfigResponse.Builder responseBuilder = ConfigResponse.newBuilder();
+
+    responseBuilder.setSessionId(request.getSessionId());
+    responseBuilder.setServerSideSessionId(request.getSessionId());
+    responseBuilder.addWarnings("This is fake");
+
+    // TBD which config options we actually need or want to support; for now we pretend!
+    switch (request.getOperation().getOpTypeCase()) {
+      case SET:
+        break;
+      case GET:
+        handleConfigGet(request.getOperation().getGet(), responseBuilder);
+        break;
+      case GET_WITH_DEFAULT:
+        break;
+      case GET_OPTION:
+        break;
+      case GET_ALL:
+        break;
+      case UNSET:
+        break;
+      case IS_MODIFIABLE:
+        for (String key : request.getOperation().getIsModifiable().getKeysList()) {
+          responseBuilder.addPairs(KeyValue.newBuilder().setKey(key).setValue("false"));
+        }
+        break;
+      case OPTYPE_NOT_SET:
+        break;
+    }
+
+    LOG.info("config response: {}", responseBuilder);
+    responseObserver.onNext(responseBuilder.build());
+    responseObserver.onCompleted();
+  }
+
+  private void handleConfigGet(ConfigRequest.Get request, ConfigResponse.Builder responseBuilder) {
+    for (String key : request.getKeysList()) {
+      KeyValue.Builder kvBuilder = KeyValue.newBuilder();
+      kvBuilder.setKey(key);
+      @Nullable String value = conf.get(key);
+      if (value != null) {
+        kvBuilder.setValue(value);
+      }
+      responseBuilder.addPairs(kvBuilder.build());
+    }
   }
 
   /**
@@ -101,8 +362,40 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void interrupt(
       InterruptRequest request,
       StreamObserver<org.apache.spark.connect.proto.InterruptResponse> responseObserver) {
-    LOG.info("interrupt request");
-    super.interrupt(request, responseObserver);
+    LOG.info("interrupt request {}", request);
+
+    InterruptResponse.Builder responseBuilder = InterruptResponse.newBuilder();
+    responseBuilder
+        .setSessionId(request.getSessionId())
+        .setServerSideSessionId(request.getSessionId());
+
+    switch (request.getInterruptType()) {
+      case INTERRUPT_TYPE_UNSPECIFIED:
+        throw new IllegalArgumentException("interrupt type unspecified");
+      case INTERRUPT_TYPE_ALL:
+        // TODO
+        // For now we pretend every operation that has been started has been interrupted
+        responseBuilder.addAllInterruptedIds(operationToExecutePlanResponse.keySet());
+        operationToExecutePlanResponse.clear();
+        break;
+      case INTERRUPT_TYPE_TAG:
+        // TODO
+        // These aren't specified in the proto so they have some other significance
+        break;
+      case INTERRUPT_TYPE_OPERATION_ID:
+        // TODO
+        // For now we pretend it was interrupted, and clear the response from the map
+        responseBuilder.addInterruptedIds(request.getOperationId());
+        operationToExecutePlanResponse.remove(request.getOperationId());
+        break;
+      case UNRECOGNIZED:
+      default:
+        throw new UnsupportedOperationException(
+            "Unrecognized interrupt type: " + request.getInterruptType());
+    }
+
+    responseObserver.onNext(responseBuilder.build());
+    responseObserver.onCompleted();
   }
 
   /**
@@ -113,8 +406,8 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void reattachExecute(
       ReattachExecuteRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
-    LOG.info("reattachExecute request");
-    super.reattachExecute(request, responseObserver);
+    LOG.info("reattachExecute request {}", request);
+    sendResponses(request.getOperationId(), responseObserver);
   }
 
   /**
@@ -130,8 +423,14 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void releaseExecute(
       ReleaseExecuteRequest request, StreamObserver<ReleaseExecuteResponse> responseObserver) {
-    LOG.info("releaseExecute request");
-    super.releaseExecute(request, responseObserver);
+    LOG.info("releaseExecute request {}", request);
+    responseObserver.onNext(
+        ReleaseExecuteResponse.newBuilder()
+            .setSessionId(request.getSessionId())
+            .setServerSideSessionId(request.getSessionId())
+            .setOperationId(request.getOperationId())
+            .build());
+    responseObserver.onCompleted();
   }
 
   /**

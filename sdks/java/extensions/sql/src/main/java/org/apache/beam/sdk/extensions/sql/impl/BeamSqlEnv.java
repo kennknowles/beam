@@ -47,8 +47,10 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -114,6 +116,14 @@ public class BeamSqlEnv {
   public BeamRelNode parseQuery(String query, QueryParameters queryParameters)
       throws ParseException {
     return planner.convertToBeamRel(query, queryParameters);
+  }
+
+  public RelBuilder getRelBuilder() {
+    return planner.getRelBuilder();
+  }
+
+  public BeamRelNode convertToBeamRel(RelNode relNode) {
+    return planner.convertToBeamRel(relNode, QueryParameters.ofNone());
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {

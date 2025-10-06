@@ -36,7 +36,9 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.config.CalciteC
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.Contexts;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCost;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
@@ -51,6 +53,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.Me
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -63,6 +66,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql2rel.SqlToRe
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Planner;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelConversionException;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.ValidationException;
@@ -85,11 +89,47 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
   private final Planner planner;
   private final JdbcConnection connection;
+  private final FrameworkConfig config;
+
+  // Cannot be final because of wacky initialization logic
+  private RelOptCluster relOptCluster;
+  private CalciteCatalogReader catalogReader;
+  private RelDataTypeFactory typeFactory;
+  private RelOptPlanner calcitePlanner;
 
   /** Called by {@link BeamSqlEnv}.instantiatePlanner() reflectively. */
   public CalciteQueryPlanner(JdbcConnection connection, Collection<RuleSet> ruleSets) {
     this.connection = connection;
-    this.planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));
+    this.config = defaultConfig(connection, ruleSets);
+    this.planner = Frameworks.getPlanner(config);
+
+    Frameworks.withPlanner(
+        (cluster, relOptSchema, rootSchema) -> {
+          // CAPTURE THE COMPONENTS HERE
+          this.relOptCluster = cluster;
+          this.catalogReader = (CalciteCatalogReader) relOptSchema;
+          this.typeFactory = cluster.getTypeFactory();
+          this.calcitePlanner = cluster.getPlanner();
+
+          // ... any other setup from the original lambda ...
+          // e.g., planner.setExecutor(executor);
+
+          return null;
+        },
+        config);
+
+    if (this.relOptCluster == null || this.catalogReader == null) {
+      throw new IllegalStateException("Failed to initialize Calcite components");
+    }
+  }
+
+  /**
+   * Returns a RelBuilder instance configured with the same Calcite components used by this
+   * QueryPlanner.
+   */
+  @Override
+  public RelBuilder getRelBuilder() {
+    return RelBuilder.create(config);
   }
 
   public static final Factory FACTORY =
@@ -182,7 +222,6 @@ public class CalciteQueryPlanner implements QueryPlanner {
     Preconditions.checkArgument(
         queryParameters.getKind() == Kind.NONE,
         "Beam SQL Calcite dialect does not yet support query parameters.");
-    BeamRelNode beamRelNode;
     try {
       SqlNode parsed = planner.parse(sqlStatement);
       TableResolutionUtils.setupCustomTableResolution(connection, parsed);
@@ -191,34 +230,47 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
       // root of original logical plan
       RelRoot root = planner.rel(validated);
-      LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(root.rel));
+      return convertToBeamRel(root.rel, queryParameters);
+    } catch (RelConversionException | CannotPlanException e) {
+      throw new SqlConversionException(
+          String.format("Unable to convert query %s", sqlStatement), e);
+    } catch (SqlParseException | ValidationException e) {
+      throw new ParseException(String.format("Unable to parse query %s", sqlStatement), e);
+    } finally {
+      planner.close();
+    }
+  }
+
+  @Override
+  public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters) {
+    BeamRelNode beamRelNode;
+    try {
+      LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(relNode));
       RelTraitSet desiredTraits =
-          root.rel
+          relNode
               .getTraitSet()
               .replace(BeamLogicalConvention.INSTANCE)
-              .replace(root.collation)
+              // .replace(root.collation)
               .simplify();
       // beam physical plan
-      root.rel
+      relNode
           .getCluster()
           .setMetadataProvider(
               ChainedRelMetadataProvider.of(
                   ImmutableList.of(
                       NonCumulativeCostImpl.SOURCE,
                       RelMdNodeStats.SOURCE,
-                      root.rel.getCluster().getMetadataProvider())));
+                      relNode.getCluster().getMetadataProvider())));
 
-      root.rel.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
+      relNode.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
       RelMetadataQuery.THREAD_PROVIDERS.set(
-          JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
-      root.rel.getCluster().invalidateMetadataQuery();
-      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
+          JaninoRelMetadataProvider.of(relNode.getCluster().getMetadataProvider()));
+      relNode.getCluster().invalidateMetadataQuery();
+      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, relNode);
       LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
     } catch (RelConversionException | CannotPlanException e) {
       throw new SqlConversionException(
-          String.format("Unable to convert query %s", sqlStatement), e);
-    } catch (SqlParseException | ValidationException e) {
-      throw new ParseException(String.format("Unable to parse query %s", sqlStatement), e);
+          String.format("Unable to convert relNode to Beam: %s", relNode), e);
     } finally {
       planner.close();
     }

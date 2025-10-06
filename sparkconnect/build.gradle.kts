@@ -41,9 +41,14 @@ val blockingServer = configurations.register("blockingServer") {
 }
 
 dependencies {
+  // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
+  // also discussed at https://github.com/immutables/immutables/issues/291
+  compileOnly("org.immutables:value:2.8.8")
+
   implementation(enforcedPlatform(library_java.getValue("google_cloud_platform_libraries_bom")))
 
-  //  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation(project(":sdks:java:core", configuration = "shadow"))
+  implementation(project(":sdks:java:extensions:sql"))
   //  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
   implementation("org.apache.spark:spark-connect-common_2.13:4.0.1") {
@@ -52,8 +57,15 @@ dependencies {
   }
   implementation(library_java.getValue("grpc_stub"))
   implementation(library_java.getValue("grpc_api"))
+  implementation(library_java.getValue("vendored_calcite_1_40_0"))
+  implementation(library_java.getValue("vendored_guava_32_1_2_jre"))
+
+  implementation(library_java.getValue("arrow_vector"))
+  implementation(library_java.getValue("arrow_memory_core"))
+  implementation(library_java.getValue("arrow_memory_netty"))
 
   blockingServer(library_java.getValue("slf4j_simple"))
+
   //implementation library.java.grpc_netty
 
 //  implementation library.java.vendored_guava_32_1_2_jre

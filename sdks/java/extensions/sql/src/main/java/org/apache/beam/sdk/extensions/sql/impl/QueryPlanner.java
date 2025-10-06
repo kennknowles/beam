@@ -22,7 +22,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -39,8 +41,14 @@ public interface QueryPlanner {
   BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException;
 
+  /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
+  BeamRelNode convertToBeamRel(RelNode sqlStatement, QueryParameters queryParameters)
+      throws SqlConversionException;
+
   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
   SqlNode parse(String sqlStatement) throws ParseException;
+
+  RelBuilder getRelBuilder();
 
   @AutoOneOf(QueryParameters.Kind.class)
   abstract class QueryParameters {

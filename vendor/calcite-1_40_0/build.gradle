@@ -33,7 +33,7 @@ plugins { id 'org.apache.beam.vendor-java' }
 description = "Apache Beam :: Vendored Dependencies :: Calcite 1.40.0"
 
 group = "org.apache.beam"
-version = "0.1"
+version = "0.2"
 
 def calcite_version = "1.40.0"
 def avatica_version = "1.26.0"
@@ -67,6 +67,7 @@ List<String> packagesToRelocate = [
 
 vendorJava(
         dependencies: [
+                "org.apache.calcite:calcite-arrow:$calcite_version",
                 "org.apache.calcite:calcite-core:$calcite_version",
                 "org.apache.calcite:calcite-linq4j:$calcite_version",
                 "org.apache.calcite.avatica:avatica-core:$avatica_version",

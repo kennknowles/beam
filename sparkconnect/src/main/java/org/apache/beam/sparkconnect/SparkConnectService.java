@@ -44,8 +44,6 @@ import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.connect.proto.AddArtifactsRequest;
@@ -63,14 +61,12 @@ import org.apache.spark.connect.proto.FetchErrorDetailsResponse;
 import org.apache.spark.connect.proto.InterruptRequest;
 import org.apache.spark.connect.proto.InterruptResponse;
 import org.apache.spark.connect.proto.KeyValue;
-import org.apache.spark.connect.proto.LocalRelation;
 import org.apache.spark.connect.proto.ReattachExecuteRequest;
 import org.apache.spark.connect.proto.Relation;
 import org.apache.spark.connect.proto.ReleaseExecuteRequest;
 import org.apache.spark.connect.proto.ReleaseExecuteResponse;
 import org.apache.spark.connect.proto.ReleaseSessionRequest;
 import org.apache.spark.connect.proto.ReleaseSessionResponse;
-import org.apache.spark.connect.proto.ShowString;
 import org.apache.spark.connect.proto.SparkConnectServiceGrpc;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -112,7 +108,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
     try {
       switch (request.getPlan().getOpTypeCase()) {
         case ROOT:
-          handleRootPlan(request.getPlan().getRoot(), responseBuilder);
+          handleRootPlan(request.getPlan().getRoot(), responseBuilder, responseObserver);
           break;
         case COMMAND:
           throw new UnsupportedOperationException("OpType COMMAND not yet supported");
@@ -126,54 +122,80 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       operationToExecutePlanResponse.put(
           request.getOperationId(), ImmutableList.of(responseBuilder.build()));
 
-      sendResponses(request.getOperationId(), responseObserver);
+      sendResponses(request.getOperationId(), responseBuilder, responseObserver, null);
     } catch (IOException exc) {
       responseObserver.onError(exc);
+      responseObserver.onNext(
+          responseBuilder
+              .setResultComplete(ExecutePlanResponse.ResultComplete.newBuilder().build())
+              .build());
+      responseObserver.onCompleted();
     }
   }
 
   private void sendResponses(
-      String operationId, StreamObserver<ExecutePlanResponse> responseObserver) {
+      String operationId,
+      ExecutePlanResponse.Builder responseBuilder,
+      StreamObserver<ExecutePlanResponse> responseObserver,
+      @Nullable String lastResponseId) {
     List<ExecutePlanResponse> responses = operationToExecutePlanResponse.get(operationId);
 
     if (responses == null) {
       throw new IllegalArgumentException("operation not found: " + operationId);
     }
 
+    boolean shouldSend = lastResponseId == null;
     for (ExecutePlanResponse response : responses) {
-      responseObserver.onNext(response);
+      if (shouldSend) {
+        responseObserver.onNext(response);
+      } else {
+        if (response.getResponseId().equals(lastResponseId)) {
+          shouldSend = true;
+        }
+      }
     }
+    responseObserver.onNext(
+        responseBuilder
+            .setResultComplete(ExecutePlanResponse.ResultComplete.newBuilder().build())
+            .build());
     responseObserver.onCompleted();
   }
 
-  // hack for bounded stuff, not streaming results, so we can just mutate the one and only response
-  // builder
-  private void handleRootPlan(Relation root, ExecutePlanResponse.Builder responseBuilder)
+  private void handleRootPlan(
+      Relation root,
+      ExecutePlanResponse.Builder responseBuilder,
+      StreamObserver<ExecutePlanResponse> responseObserver)
       throws IOException {
-    // TableProvider tableProvider = new TestTableProvider();
+
+    // Run through the paces to check that it doesn't crash (yet)
     InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
     BeamSqlEnv.BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
-
     sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
-
     PipelineOptions options = PipelineOptionsFactory.create();
     sqlEnvBuilder.setPipelineOptions(options);
-
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
     RelBuilder relBuilder = sqlEnv.getRelBuilder();
-
-    RelNode relNode = translateRelationToRel(root, relBuilder);
+    RelNode relNode = RelationToCalcite.translateRelationToRel(root, relBuilder);
     sqlEnv.convertToBeamRel(relNode);
+
+    executeCalcitePlanAndRespond(relNode, responseBuilder, responseObserver);
+  }
+
+  private void executeCalcitePlanAndRespond(
+      RelNode relNode,
+      ExecutePlanResponse.Builder responseBuilder,
+      StreamObserver<ExecutePlanResponse> responseObserver)
+      throws IOException {
+
+    // ignore the relNode and build a ShowString response
 
     // fake arrow batch that is a response for show_string
     ExecutePlanResponse.ArrowBatch.Builder arrowBatchBuilder =
         ExecutePlanResponse.ArrowBatch.newBuilder();
-
     arrowBatchBuilder.setRowCount(1);
 
+    // this goes into the ShowString relation translator
     try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-
-      // 1. Define the Schema
       Field showStringField =
           new Field(
               "show_string", FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
@@ -187,7 +209,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
 
         // 3. Allocate and Populate the Vector
         varCharVector.allocateNew(1);
-        varCharVector.setSafe(1, "test test test".getBytes(StandardCharsets.UTF_8));
+        varCharVector.setSafe(0, "test test test".getBytes(StandardCharsets.UTF_8));
         varCharVector.setValueCount(1);
         arrowRoot.setRowCount(1);
 
@@ -200,10 +222,9 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
         } // writer is closed here
 
         arrowBatchBuilder.setData(ByteString.copyFrom(out.toByteArray()));
-      } // root is closed here
-    } // allocator is closed here
+      } // arrowRoot closed here
+    } // allocator closed here
 
-    // fake zero length arrow batch
     responseBuilder.setArrowBatch(arrowBatchBuilder.build());
   }
 
@@ -214,42 +235,6 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       @Nullable DictionaryProvider provider,
       OutputStream outputstream) {
     return new ArrowStreamWriter(arrowRoot, provider, outputstream);
-  }
-
-  private RelNode translateRelationToRel(Relation sparkRelation, RelBuilder relBuilder) {
-    switch (sparkRelation.getRelTypeCase()) {
-      case LOCAL_RELATION:
-        return translateLocalRelation(sparkRelation.getLocalRelation(), relBuilder);
-      case SHOW_STRING:
-        return translateShowString(sparkRelation.getShowString(), relBuilder);
-      default:
-        throw new UnsupportedOperationException("Relation not supported: " + sparkRelation);
-    }
-  }
-
-  private RelNode translateShowString(ShowString showString, RelBuilder relBuilder) {
-
-    translateRelationToRel(showString.getInput(), relBuilder);
-
-    RelDataType rowType =
-        relBuilder.getTypeFactory().builder().add("foo", SqlTypeName.INTEGER).build();
-
-    // Create a values node with that schema
-    return relBuilder.values(rowType, 3).build();
-  }
-
-  private RelNode translateLocalRelation(LocalRelation localRelation, RelBuilder relBuilder) {
-    // Parse this into a struct type then convert to Calcite schema. For now, fake
-    // localRelation.getSchema();
-    //    DataType.parseTypeWithFallback(
-    //      localRelation.getSchema(),
-    //      DataType::fromJson);
-
-    RelDataType rowType =
-        relBuilder.getTypeFactory().builder().add("foo", SqlTypeName.INTEGER).build();
-
-    // Create a values node with that schema
-    return relBuilder.values(rowType, 3).build();
   }
 
   // directly lifted - can't share because private
@@ -266,7 +251,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   //            parser.parseDataType(s"struct<${sqlText.trim}>")
   //          } catch {
   //          case _: ParseException =>
-  //            throw e
+  //            throw e/
   //        }
   //      }
   //    }
@@ -407,7 +392,15 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void reattachExecute(
       ReattachExecuteRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
     LOG.info("reattachExecute request {}", request);
-    sendResponses(request.getOperationId(), responseObserver);
+    ExecutePlanResponse.Builder responseBuilder =
+        ExecutePlanResponse.newBuilder()
+            .setResponseId(UUID.randomUUID().toString())
+            .setOperationId(request.getOperationId())
+            .setSessionId(request.getSessionId())
+            .setServerSideSessionId(request.getSessionId());
+
+    sendResponses(
+        request.getOperationId(), responseBuilder, responseObserver, request.getLastResponseId());
   }
 
   /**

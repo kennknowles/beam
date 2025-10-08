@@ -84,7 +84,8 @@ tasks.register<JavaExec>("blockingServer") {
 
   jvmArgs = listOf(
     "-Djava.util.logging.ConsoleHandler.level=FINEST",
-    "-Dio.grpc.level=FINEST"
+    "-Dio.grpc.level=FINEST",
+    "--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED",
   )
 
   doFirst {

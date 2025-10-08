@@ -66,6 +66,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql2rel.SqlToRe
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Planner;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Program;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelConversionException;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
@@ -266,9 +267,17 @@ public class CalciteQueryPlanner implements QueryPlanner {
       RelMetadataQuery.THREAD_PROVIDERS.set(
           JaninoRelMetadataProvider.of(relNode.getCluster().getMetadataProvider()));
       relNode.getCluster().invalidateMetadataQuery();
-      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, relNode);
+      Program program = config.getPrograms().get(0);
+      beamRelNode =
+          (BeamRelNode)
+              program.run(
+                  relNode.getCluster().getPlanner(),
+                  relNode,
+                  desiredTraits,
+                  ImmutableList.of(),
+                  ImmutableList.of());
       LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
-    } catch (RelConversionException | CannotPlanException e) {
+    } catch (CannotPlanException e) {
       throw new SqlConversionException(
           String.format("Unable to convert relNode to Beam: %s", relNode), e);
     } finally {

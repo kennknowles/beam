@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VarCharVector;
@@ -40,9 +41,12 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -167,27 +171,31 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       StreamObserver<ExecutePlanResponse> responseObserver)
       throws IOException {
 
-    // Run through the paces to check that it doesn't crash (yet)
     InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
     BeamSqlEnv.BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
     sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
     PipelineOptions options = PipelineOptionsFactory.create();
     sqlEnvBuilder.setPipelineOptions(options);
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
-    RelBuilder relBuilder = sqlEnv.getRelBuilder();
-    RelNode relNode = RelationToCalcite.translateRelationToRel(root, relBuilder);
-    sqlEnv.convertToBeamRel(relNode);
 
-    executeCalcitePlanAndRespond(relNode, responseBuilder, responseObserver);
+    SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(sqlEnv.getRelBuilder().getCluster());
+    RelNode relNode = sparkRelationToRelNode.translate(root);
+    BeamRelNode beamRelNode = sqlEnv.convertToBeamRel(relNode);
+
+    executeCalcitePlanAndRespond(beamRelNode, responseBuilder, responseObserver);
   }
 
   private void executeCalcitePlanAndRespond(
-      RelNode relNode,
+      BeamRelNode beamRelNode,
       ExecutePlanResponse.Builder responseBuilder,
       StreamObserver<ExecutePlanResponse> responseObserver)
       throws IOException {
 
-    // ignore the relNode and build a ShowString response
+    List<Row> outputRows = BeamEnumerableConverter.toRowList(beamRelNode);
+
+    // Technically show_string should do this work for me in a DoFn but here we are
+    String outputString =
+        outputRows.stream().map(row -> row.toString()).collect(Collectors.joining("\n"));
 
     // fake arrow batch that is a response for show_string
     ExecutePlanResponse.ArrowBatch.Builder arrowBatchBuilder =
@@ -209,7 +217,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
 
         // 3. Allocate and Populate the Vector
         varCharVector.allocateNew(1);
-        varCharVector.setSafe(0, "test test test".getBytes(StandardCharsets.UTF_8));
+        varCharVector.setSafe(0, outputString.getBytes(StandardCharsets.UTF_8));
         varCharVector.setValueCount(1);
         arrowRoot.setRowCount(1);
 

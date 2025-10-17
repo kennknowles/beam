@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
@@ -34,17 +35,23 @@ import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.beam.sparkconnect.rel.LogicalShowString;
+import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.arrow.ArrowFieldTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.Convention;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelFieldCollation;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.hint.RelHint;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalIntersect;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalMinus;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalUnion;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -52,28 +59,29 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.ImmutableList;
+import org.apache.spark.connect.proto.Aggregate;
+import org.apache.spark.connect.proto.Deduplicate;
 import org.apache.spark.connect.proto.Drop;
 import org.apache.spark.connect.proto.Expression;
-import org.apache.spark.connect.proto.LocalRelation;
-import org.apache.spark.connect.proto.Project;
-import org.apache.spark.connect.proto.Read;
 import org.apache.spark.connect.proto.Filter;
 import org.apache.spark.connect.proto.Join;
-import org.apache.spark.connect.proto.Aggregate;
+import org.apache.spark.connect.proto.Limit;
+import org.apache.spark.connect.proto.LocalRelation;
+import org.apache.spark.connect.proto.Offset;
+import org.apache.spark.connect.proto.Project;
+import org.apache.spark.connect.proto.Range;
+import org.apache.spark.connect.proto.Read;
 import org.apache.spark.connect.proto.Relation;
 import org.apache.spark.connect.proto.SQL;
 import org.apache.spark.connect.proto.SetOperation;
-import org.apache.spark.connect.proto.Offset;
-import org.apache.spark.connect.proto.Tail;
-import org.apache.spark.connect.proto.Range;
+import org.apache.spark.connect.proto.ShowString;
 import org.apache.spark.connect.proto.Sort;
+import org.apache.spark.connect.proto.Tail;
 import org.apache.spark.connect.proto.WithColumns;
 import org.apache.spark.connect.proto.WithColumnsRenamed;
-import org.apache.spark.connect.proto.Deduplicate;
-import org.apache.spark.connect.proto.Limit;
-import org.apache.spark.connect.proto.ShowString;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class SparkRelationToRelNode {
 
@@ -119,7 +127,8 @@ public class SparkRelationToRelNode {
         return translateWithColumnsRenamed(sparkRelation.getWithColumnsRenamed());
       case WITH_COLUMNS:
         return translateWithColumns(sparkRelation.getWithColumns());
-
+      case SHOW_STRING:
+        return translateShowString(sparkRelation.getShowString());
       default:
         return unsupported(sparkRelation.getRelTypeCase().name());
     }
@@ -127,6 +136,17 @@ public class SparkRelationToRelNode {
 
   private RelNode unsupported(String typeName) {
     throw new UnsupportedOperationException("Spark Relation type not supported yet: " + typeName);
+  }
+
+  private RelNode translateShowString(ShowString showStringProto) {
+    RelNode input = translate(showStringProto.getInput());
+    return new LogicalShowString(
+        cluster,
+        cluster.traitSetOf(Convention.NONE),
+        input,
+        showStringProto.getNumRows(),
+        showStringProto.getTruncate(),
+        showStringProto.getVertical());
   }
 
   private RelNode translateProject(Project projectProto) {
@@ -138,28 +158,27 @@ public class SparkRelationToRelNode {
     }
     RelDataType inputRowType = inputNode.getRowType();
 
-    SparkExpressionToRexNode exprConverter = new SparkExpressionToRexNode(cluster.getRexBuilder());
-    List<RexNode> calciteProjections = projectProto.getExpressionsList().stream()
-      .map(exprConverter::translate)
-      .collect(Collectors.toList());
+    SparkExpressionToRexNode exprConverter = new SparkExpressionToRexNode(cluster, inputRowType);
+    List<RexNode> calciteProjections =
+        projectProto.getExpressionsList().stream()
+            .map(exprConverter::translate)
+            .collect(Collectors.toList());
 
-    List<String> fieldNames = exprConverter.deriveFieldNames(projectProto.getExpressionsList());
+    List<@Nullable String> fieldNames =
+        exprConverter.deriveFieldNames(projectProto.getExpressionsList());
 
     return LogicalProject.create(
-        inputNode,
-        Collections.<RelHint>emptyList(),
-        calciteProjections,
-        fieldNames,
-        inputRowType,
-        Collections.emptySet());
+        inputNode, Collections.emptyList(), calciteProjections, fieldNames, Collections.emptySet());
   }
 
   private RelNode translateRead(Read readProto) {
     if (readProto.hasNamedTable()) {
-      List<String> tableName = ImmutableList.copyOf(readProto.getNamedTable().getUnparsedIdentifier().split("\\."));
+      List<String> tableName =
+          ImmutableList.copyOf(readProto.getNamedTable().getUnparsedIdentifier().split("\\."));
       // RelOptTable table = catalogReader.getTable(tableName);
       // if (table == null) {
-      //     throw new IllegalArgumentException("Table not found: " + readProto.getNamedTable().getUnparsedIdentifier());
+      //     throw new IllegalArgumentException("Table not found: " +
+      // readProto.getNamedTable().getUnparsedIdentifier());
       // }
       // return LogicalTableScan.create(cluster, table);
       return unsupported("Read NamedTable - requires catalog lookup");
@@ -171,7 +190,8 @@ public class SparkRelationToRelNode {
 
   private RelNode translateFilter(Filter filterProto) {
     RelNode inputNode = translate(filterProto.getInput());
-    SparkExpressionToRexNode exprConverter = new SparkExpressionToRexNode(rexBuilder, inputNode.getRowType());
+    SparkExpressionToRexNode exprConverter =
+        new SparkExpressionToRexNode(cluster, inputNode.getRowType());
     RexNode condition = exprConverter.translate(filterProto.getCondition());
     return LogicalFilter.create(inputNode, condition);
   }
@@ -184,40 +204,67 @@ public class SparkRelationToRelNode {
     int leftFieldCount = left.getRowType().getFieldCount();
 
     if (joinProto.hasJoinCondition()) {
-      RelDataType joinRowType = typeFactory.createJoinType(left.getRowType(), right.getRowType());
-      // Need an expression translateer that can handle field references from both left and right inputs
-      SparkExpressionToRexNode joinExprConverter = new SparkExpressionToRexNode(rexBuilder, joinRowType);
+      RelDataType joinRowType =
+          cluster.getTypeFactory().createJoinType(left.getRowType(), right.getRowType());
+      // Need an expression translateer that can handle field references from both left and right
+      // inputs
+      SparkExpressionToRexNode joinExprConverter =
+          new SparkExpressionToRexNode(cluster, joinRowType);
       condition = joinExprConverter.translate(joinProto.getJoinCondition());
     } else if (joinProto.getUsingColumnsCount() > 0) {
       List<RexNode> equiConditions = new ArrayList<>();
-      for(String colName : joinProto.getUsingColumnsList()){
+      for (String colName : joinProto.getUsingColumnsList()) {
         RelDataTypeField leftField = left.getRowType().getField(colName, false, false);
         RelDataTypeField rightField = right.getRowType().getField(colName, false, false);
-        if (leftField == null) throw new IllegalArgumentException("using_column " + colName + " not found in left join input");
-        if (rightField == null) throw new IllegalArgumentException("using_column " + colName + " not found in right join input");
+        if (leftField == null)
+          throw new IllegalArgumentException(
+              "using_column " + colName + " not found in left join input");
+        if (rightField == null)
+          throw new IllegalArgumentException(
+              "using_column " + colName + " not found in right join input");
 
-        RexNode leftRef = rexBuilder.makeInputRef(leftField.getType(), leftField.getIndex());
-        RexNode rightRef = rexBuilder.makeInputRef(rightField.getType(), leftFieldCount + rightField.getIndex());
-        equiConditions.add(rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, leftRef, rightRef));
+        RexNode leftRef =
+            cluster.getRexBuilder().makeInputRef(leftField.getType(), leftField.getIndex());
+        RexNode rightRef =
+            cluster
+                .getRexBuilder()
+                .makeInputRef(rightField.getType(), leftFieldCount + rightField.getIndex());
+        equiConditions.add(
+            cluster.getRexBuilder().makeCall(SqlStdOperatorTable.EQUALS, leftRef, rightRef));
       }
-      condition = rexBuilder.makeConjunction(equiConditions);
+      // this might not be right - we should probably just build a RexNode matching the syntax and
+      // save the join analysis for later
+      condition = cluster.getRexBuilder().makeCall(SqlStdOperatorTable.AND, equiConditions);
     } else if (joinProto.getJoinType() == Join.JoinType.JOIN_TYPE_CROSS) {
-      condition = rexBuilder.makeLiteral(true);
+      condition = cluster.getRexBuilder().makeLiteral(true);
     } else {
-      throw new IllegalArgumentException("Join must have a condition, using_columns, or be a CROSS join");
+      throw new IllegalArgumentException(
+          "Join must have a condition, using_columns, or be a CROSS join");
     }
 
-    return LogicalJoin.create(left, right, ImmutableList.of(), condition, new HashSet<>(), translateSparkJoinType(joinProto.getJoinType()));
+    return LogicalJoin.create(
+        left,
+        right,
+        ImmutableList.of(),
+        condition,
+        new HashSet<>(),
+        translateSparkJoinType(joinProto.getJoinType()));
   }
 
   private JoinRelType translateSparkJoinType(Join.JoinType sparkJoinType) {
     switch (sparkJoinType) {
-      case JOIN_TYPE_INNER: return JoinRelType.INNER;
-      case JOIN_TYPE_LEFT_OUTER: return JoinRelType.LEFT;
-      case JOIN_TYPE_RIGHT_OUTER: return JoinRelType.RIGHT;
-      case JOIN_TYPE_FULL_OUTER: return JoinRelType.FULL;
-      case JOIN_TYPE_LEFT_SEMI: return JoinRelType.SEMI;
-      case JOIN_TYPE_LEFT_ANTI: return JoinRelType.ANTI;
+      case JOIN_TYPE_INNER:
+        return JoinRelType.INNER;
+      case JOIN_TYPE_LEFT_OUTER:
+        return JoinRelType.LEFT;
+      case JOIN_TYPE_RIGHT_OUTER:
+        return JoinRelType.RIGHT;
+      case JOIN_TYPE_FULL_OUTER:
+        return JoinRelType.FULL;
+      case JOIN_TYPE_LEFT_SEMI:
+        return JoinRelType.SEMI;
+      case JOIN_TYPE_LEFT_ANTI:
+        return JoinRelType.ANTI;
       default:
         throw new UnsupportedOperationException("Spark JoinType not supported: " + sparkJoinType);
     }
@@ -235,49 +282,75 @@ public class SparkRelationToRelNode {
         return LogicalIntersect.create(ImmutableList.of(left, right), all);
       case SET_OP_TYPE_EXCEPT:
         return LogicalMinus.create(ImmutableList.of(left, right), all);
+      case SET_OP_TYPE_UNSPECIFIED:
+      case UNRECOGNIZED:
       default:
-        throw new UnsupportedOperationException("SetOpType not supported: " + setOpProto.getSetOpType());
+        throw new UnsupportedOperationException(
+            "SetOpType not supported: " + setOpProto.getSetOpType());
     }
+  }
+
+  private RelFieldCollation translateSortOrder(
+      Expression.SortOrder sortOrderProto, int fieldIndex) {
+
+    RelFieldCollation.Direction direction =
+        sortOrderProto.getDirection() == Expression.SortOrder.SortDirection.SORT_DIRECTION_ASCENDING
+            ? RelFieldCollation.Direction.ASCENDING
+            : RelFieldCollation.Direction.DESCENDING;
+    RelFieldCollation.NullDirection nullDirection;
+    switch (sortOrderProto.getNullOrdering()) {
+      case SORT_NULLS_FIRST:
+        nullDirection = RelFieldCollation.NullDirection.FIRST;
+        break;
+      case SORT_NULLS_LAST:
+        nullDirection = RelFieldCollation.NullDirection.LAST;
+        break;
+      case UNRECOGNIZED:
+        throw new UnsupportedOperationException(
+            "Null ordering not recognized: " + sortOrderProto.getNullOrdering());
+
+      case SORT_NULLS_UNSPECIFIED:
+      default:
+        nullDirection =
+            RelFieldCollation.NullDirection.FIRST; // Spark's default - not leaving to Calcite!
+    }
+    return new RelFieldCollation(fieldIndex, direction, nullDirection);
   }
 
   private RelNode translateSort(Sort sortProto) {
     RelNode input = translate(sortProto.getInput());
-    SparkExpressionToRexNode exprConverter = new SparkExpressionToRexNode(cluster.getRexBuilder(), input.getRowType());
+    SparkExpressionToRexNode exprConverter =
+        new SparkExpressionToRexNode(cluster, input.getRowType());
+
+    List<RexNode> sortExprs = new ArrayList<>();
     List<RelFieldCollation> collations = new ArrayList<>();
+
+    int fieldIndex = 0;
     for (Expression.SortOrder order : sortProto.getOrderList()) {
-      RexNode sortExpr = exprConverter.translate(order.getChild());
-      RelFieldCollation.Direction direction = order.getDirection() == Expression.SortOrder.SortDirection.SORT_DIRECTION_ASCENDING
-        ? RelFieldCollation.Direction.ASCENDING
-        : RelFieldCollation.Direction.DESCENDING;
-      RelFieldCollation.NullDirection nullDirection;
-      switch (order.getNullOrdering()) {
-        case SORT_NULLS_FIRST: nullDirection = RelFieldCollation.NullDirection.FIRST; break;
-        case SORT_NULLS_LAST: nullDirection = RelFieldCollation.NullDirection.LAST; break;
-        default: nullDirection = RelFieldCollation.NullDirection.UNSPECIFIED; // Or choose a default
-      }
-      collations.add(new RelFieldCollation(
-        cluster.getRexBuilder().pushRex(sortExpr), // This is a bit of a hack to get field index
-        direction,
-        nullDirection
-      ));
+      ++fieldIndex;
+      sortExprs.add(exprConverter.translate(order.getChild()));
+      collations.add(translateSortOrder(order, fieldIndex));
     }
-    // The above way of getting field index is not correct.
-    // We need to project the sort expressions first if they are not simple column references.
-    // A more robust way involves ensuring sort expressions are available in the input.
-    // For now, let's assume they are column references.
-    return unsupported("Sort - Collation conversion needs more work");
-    // return LogicalSort.create(input, RelCollations.of(collations), null, null);
+
+    LogicalProject projectedSortFields =
+        LogicalProject.create(
+            input, Collections.emptyList(), sortExprs, (List<String>) null, Collections.emptySet());
+
+    // TODO: do we need to consider offsets?
+    return LogicalSort.create(projectedSortFields, RelCollations.of(collations), null, null);
   }
 
   private RelNode translateLimit(Limit limitProto) {
     RelNode input = translate(limitProto.getInput());
-    RexNode limit = rexBuilder.makeExactLiteral(BigDecimal.valueOf(limitProto.getLimit()));
+    RexNode limit =
+        cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(limitProto.getLimit()));
     return LogicalSort.create(input, RelCollations.EMPTY, null, limit);
   }
 
   private RelNode translateOffset(Offset offsetProto) {
     RelNode input = translate(offsetProto.getInput());
-    RexNode offset = rexBuilder.makeExactLiteral(BigDecimal.valueOf(offsetProto.getOffset()));
+    RexNode offset =
+        cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(offsetProto.getOffset()));
     return LogicalSort.create(input, RelCollations.EMPTY, offset, null);
   }
 
@@ -294,9 +367,11 @@ public class SparkRelationToRelNode {
   }
 
   private RelNode translateDeduplicate(Deduplicate dedupeProto) {
-    RelNode input = translate(dedupeProto.getInput());
-    ImmutableIntList groupSet = ImmutableIntList.range(0, input.getRowType().getFieldCount());
-    return LogicalAggregate.create(input, groupSet, ImmutableList.of(groupSet), ImmutableList.of());
+    return unsupported("Deduplicate");
+    //    RelNode input = translate(dedupeProto.getInput());
+    //    ImmutableIntList groupSet = ImmutableIntList.range(0, input.getRowType().getFieldCount());
+    //    return LogicalAggregate.create(input, groupSet, ImmutableList.of(groupSet),
+    // ImmutableList.of());
   }
 
   private RelNode translateRange(Range rangeProto) {
@@ -305,18 +380,23 @@ public class SparkRelationToRelNode {
     long step = rangeProto.getStep();
     if (step == 0) throw new IllegalArgumentException("Range step cannot be zero.");
 
-    RelDataType rowType = typeFactory.createStructType(
-      ImmutableList.of(typeFactory.createSqlType(SqlTypeName.BIGINT)),
-      ImmutableList.of("id"));
+    RelDataType rowType =
+        cluster
+            .getTypeFactory()
+            .createStructType(
+                ImmutableList.of(cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT)),
+                ImmutableList.of("id"));
 
     ImmutableList.Builder<ImmutableList<RexLiteral>> tuples = ImmutableList.builder();
     if (step > 0) {
       for (long i = start; i < end; i += step) {
-        tuples.add(ImmutableList.of(rexBuilder.makeExactLiteral(BigDecimal.valueOf(i))));
+        tuples.add(
+            ImmutableList.of(cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(i))));
       }
     } else { // step < 0
       for (long i = start; i > end; i += step) {
-        tuples.add(ImmutableList.of(rexBuilder.makeExactLiteral(BigDecimal.valueOf(i))));
+        tuples.add(
+            ImmutableList.of(cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(i))));
       }
     }
     return LogicalValues.create(cluster, rowType, tuples.build());
@@ -327,19 +407,21 @@ public class SparkRelationToRelNode {
   }
 
   private RelNode translateDrop(Drop dropProto) {
-    RelNode input = translate(dropProto.getInput());
-    List<String> dropNames = dropProto.getColumnNamesList();
-    // TODO: Handle dropProto.getColumns() expressions
-
-    List<RexNode> projections = new ArrayList<>();
-    List<String> newFieldNames = new ArrayList<>();
-    for (RelDataTypeField field : input.getRowType().getFieldList()) {
-      if (!dropNames.contains(field.getName())) {
-        projections.add(rexBuilder.makeInputRef(field.getType(), field.getIndex()));
-        newFieldNames.add(field.getName());
-      }
-    }
-    return LogicalProject.create(input, projections, newFieldNames);
+    return unsupported("Drop");
+    //    RelNode input = translate(dropProto.getInput());
+    //    List<String> dropNames = dropProto.getColumnNamesList();
+    //    // TODO: Handle dropProto.getColumns() expressions
+    //
+    //    List<RexNode> projections = new ArrayList<>();
+    //    List<String> newFieldNames = new ArrayList<>();
+    //    for (RelDataTypeField field : input.getRowType().getFieldList()) {
+    //      if (!dropNames.contains(field.getName())) {
+    //        projections.add(cluster.getRexBuilder().makeInputRef(field.getType(),
+    // field.getIndex()));
+    //        newFieldNames.add(field.getName());
+    //      }
+    //    }
+    //    return LogicalProject.create(input, projections, newFieldNames);
   }
 
   private RelNode translateWithColumnsRenamed(WithColumnsRenamed renameProto) {
@@ -353,9 +435,6 @@ public class SparkRelationToRelNode {
     // TODO: Implement adding/replacing columns
     return unsupported("WithColumns");
   }
-
-
-
 
   private RelDataType arrowSchemaToRowType(Schema schema, JavaTypeFactory typeFactory) {
     final RelDataTypeFactory.Builder builder = typeFactory.builder();
@@ -448,7 +527,8 @@ public class SparkRelationToRelNode {
       case TIMESTAMP:
         // Arrow TimestampVector -> Long (unit depends on ArrowType)
         //          if (javaValue instanceof Long) {
-        //            long epochMillis = translateArrowTimestampToMillis((Long) javaValue, arrowType);
+        //            long epochMillis = translateArrowTimestampToMillis((Long) javaValue,
+        // arrowType);
         //            // Preserve precision if specified in RelDataType
         //            return
         // rexBuilder.makeTimestampLiteral(TimestampString.fromMillisSinceEpoch(epochMillis),
@@ -518,8 +598,7 @@ public class SparkRelationToRelNode {
     throw new IllegalArgumentException("Unsupported Timestamp unit in Arrow type: " + arrowType);
   }
 
-  private RelNode translateLocalRelation(LocalRelation localRelation)
-      throws IOException {
+  private RelNode translateLocalRelation(LocalRelation localRelation) {
     if (!localRelation.hasData()) {
       throw new UnsupportedOperationException(
           "LocalRelation must have `data` field. "
@@ -543,21 +622,9 @@ public class SparkRelationToRelNode {
         }
 
         return LogicalValues.create(cluster, rowType, tuplesBuilder.build());
+      } catch (IOException exc) {
+        throw new RuntimeException("Failed to parse arrow data for LocalRelation", exc);
       }
     }
-  }
-
-  private RelNode translateShowString(ShowString showString)
-      throws IOException {
-
-    // Technically we should put a DoFn that does the show_string stuff. But for now we just
-    // translate the underlyiing realtion
-    // anjd the top level service does toString on all rows anyhow
-    return translateRelationToRel(showString.getInput());
-
-    //    // For this we need an actual custom rel that will have a DoFn that does the "show" logic
-    //    RelDataType rowType =
-    //        relBuilder.getTypeFactory().builder().add("show_string", SqlTypeName.VARCHAR).build();
-    //    return relBuilder.values(rowType, "this is totally fake").build();
   }
 }

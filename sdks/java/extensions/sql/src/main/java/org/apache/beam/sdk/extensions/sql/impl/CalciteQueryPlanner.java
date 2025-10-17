@@ -139,6 +139,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
         public QueryPlanner createPlanner(
             JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
           loadBuiltinFunctions(jdbcConnection);
+          LOG.info("Factory creating planner with ruleSets: {}", ruleSets);
           return new CalciteQueryPlanner(jdbcConnection, ruleSets);
         }
 
@@ -186,6 +187,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
     // Revert the flag flip of CALCITE-3870 which led to missing rules
     SqlToRelConverter.Config sqlToRelConfig = SqlToRelConverter.config().withExpand(true);
 
+    LOG.info("Creating config with rulesets: {}", ruleSets);
     return Frameworks.newConfigBuilder()
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
@@ -244,7 +246,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
   @Override
   public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters) {
-    BeamRelNode beamRelNode;
+    RelNode beamRelNode;
     try {
       LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(relNode));
       RelTraitSet desiredTraits =
@@ -268,14 +270,14 @@ public class CalciteQueryPlanner implements QueryPlanner {
           JaninoRelMetadataProvider.of(relNode.getCluster().getMetadataProvider()));
       relNode.getCluster().invalidateMetadataQuery();
       Program program = config.getPrograms().get(0);
+      LOG.info("Desired traits: {}", desiredTraits);
       beamRelNode =
-          (BeamRelNode)
-              program.run(
-                  relNode.getCluster().getPlanner(),
-                  relNode,
-                  desiredTraits,
-                  ImmutableList.of(),
-                  ImmutableList.of());
+          program.run(
+              relNode.getCluster().getPlanner(),
+              relNode,
+              desiredTraits,
+              ImmutableList.of(),
+              ImmutableList.of());
       LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
     } catch (CannotPlanException e) {
       throw new SqlConversionException(
@@ -283,7 +285,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
     } finally {
       planner.close();
     }
-    return beamRelNode;
+    return (BeamRelNode) beamRelNode;
   }
 
   // It needs to be public so that the generated code in Calcite can access it.

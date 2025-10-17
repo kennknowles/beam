@@ -33,7 +33,7 @@ applyJavaNature(mapOf(
 
 description = "Apache Beam :: Spark Connect"
 
-val blockingServer = configurations.register("blockingServer") {
+val blockingServerRuntime = configurations.register("blockingServerRuntime") {
   description = "Configuration & classpath for :blockingServer exec task"
   isCanBeConsumed = false
   isCanBeResolved = true
@@ -51,7 +51,7 @@ dependencies {
   implementation(project(":sdks:java:extensions:sql"))
   //  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
-  implementation("org.apache.spark:spark-connect-common_2.13:4.0.1") {
+  implementation("org.apache.spark:spark-connect-common_2.13:4.1.0-preview2") {
     // Spark Connect pulls in a concrete logging implementation that we do not want
     exclude(group = "org.apache.logging.log4j", module = "log4j-slf4j2-impl")
   }
@@ -64,7 +64,8 @@ dependencies {
   implementation(library_java.getValue("arrow_memory_core"))
   implementation(library_java.getValue("arrow_memory_netty"))
 
-  blockingServer(library_java.getValue("slf4j_simple"))
+  blockingServerRuntime(library_java.getValue("slf4j_simple"))
+  //blockingServer(library_java.getValue("log4j_slf4j_impl"))
 
   //implementation library.java.grpc_netty
 
@@ -83,8 +84,8 @@ tasks.register<JavaExec>("blockingServer") {
   description = "Run a SparkConnect server in the foreground (terminate it with SIGINT)"
 
   jvmArgs = listOf(
-    "-Djava.util.logging.ConsoleHandler.level=FINEST",
     "-Dio.grpc.level=FINEST",
+    "-Djava.util.logging.config.file=" + file("src/main/resources/logging.properties").absolutePath,
     "--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED",
   )
 
@@ -93,5 +94,5 @@ tasks.register<JavaExec>("blockingServer") {
   }
 
   mainClass.set("org.apache.beam.sparkconnect.SparkConnectServer")
-  classpath = project.files(sourceSets.getByName("main").runtimeClasspath, blockingServer)
+  classpath = project.files(sourceSets.getByName("main").runtimeClasspath, blockingServerRuntime)
 }

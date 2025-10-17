@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sparkconnect;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import java.io.ByteArrayOutputStream;
@@ -28,7 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VarCharVector;
@@ -41,14 +42,17 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sparkconnect.rule.SparkConnectRuleSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.connect.proto.AddArtifactsRequest;
 import org.apache.spark.connect.proto.AddArtifactsResponse;
@@ -176,9 +180,20 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
     sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
     PipelineOptions options = PipelineOptionsFactory.create();
     sqlEnvBuilder.setPipelineOptions(options);
+
+    // All the Beam rules and also the SparkConnect rules
+    // ... this seems to only work right when they are put into a single RuleSet
+    sqlEnvBuilder.setRuleSets(
+        ImmutableList.of(
+            RuleSets.ofList(
+                ImmutableList.<RelOptRule>builder()
+                    .addAll(BeamRuleSets.getAllRules())
+                    .addAll(SparkConnectRuleSet.INSTANCE)
+                    .build())));
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
 
-    SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(sqlEnv.getRelBuilder().getCluster());
+    SparkRelationToRelNode sparkRelationToRelNode =
+        new SparkRelationToRelNode(sqlEnv.getRelBuilder().getCluster());
     RelNode relNode = sparkRelationToRelNode.translate(root);
     BeamRelNode beamRelNode = sqlEnv.convertToBeamRel(relNode);
 
@@ -193,35 +208,32 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
 
     List<Row> outputRows = BeamEnumerableConverter.toRowList(beamRelNode);
 
-    // Technically show_string should do this work for me in a DoFn but here we are
-    String outputString =
-        outputRows.stream().map(row -> row.toString()).collect(Collectors.joining("\n"));
+    // TODO: convert Beam schema into Arrow schema for sending response rows as Arrow
+    Field showStringField =
+        new Field("show_string", FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
+    Schema schema = new Schema(Collections.singletonList(showStringField));
 
-    // fake arrow batch that is a response for show_string
     ExecutePlanResponse.ArrowBatch.Builder arrowBatchBuilder =
         ExecutePlanResponse.ArrowBatch.newBuilder();
-    arrowBatchBuilder.setRowCount(1);
+    arrowBatchBuilder.setRowCount(outputRows.size());
 
     // this goes into the ShowString relation translator
     try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-      Field showStringField =
-          new Field(
-              "show_string", FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
-      Schema schema = new Schema(Collections.singletonList(showStringField));
 
-      // 2. Create VectorSchemaRoot
       try (VectorSchemaRoot arrowRoot = VectorSchemaRoot.create(schema, allocator)) {
 
         // Get the vector from the root
         VarCharVector varCharVector = (VarCharVector) arrowRoot.getVector("show_string");
 
-        // 3. Allocate and Populate the Vector
-        varCharVector.allocateNew(1);
-        varCharVector.setSafe(0, outputString.getBytes(StandardCharsets.UTF_8));
-        varCharVector.setValueCount(1);
-        arrowRoot.setRowCount(1);
+        varCharVector.allocateNew(outputRows.size());
+        for (int i = 0; i < outputRows.size(); i++) {
+          // TODO: don't assume show_string schema
+          String showString = checkStateNotNull(outputRows.get(i).getString("show_string"));
+          varCharVector.setSafe(i, showString.getBytes(StandardCharsets.UTF_8));
+        }
+        varCharVector.setValueCount(outputRows.size());
+        arrowRoot.setRowCount(outputRows.size());
 
-        // 4. Serialize the VectorSchemaRoot to byte array
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ArrowStreamWriter writer = newArrowStreamWriter(arrowRoot, null, out)) {
           writer.start();

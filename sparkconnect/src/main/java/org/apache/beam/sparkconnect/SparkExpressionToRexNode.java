@@ -20,7 +20,9 @@ package org.apache.beam.sparkconnect;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
@@ -36,6 +38,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlNameMatchers;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.DateString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.spark.connect.proto.CallFunction;
 import org.apache.spark.connect.proto.Expression;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -51,6 +54,26 @@ public class SparkExpressionToRexNode {
     this.typeConverter = new SparkDataTypeToRelDataType(cluster.getTypeFactory());
   }
 
+  // A map for common Spark function names to Calcite operators.
+  private static final Map<String, SqlOperator> OPERATOR_MAP =
+      ImmutableMap.<String, SqlOperator>builder()
+          .put("==", SqlStdOperatorTable.EQUALS)
+          .put("=", SqlStdOperatorTable.EQUALS)
+          .put("!=", SqlStdOperatorTable.NOT_EQUALS)
+          .put("<>", SqlStdOperatorTable.NOT_EQUALS)
+          .put(">", SqlStdOperatorTable.GREATER_THAN)
+          .put("<", SqlStdOperatorTable.LESS_THAN)
+          .put(">=", SqlStdOperatorTable.GREATER_THAN_OR_EQUAL)
+          .put("<=", SqlStdOperatorTable.LESS_THAN_OR_EQUAL)
+          .put("and", SqlStdOperatorTable.AND)
+          .put("or", SqlStdOperatorTable.OR)
+          .put("not", SqlStdOperatorTable.NOT)
+          .put("+", SqlStdOperatorTable.PLUS)
+          .put("-", SqlStdOperatorTable.MINUS)
+          .put("*", SqlStdOperatorTable.MULTIPLY)
+          .put("/", SqlStdOperatorTable.DIVIDE)
+          .build();
+
   public RexNode translate(Expression expr) {
     switch (expr.getExprTypeCase()) {
       case LITERAL:
@@ -58,7 +81,13 @@ public class SparkExpressionToRexNode {
       case UNRESOLVED_ATTRIBUTE:
         return translateUnresolvedAttribute(expr.getUnresolvedAttribute());
       case CALL_FUNCTION:
-        return translateCallFunction(expr.getCallFunction());
+        return translateUnresolvedFunction(
+            Expression.UnresolvedFunction.newBuilder()
+                .setFunctionName(expr.getCallFunction().getFunctionName())
+                .addAllArguments(expr.getCallFunction().getArgumentsList())
+                .build());
+      case UNRESOLVED_FUNCTION:
+        return translateUnresolvedFunction(expr.getUnresolvedFunction());
       case CAST: // *** ADDED CASE ***
         return translateCast(expr.getCast());
       default:
@@ -68,6 +97,64 @@ public class SparkExpressionToRexNode {
   }
 
   // --- Conversion Methods for Expression Types ---
+
+  // --- New method to handle UnresolvedFunction ---
+  private RexNode translateUnresolvedFunction(Expression.UnresolvedFunction func) {
+    String funcName = func.getFunctionName();
+    List<RexNode> operands =
+        func.getArgumentsList().stream().map(this::translate).collect(Collectors.toList());
+
+    // First, check our map for common operators like '=='
+    if (OPERATOR_MAP.containsKey(funcName)) {
+      return cluster.getRexBuilder().makeCall(OPERATOR_MAP.get(funcName), operands);
+    }
+
+    // If not in the map, use Calcite's operator table lookup (for standard functions)
+    List<SqlOperator> operators = new ArrayList<>();
+    SqlStdOperatorTable.instance()
+        .lookupOperatorOverloads(
+            new SqlIdentifier(funcName, SqlParserPos.ZERO),
+            null,
+            SqlSyntax.FUNCTION,
+            operators,
+            SqlNameMatchers.liberal());
+
+    if (operators.isEmpty()) {
+      throw new UnsupportedOperationException("Function not found in Calcite: " + funcName);
+    }
+
+    // TODO: Add more sophisticated overload resolution based on operand types.
+    SqlOperator operator = operators.get(0);
+
+    return cluster.getRexBuilder().makeCall(operator, operands);
+  }
+
+  private RexNode translateCallFunction(CallFunction func) {
+    String funcName = func.getFunctionName();
+    List<RexNode> operands =
+        func.getArgumentsList().stream().map(this::translate).collect(Collectors.toList());
+
+    // Lookup the operator in Calcite's tables
+    // TODO: Enhance operator lookup (case-insensitivity, multiple tables)
+    List<SqlOperator> operators = new java.util.ArrayList<>();
+    SqlStdOperatorTable.instance()
+        .lookupOperatorOverloads(
+            new SqlIdentifier(funcName, SqlParserPos.ZERO),
+            null,
+            SqlSyntax.FUNCTION,
+            operators,
+            SqlNameMatchers.liberal());
+
+    if (operators.isEmpty()) {
+      throw new UnsupportedOperationException("Function not found in Calcite: " + funcName);
+    }
+
+    // TODO: Add more sophisticated overload resolution based on operand types.
+    // For now, picking the first one.
+    SqlOperator operator = operators.get(0);
+
+    return cluster.getRexBuilder().makeCall(operator, operands);
+  }
 
   private RelDataType getLiteralType(Expression.Literal literal) {
     RelDataTypeFactory typeFactory = cluster.getTypeFactory();
@@ -219,33 +306,6 @@ public class SparkExpressionToRexNode {
           "Casting to type_str is not supported in this translator.");
     }
     return cluster.getRexBuilder().makeCast(targetType, operand);
-  }
-
-  private RexNode translateCallFunction(CallFunction func) {
-    String funcName = func.getFunctionName();
-    List<RexNode> operands =
-        func.getArgumentsList().stream().map(this::translate).collect(Collectors.toList());
-
-    // Lookup the operator in Calcite's tables
-    // TODO: Enhance operator lookup (case-insensitivity, multiple tables)
-    List<SqlOperator> operators = new java.util.ArrayList<>();
-    SqlStdOperatorTable.instance()
-        .lookupOperatorOverloads(
-            new SqlIdentifier(funcName, SqlParserPos.ZERO),
-            null,
-            SqlSyntax.FUNCTION,
-            operators,
-            SqlNameMatchers.liberal());
-
-    if (operators.isEmpty()) {
-      throw new UnsupportedOperationException("Function not found in Calcite: " + funcName);
-    }
-
-    // TODO: Add more sophisticated overload resolution based on operand types.
-    // For now, picking the first one.
-    SqlOperator operator = operators.get(0);
-
-    return cluster.getRexBuilder().makeCall(operator, operands);
   }
 
   /**

@@ -17,41 +17,22 @@
  */
 package org.apache.beam.sparkconnect;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
-import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.dictionary.DictionaryProvider;
-import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sparkconnect.handler.AnalyzePlanHandler;
+import org.apache.beam.sparkconnect.handler.ConfigHandler;
+import org.apache.beam.sparkconnect.handler.ExecutePlanHandler;
 import org.apache.beam.sparkconnect.rule.SparkConnectRuleSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.connect.proto.AddArtifactsRequest;
@@ -68,9 +49,7 @@ import org.apache.spark.connect.proto.FetchErrorDetailsRequest;
 import org.apache.spark.connect.proto.FetchErrorDetailsResponse;
 import org.apache.spark.connect.proto.InterruptRequest;
 import org.apache.spark.connect.proto.InterruptResponse;
-import org.apache.spark.connect.proto.KeyValue;
 import org.apache.spark.connect.proto.ReattachExecuteRequest;
-import org.apache.spark.connect.proto.Relation;
 import org.apache.spark.connect.proto.ReleaseExecuteRequest;
 import org.apache.spark.connect.proto.ReleaseExecuteResponse;
 import org.apache.spark.connect.proto.ReleaseSessionRequest;
@@ -84,17 +63,17 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkConnectService.class);
 
-  // This will need to be a per-session conf
   private final Map<String, String> conf = new HashMap<>();
-
-  SparkConnectService() {
-    conf.put("spark.sql.session.localRelationCacheThreshold", "" + (64 * 1024 * 1024));
-    conf.put("spark.sql.execution.arrow.useLargeVarTypes", "false");
-  }
 
   // HACK: map OperationId to the fake response(s) for it
   private final Map<String, List<ExecutePlanResponse>> operationToExecutePlanResponse =
       new HashMap<>();
+
+  SparkConnectService() {
+    conf.put("spark.sql.session.localRelationCacheThreshold", "" + (64 * 1024 * 1024));
+    conf.put("spark.sql.execution.arrow.useLargeVarTypes", "false");
+    conf.put("spark.python.sql.dataFrameDebugging.enabled", "true");
+  }
 
   /**
    * Executes a request that contains the query and returns a stream of [[Response]]. It is
@@ -105,40 +84,8 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       ExecutePlanRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
     LOG.info("executePlan request {}", request);
 
-    ExecutePlanResponse.Builder responseBuilder =
-        ExecutePlanResponse.newBuilder()
-            .setSessionId(request.getSessionId())
-            .setResponseId(UUID.randomUUID().toString())
-            .setOperationId(
-                request
-                    .getOperationId()); // this can be set by the server if the client didn't set it
-
-    try {
-      switch (request.getPlan().getOpTypeCase()) {
-        case ROOT:
-          handleRootPlan(request.getPlan().getRoot(), responseBuilder, responseObserver);
-          break;
-        case COMMAND:
-          throw new UnsupportedOperationException("OpType COMMAND not yet supported");
-        case OPTYPE_NOT_SET:
-          throw new IllegalArgumentException("OpType not set");
-        default:
-          throw new UnsupportedOperationException(
-              "Unrecognized OpType for plan: " + request.getPlan().getOpTypeCase().name());
-      }
-
-      operationToExecutePlanResponse.put(
-          request.getOperationId(), ImmutableList.of(responseBuilder.build()));
-
-      sendResponses(request.getOperationId(), responseBuilder, responseObserver, null);
-    } catch (IOException exc) {
-      responseObserver.onError(exc);
-      responseObserver.onNext(
-          responseBuilder
-              .setResultComplete(ExecutePlanResponse.ResultComplete.newBuilder().build())
-              .build());
-      responseObserver.onCompleted();
-    }
+    new ExecutePlanHandler(operationToExecutePlanResponse, getBeamSqlEnv())
+        .handle(request, responseObserver);
   }
 
   private void sendResponses(
@@ -152,6 +99,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       throw new IllegalArgumentException("operation not found: " + operationId);
     }
 
+    // linear scan for the responses that should be sent
     boolean shouldSend = lastResponseId == null;
     for (ExecutePlanResponse response : responses) {
       if (shouldSend) {
@@ -169,12 +117,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
     responseObserver.onCompleted();
   }
 
-  private void handleRootPlan(
-      Relation root,
-      ExecutePlanResponse.Builder responseBuilder,
-      StreamObserver<ExecutePlanResponse> responseObserver)
-      throws IOException {
-
+  private static BeamSqlEnv getBeamSqlEnv() {
     InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
     BeamSqlEnv.BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
     sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
@@ -191,70 +134,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
                     .addAll(SparkConnectRuleSet.INSTANCE)
                     .build())));
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
-
-    SparkRelationToRelNode sparkRelationToRelNode =
-        new SparkRelationToRelNode(sqlEnv.getRelBuilder().getCluster());
-    RelNode relNode = sparkRelationToRelNode.translate(root);
-    BeamRelNode beamRelNode = sqlEnv.convertToBeamRel(relNode);
-
-    executeCalcitePlanAndRespond(beamRelNode, responseBuilder, responseObserver);
-  }
-
-  private void executeCalcitePlanAndRespond(
-      BeamRelNode beamRelNode,
-      ExecutePlanResponse.Builder responseBuilder,
-      StreamObserver<ExecutePlanResponse> responseObserver)
-      throws IOException {
-
-    List<Row> outputRows = BeamEnumerableConverter.toRowList(beamRelNode);
-
-    // TODO: convert Beam schema into Arrow schema for sending response rows as Arrow
-    Field showStringField =
-        new Field("show_string", FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
-    Schema schema = new Schema(Collections.singletonList(showStringField));
-
-    ExecutePlanResponse.ArrowBatch.Builder arrowBatchBuilder =
-        ExecutePlanResponse.ArrowBatch.newBuilder();
-    arrowBatchBuilder.setRowCount(outputRows.size());
-
-    // this goes into the ShowString relation translator
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-
-      try (VectorSchemaRoot arrowRoot = VectorSchemaRoot.create(schema, allocator)) {
-
-        // Get the vector from the root
-        VarCharVector varCharVector = (VarCharVector) arrowRoot.getVector("show_string");
-
-        varCharVector.allocateNew(outputRows.size());
-        for (int i = 0; i < outputRows.size(); i++) {
-          // TODO: don't assume show_string schema
-          String showString = checkStateNotNull(outputRows.get(i).getString("show_string"));
-          varCharVector.setSafe(i, showString.getBytes(StandardCharsets.UTF_8));
-        }
-        varCharVector.setValueCount(outputRows.size());
-        arrowRoot.setRowCount(outputRows.size());
-
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        try (ArrowStreamWriter writer = newArrowStreamWriter(arrowRoot, null, out)) {
-          writer.start();
-          writer.writeBatch();
-          writer.end();
-        } // writer is closed here
-
-        arrowBatchBuilder.setData(ByteString.copyFrom(out.toByteArray()));
-      } // arrowRoot closed here
-    } // allocator closed here
-
-    responseBuilder.setArrowBatch(arrowBatchBuilder.build());
-  }
-
-  /** Wrapper for non-annotated Arrow library call that accepts nulls. */
-  @SuppressWarnings("nullness")
-  private ArrowStreamWriter newArrowStreamWriter(
-      VectorSchemaRoot arrowRoot,
-      @Nullable DictionaryProvider provider,
-      OutputStream outputstream) {
-    return new ArrowStreamWriter(arrowRoot, provider, outputstream);
+    return sqlEnv;
   }
 
   // directly lifted - can't share because private
@@ -281,60 +161,16 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void analyzePlan(
       AnalyzePlanRequest request, StreamObserver<AnalyzePlanResponse> responseObserver) {
-    LOG.info("analyzePlan request");
-    super.analyzePlan(request, responseObserver);
+    LOG.info("analyzePlan request: {}", request);
+
+    new AnalyzePlanHandler(getBeamSqlEnv()).handle(request, responseObserver);
   }
 
   /** Update or fetch the configurations and returns a [[ConfigResponse]] containing the result. */
   @Override
   public void config(ConfigRequest request, StreamObserver<ConfigResponse> responseObserver) {
     LOG.info("config request: {}", request);
-
-    ConfigResponse.Builder responseBuilder = ConfigResponse.newBuilder();
-
-    responseBuilder.setSessionId(request.getSessionId());
-    responseBuilder.setServerSideSessionId(request.getSessionId());
-    responseBuilder.addWarnings("This is fake");
-
-    // TBD which config options we actually need or want to support; for now we pretend!
-    switch (request.getOperation().getOpTypeCase()) {
-      case SET:
-        break;
-      case GET:
-        handleConfigGet(request.getOperation().getGet(), responseBuilder);
-        break;
-      case GET_WITH_DEFAULT:
-        break;
-      case GET_OPTION:
-        break;
-      case GET_ALL:
-        break;
-      case UNSET:
-        break;
-      case IS_MODIFIABLE:
-        for (String key : request.getOperation().getIsModifiable().getKeysList()) {
-          responseBuilder.addPairs(KeyValue.newBuilder().setKey(key).setValue("false"));
-        }
-        break;
-      case OPTYPE_NOT_SET:
-        break;
-    }
-
-    LOG.info("config response: {}", responseBuilder);
-    responseObserver.onNext(responseBuilder.build());
-    responseObserver.onCompleted();
-  }
-
-  private void handleConfigGet(ConfigRequest.Get request, ConfigResponse.Builder responseBuilder) {
-    for (String key : request.getKeysList()) {
-      KeyValue.Builder kvBuilder = KeyValue.newBuilder();
-      kvBuilder.setKey(key);
-      @Nullable String value = conf.get(key);
-      if (value != null) {
-        kvBuilder.setValue(value);
-      }
-      responseBuilder.addPairs(kvBuilder.build());
-    }
+    new ConfigHandler(conf).handle(request, responseObserver);
   }
 
   /**
@@ -358,7 +194,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void artifactStatus(
       ArtifactStatusesRequest request, StreamObserver<ArtifactStatusesResponse> responseObserver) {
-    LOG.info("artifactStatus request");
+    LOG.info("artifactStatus request: {}", request);
     super.artifactStatus(request, responseObserver);
   }
 
@@ -459,7 +295,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void releaseSession(
       ReleaseSessionRequest request, StreamObserver<ReleaseSessionResponse> responseObserver) {
-    LOG.info("releaseSession request");
+    LOG.info("releaseSession request: {}", request);
     super.releaseSession(request, responseObserver);
   }
 
@@ -474,7 +310,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void fetchErrorDetails(
       FetchErrorDetailsRequest request,
       StreamObserver<FetchErrorDetailsResponse> responseObserver) {
-    LOG.info("fetchErrorDetails request");
+    LOG.info("fetchErrorDetails request: {}", request);
     super.fetchErrorDetails(request, responseObserver);
   }
 }

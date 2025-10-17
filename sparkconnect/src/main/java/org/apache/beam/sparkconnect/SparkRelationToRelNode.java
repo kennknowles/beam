@@ -87,7 +87,7 @@ public class SparkRelationToRelNode {
 
   private final RelOptCluster cluster;
 
-  SparkRelationToRelNode(RelOptCluster cluster) {
+  public SparkRelationToRelNode(RelOptCluster cluster) {
     this.cluster = cluster;
   }
 
@@ -493,7 +493,8 @@ public class SparkRelationToRelNode {
     switch (sqlTypeName) {
       case VARCHAR:
       case CHAR:
-        return rexBuilder.makeLiteral(javaValue, relDataType);
+        // TODO: maybe there's a better way to toString an arrow Text object
+        return rexBuilder.makeLiteral(javaValue.toString(), relDataType);
       case BOOLEAN:
         return rexBuilder.makeLiteral(javaValue, relDataType);
       case TINYINT:

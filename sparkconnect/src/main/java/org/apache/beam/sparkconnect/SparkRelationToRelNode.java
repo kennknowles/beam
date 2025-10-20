@@ -24,8 +24,10 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -44,7 +46,9 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptClus
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelFieldCollation;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.AggregateCall;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.JoinRelType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalIntersect;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalJoin;
@@ -57,10 +61,15 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlAggFunction;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.ImmutableBitSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.spark.connect.proto.Aggregate;
 import org.apache.spark.connect.proto.Deduplicate;
 import org.apache.spark.connect.proto.Drop;
@@ -90,6 +99,16 @@ public class SparkRelationToRelNode {
   public SparkRelationToRelNode(RelOptCluster cluster) {
     this.cluster = cluster;
   }
+
+  // A map for common aggregate functions from Spark to Calcite.
+  private static final Map<String, SqlAggFunction> AGG_OPERATOR_MAP =
+      ImmutableMap.<String, SqlAggFunction>builder()
+          .put("count", SqlStdOperatorTable.COUNT)
+          .put("avg", SqlStdOperatorTable.AVG)
+          .put("sum", SqlStdOperatorTable.SUM)
+          .put("min", SqlStdOperatorTable.MIN)
+          .put("max", SqlStdOperatorTable.MAX)
+          .build();
 
   public RelNode translate(Relation sparkRelation) {
     switch (sparkRelation.getRelTypeCase()) {
@@ -320,24 +339,30 @@ public class SparkRelationToRelNode {
   private RelNode translateSort(Sort sortProto) {
     RelNode input = translate(sortProto.getInput());
     SparkExpressionToRexNode exprConverter =
-        new SparkExpressionToRexNode(cluster, input.getRowType());
+      new SparkExpressionToRexNode(cluster, input.getRowType());
 
-    List<RexNode> sortExprs = new ArrayList<>();
     List<RelFieldCollation> collations = new ArrayList<>();
 
-    int fieldIndex = 0;
     for (Expression.SortOrder order : sortProto.getOrderList()) {
-      ++fieldIndex;
-      sortExprs.add(exprConverter.translate(order.getChild()));
+      // For now, we only support sorting by a direct column reference.
+      // Support for sorting by arbitrary expressions would require a project-sort-project pattern.
+      Expression sortExpression = order.getChild();
+      if (sortExpression.getExprTypeCase() != Expression.ExprTypeCase.UNRESOLVED_ATTRIBUTE) {
+        throw new UnsupportedOperationException(
+          "Sorting by complex expressions is not yet supported. Found: "
+            + sortExpression.getExprTypeCase());
+      }
+
+      // Translate the attribute to find its index in the input RelNode.
+      RexInputRef fieldRef = (RexInputRef) exprConverter.translate(sortExpression);
+      int fieldIndex = fieldRef.getIndex();
+
+      // Create the collation for this field.
       collations.add(translateSortOrder(order, fieldIndex));
     }
 
-    LogicalProject projectedSortFields =
-        LogicalProject.create(
-            input, Collections.emptyList(), sortExprs, (List<String>) null, Collections.emptySet());
-
-    // TODO: do we need to consider offsets?
-    return LogicalSort.create(projectedSortFields, RelCollations.of(collations), null, null);
+    // Create the LogicalSort directly on the input.
+    return LogicalSort.create(input, RelCollations.of(collations), null, null);
   }
 
   private RelNode translateLimit(Limit limitProto) {
@@ -361,9 +386,167 @@ public class SparkRelationToRelNode {
     return unsupported("Tail");
   }
 
+  /**
+   * Translates a Spark Aggregate into a Calcite LogicalAggregate, inserting a projection for
+   * casting if necessary to match Spark SQL semantics (for example AVG in Spark SQL always widens
+   * the type, whereas in Calcite and many SQL databases an INT input would cause an INT output for
+   * the AVG).
+   */
   private RelNode translateAggregate(Aggregate aggProto) {
-    RelNode input = translate(aggProto.getInput());
-    return unsupported("Aggregate - Complex conversion");
+    RelNode originalInput = translate(aggProto.getInput());
+    RexBuilder rexBuilder = cluster.getRexBuilder();
+    RelDataTypeFactory typeFactory = rexBuilder.getTypeFactory();
+
+    // A list of expressions for a potential projection layer.
+    // Starts as an identity projection.
+    List<RexNode> projectionExprs = new ArrayList<>();
+    originalInput
+        .getRowType()
+        .getFieldList()
+        .forEach(
+            field ->
+                projectionExprs.add(rexBuilder.makeInputRef(field.getType(), field.getIndex())));
+
+    boolean needsProjection = false;
+
+    // A map to track arguments that have been cast, so we don't cast them twice.
+    Map<Integer, RexNode> castArgs = new HashMap<>();
+
+    for (Expression aggExpr : aggProto.getAggregateExpressionsList()) {
+      Expression.UnresolvedFunction func = aggExpr.getAlias().getExpr().getUnresolvedFunction();
+      SqlAggFunction aggFunction = AGG_OPERATOR_MAP.get(func.getFunctionName().toLowerCase());
+
+      if (aggFunction == null) {
+        throw new UnsupportedOperationException(
+            "Unsupported agg function: " + func.getFunctionName());
+      }
+
+      for (Expression arg : func.getArgumentsList()) {
+        RexInputRef argRef =
+            (RexInputRef)
+                new SparkExpressionToRexNode(cluster, originalInput.getRowType()).translate(arg);
+        RelDataType actualType = argRef.getType();
+
+        // Get the expected type for this function from our generic rule.
+        RelDataType expectedType = getExpectedOperandType(aggFunction, typeFactory);
+
+        // If a cast is needed, update the projection expression list.
+        if (expectedType != null
+            && !actualType.equals(expectedType)
+            && !castArgs.containsKey(argRef.getIndex())) {
+          needsProjection = true;
+          RexNode castNode = rexBuilder.makeCast(expectedType, argRef);
+          projectionExprs.set(argRef.getIndex(), castNode);
+          castArgs.put(argRef.getIndex(), castNode);
+        }
+      }
+    }
+
+    RelNode aggInput = originalInput;
+    if (needsProjection) {
+      aggInput =
+          LogicalProject.create(
+              originalInput,
+              ImmutableList.of(),
+              projectionExprs,
+              originalInput.getRowType().getFieldNames());
+    }
+
+    SparkExpressionToRexNode aggExprConverter =
+        new SparkExpressionToRexNode(cluster, aggInput.getRowType());
+
+    ImmutableBitSet groupSet =
+        ImmutableBitSet.of(
+            aggProto.getGroupingExpressionsList().stream()
+                .map(aggExprConverter::translate)
+                .map(rex -> ((RexInputRef) rex).getIndex())
+                .collect(Collectors.toList()));
+
+    List<AggregateCall> aggCalls = new ArrayList<>();
+    for (Expression aggExpr : aggProto.getAggregateExpressionsList()) {
+      Expression.Alias alias = aggExpr.getAlias();
+      Expression.UnresolvedFunction func = alias.getExpr().getUnresolvedFunction();
+      SqlAggFunction aggFunction = AGG_OPERATOR_MAP.get(func.getFunctionName().toLowerCase());
+
+      if (aggFunction == null) {
+        throw new UnsupportedOperationException(
+            "unsupported agg function " + func.getFunctionName());
+      }
+
+      List<Integer> argList =
+          func.getArgumentsList().stream()
+              .map(aggExprConverter::translate)
+              .map(rex -> ((RexInputRef) rex).getIndex())
+              .collect(Collectors.toList());
+
+      RelNode finalAggInput = aggInput;
+      RelDataType aggFuncType =
+          deriveAggType(
+              aggFunction,
+              argList.stream()
+                  .map(i -> finalAggInput.getRowType().getFieldList().get(i).getType())
+                  .collect(Collectors.toList()));
+
+      aggCalls.add(
+          AggregateCall.create(
+              aggFunction,
+              func.getIsDistinct(),
+              false,
+              false,
+              argList,
+              -1,
+              RelCollations.EMPTY,
+              aggFuncType,
+              alias.getName(0)));
+    }
+
+    return LogicalAggregate.create(aggInput, groupSet, ImmutableList.of(groupSet), aggCalls);
+  }
+
+  /**
+   * A generic method to specify the expected operand type for certain aggregate functions. This
+   * bridges the gap between the logical plan and the physical execution requirements.
+   *
+   * @return The expected RelDataType, or null if no special requirement is known.
+   */
+  private @Nullable RelDataType getExpectedOperandType(
+      SqlAggFunction aggFunction, RelDataTypeFactory typeFactory) {
+    // For AVG, the Beam runner's implementation expects a DOUBLE.
+    if (aggFunction.getKind() == SqlKind.AVG) {
+      return typeFactory.createSqlType(SqlTypeName.DOUBLE);
+    }
+
+    // For SUM on integers, a BIGINT might be required to prevent overflow,
+    // but for now we won't force a cast. This can be added here if needed.
+    // if (aggFunction.getKind() == SqlKind.SUM) { ... }
+
+    // By default, no cast is required.
+    return null;
+  }
+
+  /**
+   * A helper method to derive the return type of an aggregate function. This is a simplified
+   * version; a full implementation would use Calcite's type inference.
+   */
+  private RelDataType deriveAggType(SqlAggFunction aggFunction, List<RelDataType> argTypes) {
+    // TODO: calcite should have a call for us, somewhere around
+    // https://github.com/apache/calcite/blob/92a1028d65efc3005eb22c3def97adefd9e8f2fc/core/src/main/java/org/apache/calcite/rel/type/RelDataTypeSystemImpl.java#L368
+    if (aggFunction.getKind() == SqlKind.COUNT) {
+      return cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT);
+    } else if (aggFunction.getKind() == SqlKind.AVG) {
+      // AVG can return a wider type than its input, e.g., DECIMAL or DOUBLE.
+      // For simplicity, we'll return DOUBLE here.
+
+      // In Calcite SQL the return type of AVG is the same as its argument type. users have to cast
+      // to DOUBLE if they want a DOUBLE precision return
+      return argTypes.get(0);
+      // return cluster.getTypeFactory().createSqlType(SqlTypeName.DOUBLE);
+    } else if (!argTypes.isEmpty()) {
+      // For many aggregates (SUM, MIN, MAX), the return type is the same as the input type.
+      return argTypes.get(0);
+    }
+    // Fallback for functions like COUNT(*) which have no arguments.
+    return cluster.getTypeFactory().createSqlType(SqlTypeName.ANY);
   }
 
   private RelNode translateDeduplicate(Deduplicate dedupeProto) {

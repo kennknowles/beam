@@ -339,7 +339,7 @@ public class SparkRelationToRelNode {
   private RelNode translateSort(Sort sortProto) {
     RelNode input = translate(sortProto.getInput());
     SparkExpressionToRexNode exprConverter =
-      new SparkExpressionToRexNode(cluster, input.getRowType());
+        new SparkExpressionToRexNode(cluster, input.getRowType());
 
     List<RelFieldCollation> collations = new ArrayList<>();
 
@@ -349,8 +349,8 @@ public class SparkRelationToRelNode {
       Expression sortExpression = order.getChild();
       if (sortExpression.getExprTypeCase() != Expression.ExprTypeCase.UNRESOLVED_ATTRIBUTE) {
         throw new UnsupportedOperationException(
-          "Sorting by complex expressions is not yet supported. Found: "
-            + sortExpression.getExprTypeCase());
+            "Sorting by complex expressions is not yet supported. Found: "
+                + sortExpression.getExprTypeCase());
       }
 
       // Translate the attribute to find its index in the input RelNode.

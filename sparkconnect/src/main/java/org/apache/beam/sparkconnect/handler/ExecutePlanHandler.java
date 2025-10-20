@@ -41,6 +41,7 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -54,9 +55,11 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.spark.connect.proto.Command;
 import org.apache.spark.connect.proto.ExecutePlanRequest;
 import org.apache.spark.connect.proto.ExecutePlanResponse;
 import org.apache.spark.connect.proto.Relation;
+import org.apache.spark.connect.proto.SqlCommand;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +94,8 @@ public class ExecutePlanHandler {
           handleRootPlan(request.getPlan().getRoot(), responseBuilder, responseObserver);
           break;
         case COMMAND:
-          throw new UnsupportedOperationException("OpType COMMAND not yet supported");
+          handleCommand(request.getPlan().getCommand(), responseBuilder, responseObserver);
+          break;
         case OPTYPE_NOT_SET:
           throw new IllegalArgumentException("OpType not set");
         default:
@@ -114,6 +118,95 @@ public class ExecutePlanHandler {
               .setResultComplete(ExecutePlanResponse.ResultComplete.newBuilder().build())
               .build());
       responseObserver.onCompleted();
+    }
+  }
+
+  private void handleCommand(
+      Command command,
+      ExecutePlanResponse.Builder responseBuilder,
+      StreamObserver<ExecutePlanResponse> responseObserver)
+      throws IOException {
+    switch (command.getCommandTypeCase()) {
+      case SQL_COMMAND:
+        handleSqlCommand(command.getSqlCommand(), responseBuilder, responseObserver);
+        break;
+
+      case WRITE_STREAM_OPERATION_START:
+        // This command is used to write a streaming DataFrame to a sink.
+        // It includes options like the mode (append, complete, update), trigger, and sink details.
+        // To implement this, you would translate the input relation, and then apply a
+        // PTransform that writes to the specified sink with the given triggering.
+        throw new UnsupportedOperationException("WriteStreamOperation not yet implemented.");
+
+      case CREATE_DATAFRAME_VIEW:
+        // This command creates a temporary view from a DataFrame.
+        // In a Beam/Calcite context, this would be equivalent to registering a PCollection
+        // as a table in the catalog for the current session.
+        throw new UnsupportedOperationException("CreateDataFrameViewCommand not yet implemented.");
+
+      case WRITE_OPERATION:
+        // This is for writing a batch DataFrame to a sink.
+        // It includes options for format (e.g., "parquet", "json"), mode (overwrite, append),
+        // partitioning, and other sink-related configurations.
+        throw new UnsupportedOperationException("WriteOperation not yet implemented.");
+
+      case REGISTER_FUNCTION:
+        // This command is used to register a User Defined Function (UDF) for the session.
+        // To implement this in Beam/Calcite, you would need to create a Calcite SqlFunction
+        // and register it with the planner.
+        throw new UnsupportedOperationException("RegisterFunction not yet implemented.");
+
+      case EXTENSION:
+        // A command for custom extensions that are not part of the core Spark Connect protocol.
+        throw new UnsupportedOperationException("Extension commands not yet implemented.");
+
+      default:
+        throw new UnsupportedOperationException(
+            "Unrecognized CommandType: " + command.getCommandTypeCase().name());
+    }
+  }
+
+  /**
+   * Handles the SQL_COMMAND.
+   *
+   * <p>This operation takes a SQL string, parses and plans it using the Beam SQL environment, and
+   * then executes the resulting plan.
+   */
+  private void handleSqlCommand(
+      SqlCommand sqlCommand,
+      ExecutePlanResponse.Builder responseBuilder,
+      StreamObserver<ExecutePlanResponse> responseObserver)
+      throws IOException {
+    // Args are for parameterized queries, e.g., SELECT * FROM T WHERE id = ?
+    if (!sqlCommand.getArgsMap().isEmpty()
+        || !sqlCommand.getNamedArgumentsMap().isEmpty()
+        || !sqlCommand.getPosArgsList().isEmpty()) {
+      // TODO: Implement support for parameterized queries. This would involve replacing
+      // the named parameters in the SQL string with Calcite's dynamic parameters (`?`)
+      // and passing the evaluated literal values to the planner.
+      // Note also that these are deprecated and we need to check all the same fields in the
+      // SQL relation proto that is embedded
+      throw new UnsupportedOperationException("Parameterized SQL queries are not yet supported.");
+    }
+
+    String sql = sqlCommand.getInput().getSql().getQuery();
+    if (sql.isEmpty()) {
+      // deprecated path
+      sql = sqlCommand.getSql();
+      if (sql.isEmpty()) {
+        throw new IllegalArgumentException("No SQL in SqlCommand...");
+      }
+    }
+
+    try {
+      // Use the BeamSqlEnv to parse and plan the SQL query.
+      // This will return a BeamRelNode ready for execution.
+      BeamRelNode beamRelNode = beamSqlEnv.parseQuery(sql);
+
+      // Reuse the existing execution logic to run the plan and send the results.
+      executeCalcitePlanAndRespond(beamRelNode, responseBuilder, responseObserver);
+    } catch (SqlConversionException e) {
+      throw new RuntimeException("Failed to parse or plan SQL query: " + sql, e);
     }
   }
 

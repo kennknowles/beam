@@ -381,7 +381,7 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 }
 
 /**
- * USE DATABASE ( catalog_name '.' )? database_name
+ * USE [ DATABASE ] ( catalog_name '.' )? database_name
  */
 SqlCall SqlUseDatabase(Span s, String scope) :
 {
@@ -393,6 +393,31 @@ SqlCall SqlUseDatabase(Span s, String scope) :
     }
     <DATABASE>
     databaseName = CompoundIdentifier()
+    {
+        return new SqlUseDatabase(
+            s.end(this),
+            scope,
+            databaseName);
+    }
+}
+
+/**
+ * USE database_name
+ */
+SqlCall SqlUseBareIdentifier(Span s, String scope) :
+{
+    final SqlNode databaseName;
+}
+{
+    <USE> {
+        s.add(this);
+    }
+    (
+        databaseName = StringLiteral()
+        |
+        // Add this branch to handle "USE default"
+        <DEFAULT_> { databaseName = new SqlIdentifier(getToken(0).image, getPos()); }
+    )
     {
         return new SqlUseDatabase(
             s.end(this),

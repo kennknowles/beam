@@ -41,7 +41,6 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
-import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
@@ -198,15 +197,15 @@ public class ExecutePlanHandler {
       }
     }
 
-    try {
+    if (beamSqlEnv.isDdl(sql)) {
+      beamSqlEnv.executeDdl(sql);
+    } else {
       // Use the BeamSqlEnv to parse and plan the SQL query.
       // This will return a BeamRelNode ready for execution.
       BeamRelNode beamRelNode = beamSqlEnv.parseQuery(sql);
 
       // Reuse the existing execution logic to run the plan and send the results.
       executeCalcitePlanAndRespond(beamRelNode, responseBuilder, responseObserver);
-    } catch (SqlConversionException e) {
-      throw new RuntimeException("Failed to parse or plan SQL query: " + sql, e);
     }
   }
 

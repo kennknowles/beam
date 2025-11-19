@@ -49,6 +49,9 @@ dependencies {
 
   implementation(project(":sdks:java:core", configuration = "shadow"))
   implementation(project(":sdks:java:extensions:sql"))
+  implementation(project(":sdks:java:extensions:avro"))
+  implementation(project(":sdks:java:io:parquet"))
+  implementation(project(":sdks:java:io:csv"))
   //  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
   implementation("org.apache.spark:spark-connect-common_2.13:4.1.0-preview2") {
@@ -63,6 +66,9 @@ dependencies {
   implementation(library_java.getValue("arrow_vector"))
   implementation(library_java.getValue("arrow_memory_core"))
   implementation(library_java.getValue("arrow_memory_netty"))
+
+  implementation(library_java.getValue("avro"))
+  implementation(library_java.getValue("commons_csv"))
 
   blockingServerRuntime(library_java.getValue("slf4j_simple"))
   //blockingServer(library_java.getValue("log4j_slf4j_impl"))

@@ -391,33 +391,8 @@ SqlCall SqlUseDatabase(Span s, String scope) :
     <USE> {
         s.add(this);
     }
-    <DATABASE>
+    [ <DATABASE> ]
     databaseName = CompoundIdentifier()
-    {
-        return new SqlUseDatabase(
-            s.end(this),
-            scope,
-            databaseName);
-    }
-}
-
-/**
- * USE database_name
- */
-SqlCall SqlUseBareIdentifier(Span s, String scope) :
-{
-    final SqlNode databaseName;
-}
-{
-    <USE> {
-        s.add(this);
-    }
-    (
-        databaseName = StringLiteral()
-        |
-        // Add this branch to handle "USE default"
-        <DEFAULT_> { databaseName = new SqlIdentifier(getToken(0).image, getPos()); }
-    )
     {
         return new SqlUseDatabase(
             s.end(this),

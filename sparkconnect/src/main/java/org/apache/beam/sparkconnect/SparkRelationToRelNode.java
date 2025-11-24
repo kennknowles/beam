@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sparkconnect;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.ByteArrayInputStream;
@@ -28,6 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -36,13 +39,22 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sparkconnect.rel.LogicalShowString;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.arrow.ArrowFieldTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.Convention;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptTable;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelFieldCollation;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
@@ -90,14 +102,27 @@ import org.apache.spark.connect.proto.Sort;
 import org.apache.spark.connect.proto.Tail;
 import org.apache.spark.connect.proto.WithColumns;
 import org.apache.spark.connect.proto.WithColumnsRenamed;
+import org.apache.spark.sql.types.ArrayType;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.DecimalType;
+import org.apache.spark.sql.types.MapType;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SparkRelationToRelNode {
 
-  private final RelOptCluster cluster;
+  private static final Logger LOG = LoggerFactory.getLogger(SparkRelationToRelNode.class);
 
-  public SparkRelationToRelNode(RelOptCluster cluster) {
-    this.cluster = cluster;
+  private final RelOptCluster cluster;
+  private final BeamSqlEnv beamSqlEnv;
+
+  public SparkRelationToRelNode(BeamSqlEnv beamSqlEnv) {
+    this.beamSqlEnv = beamSqlEnv;
+    this.cluster = beamSqlEnv.getRelBuilder().getCluster();
   }
 
   // A map for common aggregate functions from Spark to Calcite.
@@ -188,23 +213,6 @@ public class SparkRelationToRelNode {
 
     return LogicalProject.create(
         inputNode, Collections.emptyList(), calciteProjections, fieldNames, Collections.emptySet());
-  }
-
-  private RelNode translateRead(Read readProto) {
-    if (readProto.hasNamedTable()) {
-      List<String> tableName =
-          ImmutableList.copyOf(readProto.getNamedTable().getUnparsedIdentifier().split("\\."));
-      // RelOptTable table = catalogReader.getTable(tableName);
-      // if (table == null) {
-      //     throw new IllegalArgumentException("Table not found: " +
-      // readProto.getNamedTable().getUnparsedIdentifier());
-      // }
-      // return LogicalTableScan.create(cluster, table);
-      return unsupported("Read NamedTable - requires catalog lookup");
-    } else if (readProto.hasDataSource()) {
-      return unsupported("Read DataSource");
-    }
-    throw new IllegalArgumentException("Invalid Read proto");
   }
 
   private RelNode translateFilter(Filter filterProto) {
@@ -334,6 +342,282 @@ public class SparkRelationToRelNode {
             RelFieldCollation.NullDirection.FIRST; // Spark's default - not leaving to Calcite!
     }
     return new RelFieldCollation(fieldIndex, direction, nullDirection);
+  }
+
+  private RelNode translateRead(Read readProto) {
+    if (readProto.getIsStreaming()) {
+      throw new UnsupportedOperationException(
+          "Streaming read not supported, in Read relation: " + readProto);
+    }
+
+    switch (readProto.getReadTypeCase()) {
+      case NAMED_TABLE:
+        return translateReadNamedTable(readProto.getNamedTable());
+      case DATA_SOURCE:
+        return translateReadDataSource(readProto.getDataSource());
+      case READTYPE_NOT_SET:
+        throw new IllegalArgumentException("Read type not set for Read relation: " + readProto);
+      default:
+        throw new IllegalArgumentException("Read type not supported in: " + readProto);
+    }
+  }
+
+  private RelNode translateReadNamedTable(Read.NamedTable readNamedTable) {
+    throw new UnsupportedOperationException("Reading named tables not supported");
+  }
+
+  /**
+   * Converts a Beam Schema into a DDL string (e.g., "col1 INT, col2 VARCHAR").
+   *
+   * @param schema The Beam Schema to convert.
+   * @return A DDL-formatted string representing the schema.
+   */
+  public static String toDdl(Schema schema) {
+    return schema.getFields().stream().map(f -> fieldToDdl(f)).collect(Collectors.joining(", "));
+  }
+
+  /** Converts a single Beam Field into a DDL string fragment (e.g., "col1 INT NOT NULL"). */
+  private static String fieldToDdl(org.apache.beam.sdk.schemas.Schema.Field field) {
+    String typeDdl = fieldTypeToDdl(field.getType());
+    String nullability = field.getType().getNullable() ? "" : " NOT NULL";
+    return "`" + field.getName() + "` " + typeDdl + nullability;
+  }
+
+  /** Recursively converts a Beam FieldType into its DDL string representation. */
+  private static String fieldTypeToDdl(FieldType fieldType) {
+    switch (fieldType.getTypeName()) {
+      case STRING:
+        return "VARCHAR";
+      case INT32:
+        return "INT";
+      case INT64:
+        return "BIGINT";
+      case DOUBLE:
+        return "DOUBLE";
+      case FLOAT:
+        return "FLOAT";
+      case INT16:
+        return "SMALLINT";
+      case BYTE:
+        return "TINYINT";
+      case BOOLEAN:
+        return "BOOLEAN";
+      case BYTES:
+        return "VARBINARY";
+      case DECIMAL:
+        return "DECIMAL";
+      case DATETIME:
+        return "TIMESTAMP";
+      case LOGICAL_TYPE:
+        //        if ("DATE".equals(fieldType.getLogicalType().getIdentifier())) {
+        //          return "DATE";
+        //        }
+        // Add other logical types here if needed.
+        Schema.LogicalType<?, ?> logicalType = checkArgumentNotNull(fieldType.getLogicalType());
+        throw new UnsupportedOperationException(
+            "Unsupported logical type: " + logicalType.getIdentifier());
+
+        // --- Recursive cases for complex types ---
+      case ROW:
+        // Recursively convert the nested schema: ROW(field1 TYPE1, field2 TYPE2)
+        Schema rowSchema = checkArgumentNotNull(fieldType.getRowSchema());
+        return "ROW(" + toDdl(rowSchema) + ")";
+      case ARRAY:
+        // Recursively convert the element type: ARRAY<element_type>
+        FieldType elementType = checkArgumentNotNull(fieldType.getCollectionElementType());
+        return "ARRAY<" + fieldTypeToDdl(elementType) + ">";
+      case MAP:
+        // Recursively convert key and value types: MAP<key_type, value_type>
+        FieldType keyType = checkArgumentNotNull(fieldType.getMapKeyType());
+        FieldType valueType = checkArgumentNotNull(fieldType.getMapValueType());
+        return "MAP<" + fieldTypeToDdl(keyType) + ", " + fieldTypeToDdl(valueType) + ">";
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported Beam FieldType for DDL conversion: " + fieldType.getTypeName());
+    }
+  }
+
+  private RelNode translateReadDataSource(Read.DataSource dataSource) {
+
+    String format = dataSource.getFormat();
+    if (format.isEmpty()) {
+      // should be filled in with option spark.sql.sources.default
+      throw new UnsupportedOperationException("Must set format on data source: " + dataSource);
+    }
+
+    // This could be DDL formatted or JSON formatted or absent, in which case we need to infer it;
+    // for now make it unsupported
+    String schemaString = dataSource.getSchema();
+    if (schemaString.isEmpty()) {
+      throw new UnsupportedOperationException("Must set schema on data source: " + dataSource);
+    }
+    Schema beamSchema = parseDataSourceSchema(dataSource.getSchema());
+
+    String schemaDdl = toDdl(beamSchema);
+
+    // TODO: register providers rather than switch - connect with Beam SQL table provider
+    switch (dataSource.getFormat().toLowerCase()) {
+      case "csv":
+        String path = dataSource.getPaths(0); // Text table only supports one filepattern - need to
+        // chain and use SDF for list of filepatterns
+        String tempTableName = "temp_csv_read_" + UUID.randomUUID().toString().replace("-", "");
+
+        // this is trash but right now the easiest to way to register a table is to just run DDL
+        String tblProperties = "'{\"format\": \"csv\"}'";
+        String createTableDdl =
+            String.format(
+                "CREATE EXTERNAL TABLE %s (%s) TYPE 'text' LOCATION '%s' TBLPROPERTIES %s",
+                tempTableName, schemaDdl, path, tblProperties);
+
+        beamSqlEnv.executeDdl(createTableDdl);
+        RelOptTable relOptTable =
+            checkStateNotNull(
+                checkStateNotNull(beamSqlEnv.getRelBuilder().getRelOptSchema())
+                    .getTableForMember(ImmutableList.of(tempTableName)));
+
+        CalciteSchema rootSchema = beamSqlEnv.getContext().getRootSchema();
+
+        BeamSqlTable beamSqlTable =
+            checkStateNotNull(
+                (BeamSqlTable)
+                    ((BeamCalciteSchema) rootSchema.schema)
+                        .getTableProvider()
+                        .getTable(tempTableName));
+        checkStateNotNull(beamSqlEnv.getContext().getRootSchema().getTable(tempTableName, false))
+            .getTable();
+
+        return new BeamIOSourceRel(
+            cluster,
+            cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
+            relOptTable,
+            beamSqlTable,
+            beamSqlEnv.getPipelineOptions(),
+            BeamCalciteTable.of(beamSqlTable));
+
+      default:
+        throw new UnsupportedOperationException(
+            "Unsupported data source format: " + dataSource.getFormat().toLowerCase());
+    }
+  }
+
+  /**
+   * Parses a schema string that can be either DDL-formatted or a JSON Avro schema.
+   *
+   * <p>This method first attempts to parse the string as DDL. If that fails, it falls back to
+   * parsing it as a JSON representation of an Avro schema, which is then converted to a Beam
+   * Schema. This mimics the behavior of Spark's internal schema parsing.
+   *
+   * @param schemaString The schema string to parse.
+   * @return The parsed Beam {@link Schema}.
+   * @throws RuntimeException if the string cannot be parsed as either DDL or JSON.
+   */
+  public static Schema parseDataSourceSchema(String schemaString) {
+    DataType dataType = DataType.fromJson(schemaString);
+
+    LOG.info("Here's the type: " + dataType);
+
+    return sparkStructTypeToBeamSchema((StructType) dataType);
+    //    try {
+    //      // First, try to parse the string as a Beam SQL DDL statement.
+    //      SqlNode node = beamSqlEnv.getPlanner().parse(schemaString);
+    //      if (node.getKind().belongsTo(SqlKind.DDL)) {
+    //        throw new UnsupportedOperationException(
+    //            "Have DDL but don't knwo what to do with it yet: " + schemaString);
+    //      }
+    //    } catch (ParseException ddlException) {
+    //      try {
+    //        // If DDL parsing fails, try to parse it as a JSON Avro schema.
+    //        org.apache.avro.Schema avroSchema = new
+    // org.apache.avro.Schema.Parser().parse(schemaString);
+    //        // Convert the Avro schema to a Beam schema.
+    //        return AvroUtils.toBeamSchema(avroSchema);
+    //      } catch (Exception jsonException) {
+    //        // If both DDL and JSON parsing fail, throw an exception that includes both causes.
+    //        RuntimeException combinedException =
+    //            new RuntimeException(
+    //                "Failed to parse schema string as either DDL or JSON: " + schemaString);
+    //        combinedException.addSuppressed(ddlException);
+    //        combinedException.addSuppressed(jsonException);
+    //        throw combinedException;
+    //      }
+    //    }
+    //    throw new IllegalArgumentException("Could not parse schema as DDL or JSON: " +
+    // schemaString);
+  }
+
+  /**
+   * Converts a Spark {@link StructType} to a Beam {@link Schema}.
+   *
+   * @param sparkSchema The input Spark schema.
+   * @return The corresponding Beam Schema.
+   */
+  private static Schema sparkStructTypeToBeamSchema(StructType sparkSchema) {
+    Schema.Builder beamSchemaBuilder = Schema.builder();
+    for (StructField sparkField : sparkSchema.fields()) {
+      FieldType beamFieldType = fromSparkType(sparkField.dataType());
+
+      // Add the field to the builder, preserving its nullability.
+      if (sparkField.nullable()) {
+        beamSchemaBuilder.addNullableField(sparkField.name(), beamFieldType);
+      } else {
+        beamSchemaBuilder.addField(sparkField.name(), beamFieldType);
+      }
+    }
+    return beamSchemaBuilder.build();
+  }
+
+  /** Recursively converts a Spark {@link DataType} to a Beam {@link FieldType}. */
+  private static FieldType fromSparkType(DataType sparkType) {
+    // For simple types, we can use the static instances from Spark's DataTypes class.
+    if (sparkType.equals(DataTypes.StringType)) {
+      return FieldType.STRING;
+    } else if (sparkType.equals(DataTypes.IntegerType)) {
+      return FieldType.INT32;
+    } else if (sparkType.equals(DataTypes.LongType)) {
+      return FieldType.INT64;
+    } else if (sparkType.equals(DataTypes.DoubleType)) {
+      return FieldType.DOUBLE;
+    } else if (sparkType.equals(DataTypes.FloatType)) {
+      return FieldType.FLOAT;
+    } else if (sparkType.equals(DataTypes.ShortType)) {
+      return FieldType.INT16;
+    } else if (sparkType.equals(DataTypes.ByteType)) {
+      return FieldType.BYTE;
+    } else if (sparkType.equals(DataTypes.BooleanType)) {
+      return FieldType.BOOLEAN;
+    } else if (sparkType.equals(DataTypes.BinaryType)) {
+      return FieldType.BYTES;
+      //    } else if (sparkType.equals(DataTypes.DateType)) {
+      //      // Beam uses LogicalTypes for more specific date/time representations.
+      //      return FieldType.logicalType(new SqlTypes.Date());
+    } else if (sparkType.equals(DataTypes.TimestampType)) {
+      return FieldType.DATETIME;
+    } else if (sparkType instanceof DecimalType) {
+      // Beam's DECIMAL type is generic. A more advanced conversion could
+      // potentially use this precision/scale for validation.
+      // DecimalType decimalType = (DecimalType) sparkType;
+      // decimalType.precision();
+      // decimalType.scale();
+      return FieldType.DECIMAL;
+    } else if (sparkType instanceof ArrayType) {
+      // For complex types, we need to handle them recursively.
+      ArrayType arrayType = (ArrayType) sparkType;
+      FieldType elementType = fromSparkType(arrayType.elementType());
+      // The `containsNull` property maps to the nullability of the collection's element type.
+      return FieldType.array(elementType.withNullable(arrayType.containsNull()));
+    } else if (sparkType instanceof MapType) {
+      MapType mapType = (MapType) sparkType;
+      FieldType keyType = fromSparkType(mapType.keyType());
+      FieldType valueType = fromSparkType(mapType.valueType());
+      // Maps in Beam schemas can have nullable values.
+      return FieldType.map(keyType, valueType.withNullable(mapType.valueContainsNull()));
+    } else if (sparkType instanceof StructType) {
+      // Recursively convert nested structs.
+      return FieldType.row(sparkStructTypeToBeamSchema((StructType) sparkType));
+    } else {
+      throw new UnsupportedOperationException(
+          "Unsupported Spark DataType: " + sparkType.typeName());
+    }
   }
 
   private RelNode translateSort(Sort sortProto) {
@@ -619,7 +903,8 @@ public class SparkRelationToRelNode {
     return unsupported("WithColumns");
   }
 
-  private RelDataType arrowSchemaToRowType(Schema schema, JavaTypeFactory typeFactory) {
+  private RelDataType arrowSchemaToRowType(
+      org.apache.arrow.vector.types.pojo.Schema schema, JavaTypeFactory typeFactory) {
     final RelDataTypeFactory.Builder builder = typeFactory.builder();
     for (Field field : schema.getFields()) {
       builder.add(field.getName(), ArrowFieldTypeFactory.toType(field.getType(), typeFactory));

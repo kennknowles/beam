@@ -108,8 +108,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation takes a logical plan and returns its schema.
    */
   private AnalyzePlanResponse.Schema handleSchema(AnalyzePlanRequest.Schema schemaRequest) {
-    SparkRelationToRelNode translator =
-        new SparkRelationToRelNode(beamSqlEnv.getRelBuilder().getCluster());
+    SparkRelationToRelNode translator = new SparkRelationToRelNode(beamSqlEnv);
     RelNode relNode = translator.translate(schemaRequest.getPlan().getRoot());
     RelDataType rowType = relNode.getRowType();
 

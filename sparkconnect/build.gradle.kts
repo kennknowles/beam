@@ -52,7 +52,8 @@ dependencies {
   implementation(project(":sdks:java:extensions:avro"))
   implementation(project(":sdks:java:io:parquet"))
   implementation(project(":sdks:java:io:csv"))
-  //  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  runtimeOnly(project(":runners:direct-java"))
+  runtimeOnly(project(":runners:google-cloud-dataflow-java"))
 
   implementation("org.apache.spark:spark-connect-common_2.13:4.1.0-preview2") {
     // Spark Connect pulls in a concrete logging implementation that we do not want

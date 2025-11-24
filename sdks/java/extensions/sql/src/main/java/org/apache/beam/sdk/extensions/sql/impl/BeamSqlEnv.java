@@ -99,6 +99,10 @@ public class BeamSqlEnv {
     return builder(tableProvider).setPipelineOptions(PipelineOptionsFactory.create()).build();
   }
 
+  public QueryPlanner getPlanner() {
+    return planner;
+  }
+
   /**
    * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty *
    * Pipeline Options. It should only be used in tests.

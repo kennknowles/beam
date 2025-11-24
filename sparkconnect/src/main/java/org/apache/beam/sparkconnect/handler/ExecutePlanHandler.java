@@ -43,27 +43,20 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.csv.CsvIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sparkconnect.SparkRelationToRelNode;
-import org.apache.beam.sparkconnect.rule.SparkConnectRuleSet;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.QuoteMode;
@@ -230,32 +223,11 @@ public class ExecutePlanHandler {
       StreamObserver<ExecutePlanResponse> responseObserver)
       throws IOException {
 
-    SparkRelationToRelNode sparkRelationToRelNode =
-        new SparkRelationToRelNode(beamSqlEnv.getRelBuilder().getCluster());
+    SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(beamSqlEnv);
     RelNode relNode = sparkRelationToRelNode.translate(root);
     BeamRelNode beamRelNode = beamSqlEnv.convertToBeamRel(relNode);
 
     executeCalcitePlanAndRespond(beamRelNode, responseBuilder, responseObserver);
-  }
-
-  private static BeamSqlEnv getBeamSqlEnv() {
-    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
-    BeamSqlEnv.BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
-    sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
-    PipelineOptions options = PipelineOptionsFactory.create();
-    sqlEnvBuilder.setPipelineOptions(options);
-
-    // All the Beam rules and also the SparkConnect rules
-    // ... this seems to only work right when they are put into a single RuleSet
-    sqlEnvBuilder.setRuleSets(
-        ImmutableList.of(
-            RuleSets.ofList(
-                ImmutableList.<RelOptRule>builder()
-                    .addAll(BeamRuleSets.getAllRules())
-                    .addAll(SparkConnectRuleSet.INSTANCE)
-                    .build())));
-    BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
-    return sqlEnv;
   }
 
   private void executeCalcitePlanAndRespond(
@@ -331,12 +303,12 @@ public class ExecutePlanHandler {
     }
 
     // 1. Translate the input relation to a PCollection<Row>.
-    SparkRelationToRelNode translator =
-        new SparkRelationToRelNode(beamSqlEnv.getRelBuilder().getCluster());
+    SparkRelationToRelNode translator = new SparkRelationToRelNode(beamSqlEnv);
     RelNode relNode = translator.translate(writeOperation.getInput());
     BeamRelNode beamRelNode = beamSqlEnv.convertToBeamRel(relNode);
 
-    PipelineOptions options = BeamEnumerableConverter.createPipelineOptions(beamSqlEnv.getPipelineOptions());
+    PipelineOptions options =
+        BeamEnumerableConverter.createPipelineOptions(beamSqlEnv.getPipelineOptions());
     Pipeline pipeline = Pipeline.create(options);
     PCollection<Row> inputPCollection = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
@@ -352,10 +324,10 @@ public class ExecutePlanHandler {
     // 3. Select the appropriate Beam IO sink based on the format.
     switch (format.toLowerCase()) {
       case "csv":
-        CSVFormat csvFormat = createCsvFormat(writeOperation.getOptionsMap(), inputPCollection.getSchema());
+        CSVFormat csvFormat =
+            createCsvFormat(writeOperation.getOptionsMap(), inputPCollection.getSchema());
         CsvIO.Write<Row> writeRows = CsvIO.writeRows(path + "part", csvFormat).withSuffix(".csv");
-        inputPCollection.apply(
-            "WriteCSV", writeRows);
+        inputPCollection.apply("WriteCSV", writeRows);
         break;
 
       case "parquet":
@@ -382,7 +354,10 @@ public class ExecutePlanHandler {
   /**
    * Creates a {@link CSVFormat} object based on the options provided by the Spark Connect client.
    */
-  private CSVFormat createCsvFormat(Map<String, String> options, org.apache.beam.sdk.schemas.Schema schema) {
+  public static CSVFormat createCsvFormat(
+      Map<String, String> options, org.apache.beam.sdk.schemas.Schema schema) {
+
+    // Rather than use what commons considers "default" we should set defaults to match Spark
     CSVFormat format = CSVFormat.DEFAULT;
 
     // Set the header from the schema if the 'header' option is true.
@@ -391,23 +366,27 @@ public class ExecutePlanHandler {
     }
 
     // Delimiter (sep)
-    if (options.containsKey("sep")) {
-      format = format.withDelimiter(options.get("sep").charAt(0));
+    String sep = options.get("sep");
+    if (sep != null && !sep.isEmpty()) {
+      format = format.withDelimiter(sep.charAt(0));
     }
 
     // Quote character
-    if (options.containsKey("quote")) {
-      format = format.withQuote(options.get("quote").charAt(0));
+    String quote = options.get("quote");
+    if (quote != null && !quote.isEmpty()) {
+      format = format.withQuote(quote.charAt(0));
     }
 
     // Escape character
-    if (options.containsKey("escape")) {
-      format = format.withEscape(options.get("escape").charAt(0));
+    String escape = options.get("escape");
+    if (escape != null && !escape.isEmpty()) {
+      format = format.withEscape(escape.charAt(0));
     }
 
     // Null value representation
-    if (options.containsKey("nullValue")) {
-      format = format.withNullString(options.get("nullValue"));
+    String nullValue = options.get("nullValue");
+    if (nullValue != null && !nullValue.isEmpty()) {
+      format = format.withNullString(nullValue);
     }
 
     // Quote mode
@@ -415,21 +394,21 @@ public class ExecutePlanHandler {
       format = format.withQuoteMode(QuoteMode.ALL);
     }
 
-    // Line separator
-    if (options.containsKey("lineSep")) {
-      format = format.withRecordSeparator(options.get("lineSep"));
+    // Line separator is permissive in read and defaults to \n in writes
+    String lineSep = options.get("lineSep");
+    if (lineSep != null && !lineSep.isEmpty()) {
+      format = format.withRecordSeparator(lineSep);
+    } else {
+      format = format.withRecordSeparator('\n');
     }
 
-    // NOTE: dateFormat and timestampFormat are not directly supported by CsvIO's automatic
-    // row conversion. Handling these would require a custom DoFn to format the values before
-    // writing, similar to the original RowToCsv implementation.
+    // NOTE: There are many more options particularly around dateFormat and timestampFormat
+    // that we'd add a DoFn for
 
     return format;
   }
 
-  /**
-   * Maps Spark's compression codec names to Beam's {@link Compression} enum.
-   */
+  /** Maps Spark's compression codec names to Beam's {@link Compression} enum. */
   private Compression getBeamCompression(String sparkCompression) {
     if (sparkCompression == null) {
       return Compression.AUTO;
@@ -444,7 +423,7 @@ public class ExecutePlanHandler {
         return Compression.BZIP2;
       case "deflate":
         return Compression.DEFLATE;
-      // Add other mappings as needed (e.g., lz4, snappy)
+        // Add other mappings as needed (e.g., lz4, snappy)
       default:
         return Compression.AUTO;
     }

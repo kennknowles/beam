@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
+import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sparkconnect.handler.AnalyzePlanHandler;
@@ -119,6 +120,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
 
   private static BeamSqlEnv getBeamSqlEnv() {
     InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    catalogManager.registerTableProvider(new TextTableProvider());
     BeamSqlEnv.BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
     sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
     PipelineOptions options = PipelineOptionsFactory.create();

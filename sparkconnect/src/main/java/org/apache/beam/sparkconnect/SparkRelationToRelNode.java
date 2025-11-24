@@ -39,12 +39,16 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
+import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sparkconnect.rel.LogicalShowString;
@@ -476,15 +480,18 @@ public class SparkRelationToRelNode {
                     .getTableForMember(ImmutableList.of(tempTableName)));
 
         CalciteSchema rootSchema = beamSqlEnv.getContext().getRootSchema();
+        List<String> defaultSchemaPath = beamSqlEnv.getContext().getDefaultSchemaPath();
+        CalciteSchema defaultSchema =
+            checkArgumentNotNull(SqlDdlNodes.childSchema(rootSchema, defaultSchemaPath));
 
+        CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) defaultSchema.schema;
+
+        CatalogSchema catalogSchema = catalogManagerSchema.getCurrentCatalogSchema();
+        Catalog catalog = catalogSchema.getCatalog();
+        Table table = checkStateNotNull(catalog.metaStore("default").getTable(tempTableName));
         BeamSqlTable beamSqlTable =
             checkStateNotNull(
-                (BeamSqlTable)
-                    ((BeamCalciteSchema) rootSchema.schema)
-                        .getTableProvider()
-                        .getTable(tempTableName));
-        checkStateNotNull(beamSqlEnv.getContext().getRootSchema().getTable(tempTableName, false))
-            .getTable();
+                catalogSchema.getCatalog().metaStore("default").buildBeamSqlTable(table));
 
         return new BeamIOSourceRel(
             cluster,

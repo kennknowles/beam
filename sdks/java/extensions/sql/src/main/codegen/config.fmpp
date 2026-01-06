@@ -21,11 +21,11 @@ data: {
 
       # List of import statements.
       imports: [
-        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.ColumnStrategy"
-        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCreate"
-        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlDrop"
-        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName"
-        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.NlsString"
+        "org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.schema.ColumnStrategy"
+        "org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlCreate"
+        "org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlDrop"
+        "org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.type.SqlTypeName"
+        "org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.util.NlsString"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateDatabase"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
@@ -498,6 +498,7 @@ data: {
       includeBraces: true
       includeAdditionalDeclarations: false
       includeParsingStringLiteralAsArrayLiteral: false
+      includeIntervalWithoutQualifier: false
     }
 }
 

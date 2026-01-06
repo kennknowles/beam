@@ -17,19 +17,19 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.util.Static.RESOURCE;
 
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSetOption;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlSetOption;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlUtil;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.util.Pair;
 
 /** SQL parse tree node to represent {@code SET} and {@code RESET} statements. */
 @SuppressWarnings({

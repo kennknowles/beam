@@ -22,13 +22,14 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.Table;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.MetadataDef;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.MetadataHandler;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_41_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.MetadataDef;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.MetadataHandler;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This is the implementation of NodeStatsMetadata. Methods to estimate rate and row count for
@@ -83,7 +84,13 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
             .filter(entry -> checkArgumentNotNull((NodeStats) entry.getValue()).isUnknown())
             .collect(Collectors.toList());
 
-    keys.forEach(cell -> mq.map.remove(cell.getRowKey(), cell.getColumnKey()));
+    keys.forEach(
+        cell -> {
+          @Nullable Object columnKey = cell.getColumnKey();
+          if (columnKey != null) {
+            mq.map.remove(cell.getRowKey(), columnKey);
+          }
+        });
 
     return rel.estimateNodeStats(mq);
   }

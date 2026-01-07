@@ -26,7 +26,8 @@ applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.sql.jdbc',
   exportJavadoc: false,
   testShadowJar: true,
   validateShadowJar: false,
-  shadowClosure: {}
+  shadowClosure: {},
+  requireJavaVersion: JavaVersion.VERSION_11,
 )
 
 configurations {

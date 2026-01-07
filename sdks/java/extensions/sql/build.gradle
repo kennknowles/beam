@@ -43,6 +43,7 @@ applyJavaNature(
   disableLintWarnings: ['dep-ann', 'rawtypes'],
   // Disable SpotBugs due to ASM bytecode analysis issue with BeamCalcRel class
   enableSpotbugs: false,
+  requireJavaVersion: JavaVersion.VERSION_11,
 )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"

@@ -50,7 +50,7 @@ import org.gradle.api.publish.maven.MavenPublication
 class VendorJavaPlugin implements Plugin<Project> {
 
   static class VendorJavaPluginConfig {
-    List<String> dependencies
+    Map<String, Closure> dependencies
     List<String> runtimeDependencies
     List<String> testDependencies
     Map<String, String> relocations
@@ -102,7 +102,7 @@ class VendorJavaPlugin implements Plugin<Project> {
       project.apply plugin: "project-report"
 
       project.dependencies {
-        config.dependencies.each { implementation it }
+        config.dependencies.each { dependency, closure -> implementation(dependency, closure) }
         config.runtimeDependencies.each { runtimeOnly it }
         config.testDependencies.each { compileOnly it}
       }

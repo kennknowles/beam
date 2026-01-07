@@ -26,7 +26,9 @@ group = "org.apache.beam"
 version = "0.1"
 
 vendorJava(
-        dependencies: GrpcVendoring_1_69_0.dependencies(),
+        dependencies: GrpcVendoring_1_69_0.dependencies().collectEntries {
+          [ (it): {} ]
+        },
         runtimeDependencies: GrpcVendoring_1_69_0.runtimeDependencies(),
         testDependencies: GrpcVendoring_1_69_0.testDependencies(),
         relocations: GrpcVendoring_1_69_0.relocations(),

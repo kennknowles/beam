@@ -49,6 +49,7 @@ List<String> packagesToRelocate = [
         "com.google.uzaygezen",
         "com.jayway",
         "com.yahoo",
+        "io.substrait.isthmus",
         "net.minidev",
         "org.apache.calcite",
         "org.apache.commons",
@@ -69,9 +70,12 @@ List<String> packagesToRelocate = [
 
 vendorJava(
         dependencies: [
-                "org.apache.calcite:calcite-core:$calcite_version",
-                "org.apache.calcite:calcite-linq4j:$calcite_version",
-                "org.apache.calcite.avatica:avatica-core:$avatica_version",
+                (library.java.substrait_isthmus): {
+                        exclude group: "io.substrait", module: "core"
+                },
+                "org.apache.calcite:calcite-core:$calcite_version": {},
+                "org.apache.calcite:calcite-linq4j:$calcite_version": {},
+                "org.apache.calcite.avatica:avatica-core:$avatica_version": {},
         ],
         runtimeDependencies: [
                 library.java.slf4j_api,

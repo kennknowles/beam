@@ -21,6 +21,7 @@ applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.tpcds',
         exportJavadoc: false,
         archivesBaseName: 'beam-sdks-java-tpcds',
+        requireJavaVersion: JavaVersion.VERSION_11,
 )
 
 description = "Apache Beam :: SDKs :: Java :: TPC-DS"

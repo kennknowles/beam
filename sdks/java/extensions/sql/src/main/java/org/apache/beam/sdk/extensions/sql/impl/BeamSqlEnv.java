@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import io.substrait.proto.Plan;
 import java.sql.SQLException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Collection;
@@ -119,6 +120,10 @@ public class BeamSqlEnv {
   public BeamRelNode parseQuery(String query, QueryParameters queryParameters)
       throws ParseException {
     return planner.convertToBeamRel(query, queryParameters);
+  }
+
+  public BeamRelNode parsePlan(Plan plan) throws ParseException {
+    return planner.convertToBeamRel(plan);
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {

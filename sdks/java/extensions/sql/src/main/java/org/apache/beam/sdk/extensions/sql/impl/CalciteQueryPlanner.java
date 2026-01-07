@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import io.substrait.extension.DefaultExtensionCatalog;
+import io.substrait.plan.Plan.Root;
 import io.substrait.plan.ProtoPlanConverter;
 import io.substrait.proto.Plan;
 import java.lang.reflect.Method;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
 import org.apache.beam.vendor.calcite.v1_41_0.com.google.common.collect.Table;
 import org.apache.beam.vendor.calcite.v1_41_0.io.substrait.isthmus.SubstraitToCalcite;
 import org.apache.beam.vendor.calcite.v1_41_0.io.substrait.isthmus.SubstraitTypeSystem;
@@ -57,6 +59,7 @@ import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.Me
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.rel2sql.RelToSqlConverter;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -188,6 +191,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
     Preconditions.checkArgument(
         queryParameters.getKind() == Kind.NONE,
         "Beam SQL Calcite dialect does not yet support query parameters.");
+    BeamRelNode beamRelNode;
     try {
       SqlNode parsed = planner.parse(sqlStatement);
       TableResolutionUtils.setupCustomTableResolution(connection, parsed);
@@ -196,8 +200,29 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
       // root of original logical plan
       RelRoot root = planner.rel(validated);
+      LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(root.rel));
+      RelTraitSet desiredTraits =
+          root.rel
+              .getTraitSet()
+              .replace(BeamLogicalConvention.INSTANCE)
+              .replace(root.collation)
+              .simplify();
+      // beam physical plan
+      root.rel
+          .getCluster()
+          .setMetadataProvider(
+              ChainedRelMetadataProvider.of(
+                  ImmutableList.of(
+                      NonCumulativeCostImpl.SOURCE,
+                      RelMdNodeStats.SOURCE,
+                      root.rel.getCluster().getMetadataProvider())));
 
-      return convertToBeamRel(root);
+      root.rel.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
+      RelMetadataQuery.THREAD_PROVIDERS.set(
+          JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
+      root.rel.getCluster().invalidateMetadataQuery();
+      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
+      LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
     } catch (RelConversionException | CannotPlanException e) {
       throw new SqlConversionException(
           String.format("Unable to convert query %s", sqlStatement), e);
@@ -206,57 +231,30 @@ public class CalciteQueryPlanner implements QueryPlanner {
     } finally {
       planner.close();
     }
+    return beamRelNode;
   }
 
   /** Converts the input plan into a {@link BeamRelNode} tree. */
   @Override
-  public BeamRelNode convertToBeamRel(Plan planProto) throws SqlConversionException {
-    final io.substrait.plan.Plan plan = new ProtoPlanConverter().from(planProto);
-    Preconditions.checkArgument(
-        plan.getRoots().size() == 1, "Substrait Plan must contain a single root.");
-    try {
-      final SubstraitToCalcite converter =
-          new SubstraitToCalcite(
-              DefaultExtensionCatalog.DEFAULT_COLLECTION,
-              new JavaTypeFactoryImpl(SubstraitTypeSystem.TYPE_SYSTEM));
+  public BeamRelNode convertToBeamRel(Plan planProto)
+      throws ParseException, SqlConversionException {
+    final ProtoPlanConverter protoToPlan = new ProtoPlanConverter();
+    final SubstraitToCalcite subToCal =
+        new SubstraitToCalcite(
+            DefaultExtensionCatalog.DEFAULT_COLLECTION,
+            new JavaTypeFactoryImpl(SubstraitTypeSystem.TYPE_SYSTEM));
+    final RelToSqlConverter relToSql = new RelToSqlConverter(BeamBigQuerySqlDialect.DEFAULT);
 
-      RelRoot root = converter.convert(plan.getRoots().get(0));
+    final List<Root> roots = protoToPlan.from(planProto).getRoots();
+    Preconditions.checkArgument(roots.size() == 1, "Substrait Plan must contain a single root.");
+    final Root root = roots.get(0);
+    final RelNode rel = subToCal.convert(root).project(true);
+    final SqlNode sql = relToSql.visitRoot(rel).asStatement();
 
-      return convertToBeamRel(root);
-    } catch (RelConversionException | CannotPlanException e) {
-      throw new SqlConversionException(String.format("Unable to convert plan %s", planProto), e);
-    } finally {
-      planner.close();
-    }
-  }
-
-  private BeamRelNode convertToBeamRel(RelRoot root)
-      throws RelConversionException, CannotPlanException {
-    LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(root.rel));
-    RelTraitSet desiredTraits =
-        root.rel
-            .getTraitSet()
-            .replace(BeamLogicalConvention.INSTANCE)
-            .replace(root.collation)
-            .simplify();
-    // beam physical plan
-    root.rel
-        .getCluster()
-        .setMetadataProvider(
-            ChainedRelMetadataProvider.of(
-                ImmutableList.of(
-                    NonCumulativeCostImpl.SOURCE,
-                    RelMdNodeStats.SOURCE,
-                    root.rel.getCluster().getMetadataProvider())));
-
-    root.rel.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
-    RelMetadataQuery.THREAD_PROVIDERS.set(
-        JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
-    root.rel.getCluster().invalidateMetadataQuery();
-
-    final BeamRelNode beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
-    LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
-    return beamRelNode;
+    // The planner expects a clean transition between parse (?), validate, rel and transform.
+    // TODO: Confirm if parse is optional and eliminate string conversions if confirmed.
+    return convertToBeamRel(
+        sql.toSqlString(BeamBigQuerySqlDialect.DEFAULT).getSql(), QueryParameters.ofNone());
   }
 
   // It needs to be public so that the generated code in Calcite can access it.

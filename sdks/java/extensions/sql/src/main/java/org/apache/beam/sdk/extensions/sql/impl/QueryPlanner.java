@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import com.google.auto.value.AutoOneOf;
+import io.substrait.proto.Plan;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,9 @@ public interface QueryPlanner {
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
   BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException;
+
+  /** Converts the input plan into a {@link BeamRelNode} tree. */
+  BeamRelNode convertToBeamRel(Plan substraitPlan) throws ParseException, SqlConversionException;
 
   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
   SqlNode parse(String sqlStatement) throws ParseException;

@@ -55,6 +55,15 @@ class Repositories {
 
       // Apache release snapshots
       maven { url "https://repository.apache.org/content/repositories/releases" }
+
+      // GitHub package
+      maven {
+        url "https://maven.pkg.github.com/sjvanrossum/beam"
+        credentials {
+          username = project.findProperty("gpr.user")
+          password = project.findProperty("gpr.key")
+        }
+      }
     }
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline

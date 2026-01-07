@@ -69,6 +69,7 @@ import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql2rel.SqlToRe
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.tools.Planner;
+import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.tools.Program;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.tools.RelConversionException;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.tools.ValidationException;
@@ -89,12 +90,14 @@ import org.slf4j.LoggerFactory;
 public class CalciteQueryPlanner implements QueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(CalciteQueryPlanner.class);
 
+  private final FrameworkConfig config;
   private final Planner planner;
   private final JdbcConnection connection;
 
   /** Called by {@link BeamSqlEnv}.instantiatePlanner() reflectively. */
   public CalciteQueryPlanner(JdbcConnection connection, Collection<RuleSet> ruleSets) {
     this.connection = connection;
+    this.config = defaultConfig(connection, ruleSets);
     this.planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));
   }
 
@@ -196,8 +199,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
       // root of original logical plan
       RelRoot root = planner.rel(validated);
-
-      return convertToBeamRel(root);
+      return convertToBeamRel(root.rel, queryParameters);
     } catch (RelConversionException | CannotPlanException e) {
       throw new SqlConversionException(
           String.format("Unable to convert query %s", sqlStatement), e);
@@ -206,6 +208,50 @@ public class CalciteQueryPlanner implements QueryPlanner {
     } finally {
       planner.close();
     }
+  }
+
+  @Override
+  public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters) {
+    RelNode beamRelNode;
+    try {
+      LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(relNode));
+      RelTraitSet desiredTraits =
+          relNode
+              .getTraitSet()
+              .replace(BeamLogicalConvention.INSTANCE)
+              // .replace(root.collation)
+              .simplify();
+      // beam physical plan
+      relNode
+          .getCluster()
+          .setMetadataProvider(
+              ChainedRelMetadataProvider.of(
+                  ImmutableList.of(
+                      NonCumulativeCostImpl.SOURCE,
+                      RelMdNodeStats.SOURCE,
+                      relNode.getCluster().getMetadataProvider())));
+
+      relNode.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
+      RelMetadataQuery.THREAD_PROVIDERS.set(
+          JaninoRelMetadataProvider.of(relNode.getCluster().getMetadataProvider()));
+      relNode.getCluster().invalidateMetadataQuery();
+      Program program = config.getPrograms().get(0);
+      LOG.info("Desired traits: {}", desiredTraits);
+      beamRelNode =
+          program.run(
+              relNode.getCluster().getPlanner(),
+              relNode,
+              desiredTraits,
+              ImmutableList.of(),
+              ImmutableList.of());
+      LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
+    } catch (CannotPlanException e) {
+      throw new SqlConversionException(
+          String.format("Unable to convert relNode to Beam: %s", relNode), e);
+    } finally {
+      planner.close();
+    }
+    return (BeamRelNode) beamRelNode;
   }
 
   /** Converts the input plan into a {@link BeamRelNode} tree. */

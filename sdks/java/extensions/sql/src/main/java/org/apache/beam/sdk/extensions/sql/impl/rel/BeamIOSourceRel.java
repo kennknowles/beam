@@ -109,7 +109,6 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   }
 
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
-
     @Override
     public PCollection<Row> expand(PCollectionList<Row> input) {
       checkArgument(

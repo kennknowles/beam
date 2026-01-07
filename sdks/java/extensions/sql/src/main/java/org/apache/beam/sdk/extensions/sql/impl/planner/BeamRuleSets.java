@@ -37,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputLookupJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSortRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamTableFunctionScanRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamTableScanRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
@@ -147,6 +148,8 @@ public class BeamRuleSets {
           BeamSideInputLookupJoinRule.INSTANCE,
           BeamMatchRule.INSTANCE);
 
+  private static final List<RelOptRule> HACKS = ImmutableList.of(BeamTableScanRule.INSTANCE);
+
   private static final List<RelOptRule> BEAM_TO_ENUMERABLE =
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
 
@@ -159,6 +162,7 @@ public class BeamRuleSets {
         .addAll(BEAM_CONVERTERS)
         .addAll(BEAM_TO_ENUMERABLE)
         .addAll(LOGICAL_OPTIMIZATIONS)
+        .addAll(HACKS)
         .build();
   }
 }

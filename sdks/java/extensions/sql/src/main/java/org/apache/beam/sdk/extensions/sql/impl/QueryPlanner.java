@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_41_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -40,10 +39,6 @@ public interface QueryPlanner {
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
   BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException;
-
-  /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
-  BeamRelNode convertToBeamRel(RelNode sqlStatement, QueryParameters queryParameters)
-      throws SqlConversionException;
 
   /** Converts the input plan into a {@link BeamRelNode} tree. */
   BeamRelNode convertToBeamRel(Plan substraitPlan) throws ParseException, SqlConversionException;

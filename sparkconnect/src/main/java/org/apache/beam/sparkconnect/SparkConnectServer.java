@@ -30,7 +30,7 @@ public class SparkConnectServer {
 
     // start the service following gRPC guide
     ServerBuilder.forPort(12345)
-        .intercept(new LoggingInterceptor())
+        .maxInboundMessageSize(128 * 1024 * 1024)
         .addService(new SparkConnectService())
         .build()
         .start()

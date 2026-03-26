@@ -19,6 +19,7 @@ package org.apache.beam.sparkconnect.handler;
 
 import io.grpc.stub.StreamObserver;
 import java.util.Map;
+import org.apache.beam.sparkconnect.ProtoUtils;
 import org.apache.spark.connect.proto.ConfigRequest;
 import org.apache.spark.connect.proto.ConfigResponse;
 import org.apache.spark.connect.proto.KeyValue;
@@ -45,6 +46,13 @@ public class ConfigHandler {
     // TBD which config options we actually need or want to support; for now we pretend!
     switch (request.getOperation().getOpTypeCase()) {
       case SET:
+        for (KeyValue pair : request.getOperation().getSet().getPairsList()) {
+          mutableConfig.put(pair.getKey(), pair.getValue());
+          if (pair.getKey().startsWith("spark.sql.execution.arrow.")
+              && !pair.getKey().contains(".pyspark.")) {
+            mutableConfig.put(pair.getKey().replace("arrow.", "arrow.pyspark."), pair.getValue());
+          }
+        }
         break;
       case GET:
         handleConfigGet(request.getOperation().getGet(), responseBuilder);
@@ -67,7 +75,7 @@ public class ConfigHandler {
         break;
     }
 
-    LOG.info("config response: {}", responseBuilder);
+    LOG.debug("config response:\n{}", ProtoUtils.debugString(responseBuilder));
     responseObserver.onNext(responseBuilder.build());
     responseObserver.onCompleted();
   }

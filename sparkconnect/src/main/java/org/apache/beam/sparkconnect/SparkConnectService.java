@@ -18,6 +18,7 @@
 package org.apache.beam.sparkconnect;
 
 import io.grpc.stub.StreamObserver;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,9 +72,26 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       new HashMap<>();
 
   SparkConnectService() {
+    conf.put("spark.sql.timestampType", "TIMESTAMP_LTZ");
+    conf.put("spark.sql.session.timeZone", "UTC");
     conf.put("spark.sql.session.localRelationCacheThreshold", "" + (64 * 1024 * 1024));
+    conf.put("spark.sql.session.localRelationSizeLimit", "" + (64 * 1024 * 1024));
+    conf.put("spark.sql.session.localRelationChunkSizeRows", "10000");
+    conf.put("spark.sql.session.localRelationChunkSizeBytes", "" + (16 * 1024 * 1024));
+    conf.put("spark.sql.session.localRelationBatchOfChunksSizeBytes", "" + (128 * 1024 * 1024));
+    conf.put("spark.sql.execution.pandas.convertToArrowArraySafely", "false");
+    conf.put("spark.sql.execution.pandas.inferPandasDictAsMap", "false");
+    conf.put("spark.sql.pyspark.inferNestedDictAsStruct.enabled", "false");
+    conf.put("spark.sql.pyspark.legacy.inferArrayTypeFromFirstElement.enabled", "false");
+    conf.put("spark.sql.pyspark.legacy.inferMapTypeFromFirstPair.enabled", "false");
     conf.put("spark.sql.execution.arrow.useLargeVarTypes", "false");
     conf.put("spark.python.sql.dataFrameDebugging.enabled", "true");
+  }
+
+  public static class SparkFunctions {
+    public static @Nullable Timestamp timestamp(@Nullable String s) {
+      return (s == null) ? null : Timestamp.valueOf(s);
+    }
   }
 
   /**
@@ -83,7 +101,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void executePlan(
       ExecutePlanRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
-    LOG.info("executePlan request {}", request);
+    LOG.debug("executePlan request:\n{}", ProtoUtils.debugString(request));
 
     new ExecutePlanHandler(operationToExecutePlanResponse, getBeamSqlEnv())
         .handle(request, responseObserver);
@@ -123,7 +141,11 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
     catalogManager.registerTableProvider(new TextTableProvider());
     BeamSqlEnv.BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
     sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
-    PipelineOptions options = PipelineOptionsFactory.create();
+
+    // Register custom UDFs
+    sqlEnvBuilder.addUdf("TIMESTAMP", SparkFunctions.class, "timestamp");
+
+    PipelineOptions options = PipelineOptionsFactory.fromArgs("--targetParallelism=1").create();
     sqlEnvBuilder.setPipelineOptions(options);
 
     // All the Beam rules and also the SparkConnect rules
@@ -163,7 +185,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void analyzePlan(
       AnalyzePlanRequest request, StreamObserver<AnalyzePlanResponse> responseObserver) {
-    LOG.info("analyzePlan request: {}", request);
+    LOG.debug("analyzePlan request:\n{}", ProtoUtils.debugString(request));
 
     new AnalyzePlanHandler(getBeamSqlEnv()).handle(request, responseObserver);
   }
@@ -171,7 +193,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   /** Update or fetch the configurations and returns a [[ConfigResponse]] containing the result. */
   @Override
   public void config(ConfigRequest request, StreamObserver<ConfigResponse> responseObserver) {
-    LOG.info("config request: {}", request);
+    LOG.debug("config request:\n{}", ProtoUtils.debugString(request));
     new ConfigHandler(conf).handle(request, responseObserver);
   }
 
@@ -182,7 +204,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public StreamObserver<AddArtifactsRequest> addArtifacts(
       StreamObserver<AddArtifactsResponse> responseObserver) {
-    LOG.info("addArtifact request");
+    LOG.debug("addArtifact request");
     return super.addArtifacts(responseObserver);
   }
 
@@ -196,7 +218,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void artifactStatus(
       ArtifactStatusesRequest request, StreamObserver<ArtifactStatusesResponse> responseObserver) {
-    LOG.info("artifactStatus request: {}", request);
+    LOG.debug("artifactStatus request:\n{}", ProtoUtils.debugString(request));
     super.artifactStatus(request, responseObserver);
   }
 
@@ -205,7 +227,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void interrupt(
       InterruptRequest request,
       StreamObserver<org.apache.spark.connect.proto.InterruptResponse> responseObserver) {
-    LOG.info("interrupt request {}", request);
+    LOG.debug("interrupt request:\n{}", ProtoUtils.debugString(request));
 
     InterruptResponse.Builder responseBuilder = InterruptResponse.newBuilder();
     responseBuilder
@@ -249,7 +271,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void reattachExecute(
       ReattachExecuteRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
-    LOG.info("reattachExecute request {}", request);
+    LOG.debug("reattachExecute request:\n{}", ProtoUtils.debugString(request));
     ExecutePlanResponse.Builder responseBuilder =
         ExecutePlanResponse.newBuilder()
             .setResponseId(UUID.randomUUID().toString())
@@ -274,7 +296,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void releaseExecute(
       ReleaseExecuteRequest request, StreamObserver<ReleaseExecuteResponse> responseObserver) {
-    LOG.info("releaseExecute request {}", request);
+    LOG.debug("releaseExecute request:\n{}", ProtoUtils.debugString(request));
     responseObserver.onNext(
         ReleaseExecuteResponse.newBuilder()
             .setSessionId(request.getSessionId())
@@ -297,7 +319,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void releaseSession(
       ReleaseSessionRequest request, StreamObserver<ReleaseSessionResponse> responseObserver) {
-    LOG.info("releaseSession request: {}", request);
+    LOG.debug("releaseSession request:\n{}", ProtoUtils.debugString(request));
     super.releaseSession(request, responseObserver);
   }
 
@@ -312,7 +334,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void fetchErrorDetails(
       FetchErrorDetailsRequest request,
       StreamObserver<FetchErrorDetailsResponse> responseObserver) {
-    LOG.info("fetchErrorDetails request: {}", request);
+    LOG.debug("fetchErrorDetails request:\n{}", ProtoUtils.debugString(request));
     super.fetchErrorDetails(request, responseObserver);
   }
 }

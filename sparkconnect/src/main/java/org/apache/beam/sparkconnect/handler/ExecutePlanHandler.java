@@ -17,27 +17,19 @@
  */
 package org.apache.beam.sparkconnect.handler;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.dictionary.DictionaryProvider;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
@@ -55,6 +47,8 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sparkconnect.ProtoUtils;
+import org.apache.beam.sparkconnect.RowToArrowConverter;
 import org.apache.beam.sparkconnect.SparkRelationToRelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -84,7 +78,7 @@ public class ExecutePlanHandler {
 
   public void handle(
       ExecutePlanRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
-    LOG.info("executePlan request {}", request);
+    LOG.debug("executePlan request:\n{}", ProtoUtils.debugString(request));
 
     ExecutePlanResponse.Builder responseBuilder =
         ExecutePlanResponse.newBuilder()
@@ -167,6 +161,12 @@ public class ExecutePlanHandler {
         // A command for custom extensions that are not part of the core Spark Connect protocol.
         throw new UnsupportedOperationException("Extension commands not yet implemented.");
 
+      case ML_COMMAND:
+        // PySpark attempts to clean up the ML cache after test execution.
+        // We just ignore this command as we don't have ML cache.
+        LOG.debug("Ignoring ML_COMMAND");
+        break;
+
       default:
         throw new UnsupportedOperationException(
             "Unrecognized CommandType: " + command.getCommandTypeCase().name());
@@ -205,6 +205,12 @@ public class ExecutePlanHandler {
       }
     }
 
+    // --- Preprocess SQL to handle Spark-specific syntax that Calcite doesn't like ---
+    // Handle: SELECT * FROM VALUES (...) AS tab(...) -> SELECT * FROM (VALUES (...)) AS tab(...)
+    if (sql.toUpperCase().contains("FROM VALUES") && sql.toUpperCase().contains(" AS ")) {
+      sql = sql.replaceAll("(?i)FROM\\s+VALUES\\b([\\s\\S]*?)\\bAS\\b", "FROM (VALUES $1) AS");
+    }
+
     if (beamSqlEnv.isDdl(sql)) {
       beamSqlEnv.executeDdl(sql);
     } else {
@@ -225,9 +231,9 @@ public class ExecutePlanHandler {
 
     SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(beamSqlEnv);
     RelNode relNode = sparkRelationToRelNode.translate(root);
-    BeamRelNode beamRelNode = beamSqlEnv.convertToBeamRel(relNode);
 
-    executeCalcitePlanAndRespond(beamRelNode, responseBuilder, responseObserver);
+    executeCalcitePlanAndRespond(
+        beamSqlEnv.convertToBeamRel(relNode), responseBuilder, responseObserver);
   }
 
   private void executeCalcitePlanAndRespond(
@@ -238,42 +244,29 @@ public class ExecutePlanHandler {
 
     List<Row> outputRows = BeamEnumerableConverter.toRowList(beamRelNode);
 
-    // TODO: convert Beam schema into Arrow schema for sending response rows as Arrow
-    Field showStringField =
-        new Field("show_string", FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList());
-    Schema schema = new Schema(Collections.singletonList(showStringField));
+    org.apache.beam.sdk.schemas.Schema beamSchema =
+        org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.toSchema(
+            beamRelNode.getRowType());
+    Schema arrowSchema = RowToArrowConverter.toArrowSchema(beamSchema);
 
     ExecutePlanResponse.ArrowBatch.Builder arrowBatchBuilder =
         ExecutePlanResponse.ArrowBatch.newBuilder();
     arrowBatchBuilder.setRowCount(outputRows.size());
 
-    // this goes into the ShowString relation translator
     try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-
-      try (VectorSchemaRoot arrowRoot = VectorSchemaRoot.create(schema, allocator)) {
-
-        // Get the vector from the root
-        VarCharVector varCharVector = (VarCharVector) arrowRoot.getVector("show_string");
-
-        varCharVector.allocateNew(outputRows.size());
-        for (int i = 0; i < outputRows.size(); i++) {
-          // TODO: don't assume show_string schema
-          String showString = checkStateNotNull(outputRows.get(i).getString("show_string"));
-          varCharVector.setSafe(i, showString.getBytes(StandardCharsets.UTF_8));
-        }
-        varCharVector.setValueCount(outputRows.size());
-        arrowRoot.setRowCount(outputRows.size());
+      try (VectorSchemaRoot arrowRoot = VectorSchemaRoot.create(arrowSchema, allocator)) {
+        RowToArrowConverter.populateVectorSchemaRoot(arrowRoot, outputRows, beamSchema);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ArrowStreamWriter writer = newArrowStreamWriter(arrowRoot, null, out)) {
           writer.start();
           writer.writeBatch();
           writer.end();
-        } // writer is closed here
+        }
 
         arrowBatchBuilder.setData(ByteString.copyFrom(out.toByteArray()));
-      } // arrowRoot closed here
-    } // allocator closed here
+      }
+    }
 
     responseBuilder.setArrowBatch(arrowBatchBuilder.build());
   }

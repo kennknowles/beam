@@ -160,6 +160,7 @@ public class CalciteUtils {
           .put(SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE, TIME_WITH_LOCAL_TZ)
           .put(SqlTypeName.TIMESTAMP, TIMESTAMP)
           .put(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TZ)
+          .put(SqlTypeName.NULL, VARCHAR)
           .build();
 
   // Since there are multiple Calcite type that correspond to a single Beam type, this is the

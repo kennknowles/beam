@@ -193,8 +193,120 @@ public final class AnalyzePlanHandler {
    * <p>This operation parses a DDL string (e.g., "a INT, b STRING") into a Spark `DataType`.
    */
   private AnalyzePlanResponse.DDLParse handleDdlParse(AnalyzePlanRequest.DDLParse ddlParseRequest) {
-    // TODO: Implement DDL parsing. You might be able to use Calcite's parser for this.
-    throw Status.UNIMPLEMENTED.withDescription("DDLParse not implemented").asRuntimeException();
+    String ddlString = ddlParseRequest.getDdlString();
+    if (ddlString.trim().startsWith("{")) {
+      try {
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(ddlString);
+        DataType dataType = parseJsonDataType(root);
+        return AnalyzePlanResponse.DDLParse.newBuilder().setParsed(dataType).build();
+      } catch (Exception e) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Failed to parse JSON DDL: " + e.getMessage())
+            .asRuntimeException();
+      }
+    }
+    throw Status.UNIMPLEMENTED
+        .withDescription("DDLParse not implemented for non-JSON string: " + ddlString)
+        .asRuntimeException();
+  }
+
+  private DataType parseJsonDataType(com.fasterxml.jackson.databind.JsonNode node) {
+    String type = node.has("type") ? node.get("type").asText() : "";
+    if (type.equals("struct")) {
+      DataType.Struct.Builder structBuilder = DataType.Struct.newBuilder();
+      com.fasterxml.jackson.databind.JsonNode fields = node.get("fields");
+      if (fields != null && fields.isArray()) {
+        for (com.fasterxml.jackson.databind.JsonNode field : fields) {
+          DataType.StructField.Builder fb = DataType.StructField.newBuilder();
+          fb.setName(field.get("name").asText());
+          fb.setNullable(field.has("nullable") && field.get("nullable").asBoolean());
+
+          com.fasterxml.jackson.databind.JsonNode typeNode = field.get("type");
+          if (typeNode.isObject()) {
+            fb.setDataType(parseJsonDataType(typeNode));
+          } else {
+            fb.setDataType(parsePrimitiveDataType(typeNode.asText()));
+          }
+          structBuilder.addFields(fb.build());
+        }
+      }
+      return DataType.newBuilder().setStruct(structBuilder.build()).build();
+    } else if (type.equals("array")) {
+      DataType.Array.Builder arrayBuilder = DataType.Array.newBuilder();
+      com.fasterxml.jackson.databind.JsonNode elementType = node.get("elementType");
+      if (elementType.isObject()) {
+        arrayBuilder.setElementType(parseJsonDataType(elementType));
+      } else {
+        arrayBuilder.setElementType(parsePrimitiveDataType(elementType.asText()));
+      }
+      arrayBuilder.setContainsNull(
+          node.has("containsNull") && node.get("containsNull").asBoolean());
+      return DataType.newBuilder().setArray(arrayBuilder.build()).build();
+    } else if (type.equals("map")) {
+      DataType.Map.Builder mapBuilder = DataType.Map.newBuilder();
+      com.fasterxml.jackson.databind.JsonNode keyType = node.get("keyType");
+      if (keyType.isObject()) {
+        mapBuilder.setKeyType(parseJsonDataType(keyType));
+      } else {
+        mapBuilder.setKeyType(parsePrimitiveDataType(keyType.asText()));
+      }
+      com.fasterxml.jackson.databind.JsonNode valueType = node.get("valueType");
+      if (valueType.isObject()) {
+        mapBuilder.setValueType(parseJsonDataType(valueType));
+      } else {
+        mapBuilder.setValueType(parsePrimitiveDataType(valueType.asText()));
+      }
+      mapBuilder.setValueContainsNull(
+          node.has("valueContainsNull") && node.get("valueContainsNull").asBoolean());
+      return DataType.newBuilder().setMap(mapBuilder.build()).build();
+    }
+    return parsePrimitiveDataType(type);
+  }
+
+  private DataType parsePrimitiveDataType(String typeStr) {
+    DataType.Builder b = DataType.newBuilder();
+    switch (typeStr.toLowerCase()) {
+      case "string":
+        return b.setString(DataType.String.newBuilder().build()).build();
+      case "boolean":
+        return b.setBoolean(DataType.Boolean.newBuilder().build()).build();
+      case "byte":
+        return b.setByte(DataType.Byte.newBuilder().build()).build();
+      case "short":
+        return b.setShort(DataType.Short.newBuilder().build()).build();
+      case "integer":
+        return b.setInteger(DataType.Integer.newBuilder().build()).build();
+      case "long":
+        return b.setLong(DataType.Long.newBuilder().build()).build();
+      case "float":
+        return b.setFloat(DataType.Float.newBuilder().build()).build();
+      case "double":
+        return b.setDouble(DataType.Double.newBuilder().build()).build();
+      case "date":
+        return b.setDate(DataType.Date.newBuilder().build()).build();
+      case "timestamp":
+        return b.setTimestamp(DataType.Timestamp.newBuilder().build()).build();
+      case "timestamp_ntz":
+        return b.setTimestampNtz(DataType.TimestampNTZ.newBuilder().build()).build();
+      case "binary":
+        return b.setBinary(DataType.Binary.newBuilder().build()).build();
+      case "void":
+      case "null":
+        return b.setNull(DataType.NULL.newBuilder().build()).build();
+    }
+    if (typeStr.startsWith("decimal")) {
+      String ints = typeStr.substring(8, typeStr.length() - 1);
+      int commaIdx = ints.indexOf(',');
+      int precision =
+          Integer.parseInt(commaIdx > 0 ? ints.substring(0, commaIdx).trim() : ints.trim());
+      int scale = commaIdx > 0 ? Integer.parseInt(ints.substring(commaIdx + 1).trim()) : 0;
+      return b.setDecimal(
+              DataType.Decimal.newBuilder().setPrecision(precision).setScale(scale).build())
+          .build();
+    }
+    throw new RuntimeException("Unsupported type for JSON parse: " + typeStr);
   }
 
   /**

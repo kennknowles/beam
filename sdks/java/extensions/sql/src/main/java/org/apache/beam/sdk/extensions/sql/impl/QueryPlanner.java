@@ -50,6 +50,8 @@ public interface QueryPlanner {
 
   RelBuilder getRelBuilder();
 
+  org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable getOperatorTable();
+
   @AutoOneOf(QueryParameters.Kind.class)
   abstract class QueryParameters {
     public enum Kind {

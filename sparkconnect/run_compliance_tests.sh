@@ -22,17 +22,19 @@ if [ ! -d "${VENV_DIR}" ]; then
 else
   source "${VENV_DIR}/bin/activate"
 fi
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+if [ -z "$JAVA_HOME" ]; then
+  export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+fi
 export PATH="$JAVA_HOME/bin:$PATH"
 
 echo "Starting blockingServer in background via Gradle..."
-(cd "${SCRIPT_DIR}/.." && ./gradlew :sparkconnect:blockingServer -Dorg.gradle.java.home=$JAVA_HOME) &
+(cd "${SCRIPT_DIR}/.." && ./gradlew :sparkconnect:blockingServer -Dorg.gradle.java.home=$JAVA_HOME > "${SCRIPT_DIR}/server.log" 2>&1) &
 SERVER_PID=$!
 
 function cleanup {
   echo "Tearing down blockingServer (via Gradle stop or PID $SERVER_PID)..."
   # Try stopping gradle daemon nicely if it hangs
-  (cd "${SCRIPT_DIR}/.." && ./gradlew --stop) || true
+  pkill -f "org.apache.beam.sparkconnect.SparkConnectServer" || true
   kill $SERVER_PID 2>/dev/null || true
   wait $SERVER_PID 2>/dev/null || true
 }
@@ -58,9 +60,16 @@ fi
 echo "Running compliance tests..."
 export SPARK_CONNECT_TESTING_REMOTE="sc://localhost:12345"
 export SPARK_TESTING=1
+# export SPARK_SKIP_CONNECT_COMPAT_TESTS=1
 export SPARK_HOME="${SPARK_CLONE_DIR}"
-# Only run the connect tests:
 TEST_DIR="${SPARK_CLONE_DIR}/python/pyspark/sql/tests/connect"
+
+# Default to all tests if no arguments are provided:
+if [ $# -gt 0 ]; then
+  TEST_TARGET=("$@")
+else
+  TEST_TARGET=("${TEST_DIR}")
+fi
 
 IGNORED_TESTS_FILE="${SCRIPT_DIR}/ignored_tests.txt"
 PYTEST_ARGS=()
@@ -73,7 +82,11 @@ if [ -f "$IGNORED_TESTS_FILE" ]; then
   done < "$IGNORED_TESTS_FILE"
 fi
 
+# Diagnostics
+echo "Checking PySpark requirements..."
+python3 -c 'from pyspark.testing.utils import should_test_connect, connect_requirement_message; print(f"should_test_connect: {should_test_connect}"); print(f"connect_requirement_message: {connect_requirement_message}")'
+
 # test_session.py causes a hang, so we continue to ignore it entirely.
-pytest -v "${TEST_DIR}" "${PYTEST_ARGS[@]}" --ignore="${TEST_DIR}/test_session.py"
+pytest -v "${TEST_TARGET[@]}" "${PYTEST_ARGS[@]}" --ignore="${TEST_DIR}/test_session.py"
 
 echo "Tests completed."

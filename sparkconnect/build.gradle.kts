@@ -103,3 +103,18 @@ tasks.register<JavaExec>("blockingServer") {
   mainClass.set("org.apache.beam.sparkconnect.SparkConnectServer")
   classpath = project.files(sourceSets.getByName("main").runtimeClasspath, blockingServerRuntime)
 }
+
+tasks.register("printClasspath") {
+  doLast {
+    val cp = project.files(sourceSets.getByName("main").runtimeClasspath, blockingServerRuntime).asPath
+    println("SPARK_CONNECT_CLASSPATH=" + cp)
+  }
+}
+
+tasks.register<Exec>("complianceTests") {
+  group = "Verification"
+  description = "Runs the Apache Spark python connect compliance tests against the blockingServer"
+  
+  workingDir = projectDir
+  commandLine("./run_compliance_tests.sh")
+}

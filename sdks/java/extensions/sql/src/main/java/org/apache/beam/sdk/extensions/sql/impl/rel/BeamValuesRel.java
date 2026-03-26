@@ -30,8 +30,10 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -86,7 +88,12 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
       Schema schema = CalciteUtils.toSchema(getRowType());
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
-      return pinput.getPipeline().begin().apply(Create.of(rows).withRowSchema(schema));
+      return pinput
+          .getPipeline()
+          .begin()
+          .apply(Impulse.create())
+          .apply(ParDo.of(new EmitRowsFn(rows)))
+          .setRowSchema(schema);
     }
   }
 
@@ -105,5 +112,20 @@ public class BeamValuesRel extends Values implements BeamRelNode {
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
     return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
+  }
+
+  private static class EmitRowsFn extends DoFn<byte[], Row> {
+    private final List<Row> rows;
+
+    public EmitRowsFn(List<Row> rows) {
+      this.rows = rows;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      for (Row row : rows) {
+        c.output(row);
+      }
+    }
   }
 }

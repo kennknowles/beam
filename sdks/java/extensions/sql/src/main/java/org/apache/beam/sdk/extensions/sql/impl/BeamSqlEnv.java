@@ -135,6 +135,11 @@ public class BeamSqlEnv {
     return planner.convertToBeamRel(relNode, QueryParameters.ofNone());
   }
 
+  public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable
+      getOperatorTable() {
+    return planner.getOperatorTable();
+  }
+
   public boolean isDdl(String sqlStatement) throws ParseException {
     return planner.parse(sqlStatement).getKind().belongsTo(SqlKind.DDL);
   }

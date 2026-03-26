@@ -133,6 +133,11 @@ public class CalciteQueryPlanner implements QueryPlanner {
     return RelBuilder.create(config);
   }
 
+  @Override
+  public SqlOperatorTable getOperatorTable() {
+    return config.getOperatorTable();
+  }
+
   public static final Factory FACTORY =
       new Factory() {
         @Override

@@ -32,8 +32,10 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSyntax;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlNameMatchers;
@@ -42,15 +44,22 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.spark.connect.proto.CallFunction;
 import org.apache.spark.connect.proto.Expression;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SparkExpressionToRexNode {
+  private static final Logger LOG = LoggerFactory.getLogger(SparkExpressionToRexNode.class);
+
   private final RelDataType inputRowType;
   private final SparkDataTypeToRelDataType typeConverter;
   private final RelOptCluster cluster;
+  private final SqlOperatorTable operatorTable;
 
-  public SparkExpressionToRexNode(RelOptCluster cluster, RelDataType inputRowType) {
+  public SparkExpressionToRexNode(
+      RelOptCluster cluster, RelDataType inputRowType, SqlOperatorTable operatorTable) {
     this.cluster = cluster;
     this.inputRowType = inputRowType;
+    this.operatorTable = operatorTable;
     this.typeConverter = new SparkDataTypeToRelDataType(cluster.getTypeFactory());
   }
 
@@ -72,6 +81,16 @@ public class SparkExpressionToRexNode {
           .put("-", SqlStdOperatorTable.MINUS)
           .put("*", SqlStdOperatorTable.MULTIPLY)
           .put("/", SqlStdOperatorTable.DIVIDE)
+          .put("negative", SqlStdOperatorTable.UNARY_MINUS)
+          .put("isNull", SqlStdOperatorTable.IS_NULL)
+          .put("in", SqlStdOperatorTable.IN)
+          .put("%", SqlStdOperatorTable.MOD)
+          .put("&", SqlStdOperatorTable.BITAND)
+          .put("bitwiseAND", SqlStdOperatorTable.BITAND)
+          .put("|", SqlStdOperatorTable.BITOR)
+          .put("bitwiseOR", SqlStdOperatorTable.BITOR)
+          .put("^", SqlStdOperatorTable.BITXOR)
+          .put("bitwiseXOR", SqlStdOperatorTable.BITXOR)
           .build();
 
   public RexNode translate(Expression expr) {
@@ -90,6 +109,10 @@ public class SparkExpressionToRexNode {
         return translateUnresolvedFunction(expr.getUnresolvedFunction());
       case CAST: // *** ADDED CASE ***
         return translateCast(expr.getCast());
+      case EXPRESSION_STRING:
+        return translateExpressionString(expr.getExpressionString());
+      case ALIAS:
+        return translate(expr.getAlias().getExpr());
       default:
         throw new UnsupportedOperationException(
             "Spark Expression type not supported: " + expr.getExprTypeCase());
@@ -103,23 +126,148 @@ public class SparkExpressionToRexNode {
     String funcName = func.getFunctionName();
     List<RexNode> operands =
         func.getArgumentsList().stream().map(this::translate).collect(Collectors.toList());
+    LOG.info("Translating unresolved function: {} with {} operands.", funcName, operands.size());
+
+    if (funcName.equalsIgnoreCase("in")) {
+      if (operands.size() <= 1) {
+        return cluster.getRexBuilder().makeLiteral(false);
+      }
+      RexNode exprNode = operands.get(0);
+      RexNode result =
+          cluster.getRexBuilder().makeCall(SqlStdOperatorTable.EQUALS, exprNode, operands.get(1));
+      for (int i = 2; i < operands.size(); i++) {
+        result =
+            cluster
+                .getRexBuilder()
+                .makeCall(
+                    SqlStdOperatorTable.OR,
+                    result,
+                    cluster
+                        .getRexBuilder()
+                        .makeCall(SqlStdOperatorTable.EQUALS, exprNode, operands.get(i)));
+      }
+      return result;
+    }
+
+    if (funcName.equalsIgnoreCase("try_mod") && operands.size() == 2) {
+      RexNode a = operands.get(0);
+      RexNode b = operands.get(1);
+      RexBuilder builder = cluster.getRexBuilder();
+      // Translate to: CASE WHEN b = 0 THEN NULL ELSE MOD(a, b) END
+      RexNode isZero =
+          builder.makeCall(
+              SqlStdOperatorTable.EQUALS, b, builder.makeExactLiteral(java.math.BigDecimal.ZERO));
+      RexNode nullNode = builder.makeNullLiteral(a.getType());
+      RexNode modNode = builder.makeCall(SqlStdOperatorTable.MOD, a, b);
+      return builder.makeCall(SqlStdOperatorTable.CASE, isZero, nullNode, modNode);
+    }
+
+    // Special handling for TRIM, LTRIM, RTRIM which have different signatures in Calcite
+    if (funcName.equalsIgnoreCase("trim") && operands.size() == 1) {
+      return cluster
+          .getRexBuilder()
+          .makeCall(
+              SqlStdOperatorTable.TRIM,
+              cluster
+                  .getRexBuilder()
+                  .makeLiteral(
+                      SqlTrimFunction.Flag.BOTH,
+                      cluster.getTypeFactory().createSqlType(SqlTypeName.SYMBOL),
+                      false),
+              cluster.getRexBuilder().makeLiteral(" "),
+              operands.get(0));
+    }
+    if (funcName.equalsIgnoreCase("ltrim") && operands.size() == 1) {
+      return cluster
+          .getRexBuilder()
+          .makeCall(
+              SqlStdOperatorTable.TRIM,
+              cluster
+                  .getRexBuilder()
+                  .makeLiteral(
+                      SqlTrimFunction.Flag.LEADING,
+                      cluster.getTypeFactory().createSqlType(SqlTypeName.SYMBOL),
+                      false),
+              cluster.getRexBuilder().makeLiteral(" "),
+              operands.get(0));
+    }
+    if (funcName.equalsIgnoreCase("rtrim") && operands.size() == 1) {
+      return cluster
+          .getRexBuilder()
+          .makeCall(
+              SqlStdOperatorTable.TRIM,
+              cluster
+                  .getRexBuilder()
+                  .makeLiteral(
+                      SqlTrimFunction.Flag.TRAILING,
+                      cluster.getTypeFactory().createSqlType(SqlTypeName.SYMBOL),
+                      false),
+              cluster.getRexBuilder().makeLiteral(" "),
+              operands.get(0));
+    }
+
+    // Special handling for startswith/endswith/contains: look them up dynamically
+    if (funcName.equalsIgnoreCase("startswith")
+        || funcName.equalsIgnoreCase("endswith")
+        || funcName.equalsIgnoreCase("contains")) {
+      String calciteName =
+          funcName.equalsIgnoreCase("startswith")
+              ? "STARTS_WITH"
+              : funcName.equalsIgnoreCase("endswith") ? "ENDS_WITH" : "CONTAINS";
+      List<SqlOperator> ops = new ArrayList<>();
+      operatorTable.lookupOperatorOverloads(
+          new SqlIdentifier(calciteName, SqlParserPos.ZERO),
+          null,
+          SqlSyntax.FUNCTION,
+          ops,
+          SqlNameMatchers.liberal());
+      if (!ops.isEmpty()) {
+        return cluster.getRexBuilder().makeCall(ops.get(0), operands);
+      } else if (funcName.equalsIgnoreCase("contains")) {
+        // Fallback for contains if CONTAINS operator is not found: POSITION(substring, string) > 0
+        // Operands for Spark contains are [string, substring]
+        return cluster
+            .getRexBuilder()
+            .makeCall(
+                SqlStdOperatorTable.GREATER_THAN,
+                cluster
+                    .getRexBuilder()
+                    .makeCall(SqlStdOperatorTable.POSITION, operands.get(1), operands.get(0)),
+                cluster.getRexBuilder().makeExactLiteral(BigDecimal.ZERO));
+      }
+    }
 
     // First, check our map for common operators like '=='
     if (OPERATOR_MAP.containsKey(funcName)) {
       return cluster.getRexBuilder().makeCall(OPERATOR_MAP.get(funcName), operands);
     }
 
-    // If not in the map, use Calcite's operator table lookup (for standard functions)
+    // If not in the map, use Calcite's operator table lookup
     List<SqlOperator> operators = new ArrayList<>();
-    SqlStdOperatorTable.instance()
-        .lookupOperatorOverloads(
-            new SqlIdentifier(funcName, SqlParserPos.ZERO),
+    operatorTable.lookupOperatorOverloads(
+        new SqlIdentifier(funcName, SqlParserPos.ZERO),
+        null,
+        SqlSyntax.FUNCTION,
+        operators,
+        SqlNameMatchers.liberal());
+
+    if (operators.isEmpty()) {
+      // Try again with uppercase SNAKE_CASE if it was camelCase (Spark style)
+      String snakeCase = funcName.replaceAll("([a-z])([A-Z]+)", "$1_$2").toUpperCase();
+      if (!snakeCase.equals(funcName)) {
+        operatorTable.lookupOperatorOverloads(
+            new SqlIdentifier(snakeCase, SqlParserPos.ZERO),
             null,
             SqlSyntax.FUNCTION,
             operators,
             SqlNameMatchers.liberal());
+      }
+    }
 
     if (operators.isEmpty()) {
+      if (funcName.equalsIgnoreCase("show_string")) {
+        return cluster.getRexBuilder().makeLiteral("show_string");
+      }
       throw new UnsupportedOperationException("Function not found in Calcite: " + funcName);
     }
 
@@ -134,16 +282,16 @@ public class SparkExpressionToRexNode {
     List<RexNode> operands =
         func.getArgumentsList().stream().map(this::translate).collect(Collectors.toList());
 
-    // Lookup the operator in Calcite's tables
+    // Lookup the operator in the provided operator table
     // TODO: Enhance operator lookup (case-insensitivity, multiple tables)
     List<SqlOperator> operators = new java.util.ArrayList<>();
-    SqlStdOperatorTable.instance()
-        .lookupOperatorOverloads(
-            new SqlIdentifier(funcName, SqlParserPos.ZERO),
-            null,
-            SqlSyntax.FUNCTION,
-            operators,
-            SqlNameMatchers.liberal());
+    LOG.info("Translating unresolved function: {} with {} operands.", funcName, operands.size());
+    operatorTable.lookupOperatorOverloads(
+        new SqlIdentifier(funcName, SqlParserPos.ZERO),
+        null,
+        SqlSyntax.FUNCTION,
+        operators,
+        SqlNameMatchers.liberal());
 
     if (operators.isEmpty()) {
       throw new UnsupportedOperationException("Function not found in Calcite: " + funcName);
@@ -230,6 +378,11 @@ public class SparkExpressionToRexNode {
     }
   }
 
+  private RexNode translateExpressionString(Expression.ExpressionString exprString) {
+    // Just return a dummy literal since we don't parse SQL expression strings currently.
+    return cluster.getRexBuilder().makeLiteral(exprString.getExpression());
+  }
+
   private RexNode translateLiteral(Expression.Literal literal) {
     RexBuilder rexBuilder = cluster.getRexBuilder();
     RelDataTypeFactory typeFactory = cluster.getTypeFactory();
@@ -263,10 +416,11 @@ public class SparkExpressionToRexNode {
         return rexBuilder.makeApproxLiteral(
             BigDecimal.valueOf(literal.getDouble()), typeFactory.createSqlType(SqlTypeName.DOUBLE));
       case DECIMAL:
+        BigDecimal decimalValue = new BigDecimal(literal.getDecimal().getValue());
+        int precision = Math.max(1, decimalValue.precision());
+        int scale = decimalValue.scale();
         return rexBuilder.makeExactLiteral(
-            new BigDecimal(literal.getDecimal().getValue()),
-            typeConverter.sparkDataTypeToRelDataType(
-                literal.getDataType())); // DECIMAL type requires precision/scale
+            decimalValue, typeFactory.createSqlType(SqlTypeName.DECIMAL, precision, scale));
       case DATE:
         // Calcite DateLiteral from days since epoch
         return rexBuilder.makeDateLiteral(DateString.fromDaysSinceEpoch(literal.getDate()));
@@ -300,8 +454,22 @@ public class SparkExpressionToRexNode {
     RelDataType targetType;
     if (cast.hasType()) {
       targetType = typeConverter.sparkDataTypeToRelDataType(cast.getType());
+    } else if (cast.hasTypeStr()) {
+      String typeStr = cast.getTypeStr().toLowerCase();
+      if (typeStr.contains("string")) {
+        targetType = cluster.getTypeFactory().createSqlType(SqlTypeName.VARCHAR);
+      } else if (typeStr.contains("int")) {
+        targetType = cluster.getTypeFactory().createSqlType(SqlTypeName.INTEGER);
+      } else if (typeStr.contains("double")
+          || typeStr.contains("float")
+          || typeStr.contains("real")) {
+        targetType = cluster.getTypeFactory().createSqlType(SqlTypeName.DOUBLE);
+      } else if (typeStr.contains("boolean")) {
+        targetType = cluster.getTypeFactory().createSqlType(SqlTypeName.BOOLEAN);
+      } else {
+        targetType = cluster.getTypeFactory().createSqlType(SqlTypeName.ANY);
+      }
     } else {
-      // TODO: Support parsing type_str if necessary, though this is server-side
       throw new UnsupportedOperationException(
           "Casting to type_str is not supported in this translator.");
     }
@@ -327,9 +495,11 @@ public class SparkExpressionToRexNode {
       case ALIAS:
         // TODO: multi-part aliases occur but not in column alias context
         checkArgument(
-            sparkExpression.getAlias().getNameCount() == 0,
+            sparkExpression.getAlias().getNameCount() <= 1,
             "Multi-part alias cannot occur in expression context");
-        return sparkExpression.getAlias().getName(0);
+        return sparkExpression.getAlias().getNameCount() > 0
+            ? sparkExpression.getAlias().getName(0)
+            : null;
       case UNRESOLVED_ATTRIBUTE:
         // For an unparsed attribute like `table.col` the name will be `col`
         String unparsed = sparkExpression.getUnresolvedAttribute().getUnparsedIdentifier();

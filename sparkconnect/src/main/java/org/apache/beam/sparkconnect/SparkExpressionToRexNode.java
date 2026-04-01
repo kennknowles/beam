@@ -91,6 +91,7 @@ public class SparkExpressionToRexNode {
           .put("bitwiseOR", SqlStdOperatorTable.BITOR)
           .put("^", SqlStdOperatorTable.BITXOR)
           .put("bitwiseXOR", SqlStdOperatorTable.BITXOR)
+          .put("between", SqlStdOperatorTable.BETWEEN)
           .build();
 
   public RexNode translate(Expression expr) {
@@ -424,13 +425,13 @@ public class SparkExpressionToRexNode {
       case DATE:
         // Calcite DateLiteral from days since epoch
         return rexBuilder.makeDateLiteral(DateString.fromDaysSinceEpoch(literal.getDate()));
-        //      case TIMESTAMP:
-        //        // Spark Timestamp is micros since epoch. Calcite is millis.
-        //        long millis = literal.getTimestamp() / 1000;
-        //        return
-        // rexBuilder.makeTimestampLiteral(TimestampString.fromMillisSinceEpoch(millis),
-        // SqlTypeName.TIMESTAMP.getDefaultPrecision());
-        // TODO: Handle other literal types: BINARY, ARRAY, MAP, STRUCT, INTERVALS
+      case TIMESTAMP:
+        // Spark Timestamp is micros since epoch. Calcite is millis.
+        long millis = literal.getTimestamp() / 1000;
+        return rexBuilder.makeTimestampLiteral(
+            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimestampString
+                .fromMillisSinceEpoch(millis),
+            typeFactory.createSqlType(SqlTypeName.TIMESTAMP).getPrecision());
       default:
         throw new UnsupportedOperationException(
             "Literal type not supported: " + literal.getLiteralTypeCase());

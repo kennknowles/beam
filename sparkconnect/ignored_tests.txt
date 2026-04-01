@@ -2747,20 +2747,19 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::t
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_compression_codec
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_map_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_map_type_nulls
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_between
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast_default_column_name
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_accessor
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_arithmetic_ops
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_bitwise_ops
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_field_ops
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_with_null
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_columns
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_datetime
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_distributed_sequence_id
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_integers
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_null
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_none
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_simple_binary_expressions
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_transform
-python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_with_field_column_name
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_between
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast_default_column_name
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_accessor
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_arithmetic_ops
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_bitwise_ops
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_field_ops
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_with_null
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_columns
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_datetime
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_distributed_sequence_id
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_integers
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_none
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_simple_binary_expressions
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_transform
+# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_with_field_column_name

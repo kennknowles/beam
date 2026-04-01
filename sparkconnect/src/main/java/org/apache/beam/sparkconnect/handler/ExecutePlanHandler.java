@@ -211,6 +211,53 @@ public class ExecutePlanHandler {
       sql = sql.replaceAll("(?i)FROM\\s+VALUES\\b([\\s\\S]*?)\\bAS\\b", "FROM (VALUES $1) AS");
     }
 
+    // Standardize Spark literal constructors to Calcite syntax
+    sql = sql.replaceAll("(?i)\\bDATE\\s*\\(\\s*'([^']+)'\\s*\\)", "DATE '$1'");
+    sql = sql.replaceAll("(?i)\\bTIMESTAMP\\s*\\(\\s*'([^']+)'\\s*\\)", "TIMESTAMP '$1'");
+
+    // Handle RANGE(N) table generating function by converting it to a VALUES clause for Calcite
+    java.util.regex.Pattern rangePattern =
+        java.util.regex.Pattern.compile("(?i)\\bFROM\\s+RANGE\\s*\\(\\s*(\\d+)\\s*\\)");
+    java.util.regex.Matcher rangeMatcher = rangePattern.matcher(sql);
+    if (rangeMatcher.find()) {
+      try {
+        String g1 = rangeMatcher.group(1);
+        if (g1 != null) {
+          int n = Integer.parseInt(g1);
+          if (n <= 1000) { // Safety limit for query size
+            StringBuilder valuesBuilder = new StringBuilder();
+            valuesBuilder.append("FROM (VALUES ");
+            for (int i = 0; i < n; i++) {
+              valuesBuilder.append("ROW(").append(i).append(")");
+              if (i < n - 1) {
+                valuesBuilder.append(", ");
+              }
+            }
+            valuesBuilder.append(") AS tab(id)");
+            sql = rangeMatcher.replaceAll(valuesBuilder.toString());
+          }
+        }
+      } catch (NumberFormatException e) {
+        // Fall back if number is too large or invalid
+      }
+    }
+    // Standardize Spark types to Calcite types
+    sql =
+        sql.replaceAll(
+            "(?i)\\bCAST\\s*\\(\\s*([^)]+)\\s+AS\\s+STRING\\s*\\)", "CAST($1 AS VARCHAR)");
+
+    // Handle STRUCT(...) row construction by converting it to ROW(...)
+    sql = sql.replaceAll("(?i)\\bSTRUCT\\s*\\(", "ROW(");
+
+    // Handle float(...) and double(...) simple type constructors in VALUES
+    sql = sql.replaceAll("(?i)\\bfloat\\s*\\(\\s*([^)]+?)\\s*\\)", "CAST($1 AS FLOAT)");
+    sql = sql.replaceAll("(?i)\\bdouble\\s*\\(\\s*([^)]+?)\\s*\\)", "CAST($1 AS DOUBLE)");
+
+    // Handle MAP(...) and ARRAY(...) constructors by converting them to MAP[...] and ARRAY[...] for
+    // Calcite
+    sql = sql.replaceAll("(?i)\\bMAP\\s*\\(\\s*([^)]+?)\\s*\\)", "MAP[$1]");
+    sql = sql.replaceAll("(?i)\\bARRAY\\s*\\(\\s*([^)]+?)\\s*\\)", "ARRAY[$1]");
+
     if (beamSqlEnv.isDdl(sql)) {
       beamSqlEnv.executeDdl(sql);
     } else {

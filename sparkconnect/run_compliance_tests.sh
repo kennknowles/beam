@@ -64,16 +64,23 @@ export SPARK_TESTING=1
 export SPARK_HOME="${SPARK_CLONE_DIR}"
 TEST_DIR="${SPARK_CLONE_DIR}/python/pyspark/sql/tests/connect"
 
-# Default to all tests if no arguments are provided:
-if [ $# -gt 0 ]; then
-  TEST_TARGET=("$@")
-else
+USE_IGNORE_LIST=1
+TEST_TARGET=()
+for arg in "$@"; do
+  if [ "$arg" == "--no-ignore" ]; then
+    USE_IGNORE_LIST=0
+  else
+    TEST_TARGET+=("$arg")
+  fi
+done
+
+if [ ${#TEST_TARGET[@]} -eq 0 ]; then
   TEST_TARGET=("${TEST_DIR}")
 fi
 
 IGNORED_TESTS_FILE="${SCRIPT_DIR}/ignored_tests.txt"
 PYTEST_ARGS=()
-if [ -f "$IGNORED_TESTS_FILE" ]; then
+if [ "$USE_IGNORE_LIST" -eq 1 ] && [ -f "$IGNORED_TESTS_FILE" ]; then
   echo "Reading ignored tests from $IGNORED_TESTS_FILE"
   while IFS= read -r line || [ -n "$line" ]; do
     if [[ -n "$line" && ! "$line" =~ ^# ]]; then

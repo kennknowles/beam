@@ -1,8 +1,104 @@
 # Tests to ignore in the Spark Connect compliance test suite
 # Format: <path_to_test>::<ClassName>::<test_method>
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_arrow_map_timestamp_nulls_round_trip
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_arrow_round_trip
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_cached_local_relation_changing_values
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_column_name_encoding
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_duplicate_field_names
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_fixed_size_binary
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_fixed_size_list
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_large_binary
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_large_list
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_large_list_int64_offset
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_large_string
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_pandas
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_respect_session_timezone
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_truncate_timestamp
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_array_type_nulls
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_incorrect_schema
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_int_col_names
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_map_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_map_type_nulls
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_names
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_struct_type_nulls
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_does_not_modify_input
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_empty_partition
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_fallback_disabled
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_fallback_enabled
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_column_name_encoding
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_duplicate_field_names
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_nested_timestamp
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_respect_session_timezone
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_array_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_incorrect_schema
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_int_col_names
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_map_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_names
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_schema
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_struct_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_toggle
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_udt
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_category_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_dictionary_type_nulls
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_float_index
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_int64
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_ndarray
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_single_data_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_string_dtype
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_arrow_day_time_internal
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_arrow_timestamp_ntz
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_pandas_day_time_internal
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_pandas_timestamp_ntz
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_dataframe_namedtuples
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_filtered_frame
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_large_cached_local_relation_same_values
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_large_local_relation_size_limit_exceeded
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_negative_and_zero_batch_size
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_no_partition_frame
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_no_partition_toPandas
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_null_conversion
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_pandas_round_trip
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_pandas_self_destruct
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_propagates_spark_exception
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_schema_conversion_roundtrip
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_timestamp_dst
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_timestamp_nat
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_duplicate_field_names
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_empty_columns
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_empty_rows
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_error
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_keep_utc_timezone
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_nested_timestamp
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_array_type_nulls
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_compression_codec
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_compression_codec_large_dataset
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_map_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_map_type_nulls
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_arrow_toggle
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_batch_order
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_duplicate_field_names
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_empty_columns
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_empty_df_arrow_enabled
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_empty_rows
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_error
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_fallback_disabled
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_fallback_enabled
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_nested_timestamp
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_respect_session_timezone
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_timestmap_tzinfo
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_udt
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_array_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_compression_codec
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_compression_codec_large_dataset
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_map_type
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_map_type_nulls
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_type_conversion_round_trip
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_cogrouped_map.py::CogroupedMapInArrowParityTests::test_apply_in_arrow
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_cogrouped_map.py::CogroupedMapInArrowParityTests::test_apply_in_arrow_column_order
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_cogrouped_map.py::CogroupedMapInArrowParityTests::test_apply_in_arrow_empty_groupby
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_cogrouped_map.py::CogroupedMapInArrowParityTests::test_apply_in_arrow_not_returning_arrow_table
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_cogrouped_map.py::CogroupedMapInArrowParityTests::test_apply_in_arrow_returning_empty_dataframe
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_cogrouped_map.py::CogroupedMapInArrowParityTests::test_apply_in_arrow_returning_empty_dataframe_and_wrong_column_names
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_cogrouped_map.py::CogroupedMapInArrowParityTests::test_apply_in_arrow_returning_wrong_column_names
@@ -24,6 +120,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_grouped_map.py::ApplyIn
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_grouped_map.py::ApplyInArrowParityTests::test_apply_in_arrow_not_returning_arrow_table
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_grouped_map.py::ApplyInArrowParityTests::test_apply_in_arrow_partial_iteration
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_grouped_map.py::ApplyInArrowParityTests::test_apply_in_arrow_returning_empty_dataframe
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_grouped_map.py::ApplyInArrowParityTests::test_apply_in_arrow_returning_empty_dataframe_and_wrong_column_names
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_grouped_map.py::ApplyInArrowParityTests::test_apply_in_arrow_returning_wrong_column_names
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_grouped_map.py::ApplyInArrowParityTests::test_apply_in_arrow_returning_wrong_types
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_grouped_map.py::ApplyInArrowParityTests::test_apply_in_arrow_returning_wrong_types_positional_assignment
@@ -43,6 +140,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityT
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_large_variable_width_types
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_map_in_arrow
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_map_in_arrow_with_barrier_mode
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_map_in_arrow_with_limit
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_map_in_arrow_with_logging
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_multiple_columns
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_negative_and_zero_batch_size
@@ -53,6 +151,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityT
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_passing_metadata
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_self_join
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ArrowMapParityTests::test_top_level_wrong_order
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_arrow_udf_int_to_decimal_coercion
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_broadcast_in_udf
@@ -61,6 +160,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPyt
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_complex_input_types
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_complex_return_types
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_datasource_with_udf
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_day_time_interval_in_struct
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_day_time_interval_type_casting
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_decimal_round
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_err_return_type
@@ -157,6 +257,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPyt
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityNonLegacyTests::test_chained_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityNonLegacyTests::test_chained_udfs_with_variant
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityNonLegacyTests::test_complex_input_types
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityNonLegacyTests::test_complex_return_types
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityNonLegacyTests::test_datasource_with_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityNonLegacyTests::test_day_time_interval_in_struct
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityNonLegacyTests::test_day_time_interval_type_casting
@@ -258,6 +359,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPyt
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_complex_return_types
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_datasource_with_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_day_time_interval_in_struct
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_day_time_interval_type_casting
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_decimal_round
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_err_return_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_err_udf_init
@@ -347,6 +449,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPyt
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_udf_wrapper
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_use_arrow
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_worker_original_stdin_closed
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::UDFParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::UDFParityTests::test_broadcast_in_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::UDFParityTests::test_chained_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::UDFParityTests::test_chained_udfs_with_variant
@@ -436,6 +539,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::UDFParit
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_agg_arrow_udf_with_specified_eval_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_arrow_udf_basic
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_arrow_udf_basic_with_return_type_string
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_arrow_udf_day_time_interval_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_arrow_udf_decorator
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_arrow_udf_decorator_with_return_type_string
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_arrow_udf_timestamp_ntz
@@ -444,6 +548,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFP
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_scalar_arrow_udf_with_specified_eval_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_time_zone_against_map_in_arrow
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_0_args
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_alias
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_array_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_arrow_batch_slicing
@@ -477,6 +582,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::Gro
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_no_predicate_pushdown_through
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_register_vectorized_udf_basic
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_retain_group_columns
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_return_numpy_scalar
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_return_type_coercion
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_time_min
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_unsupported_return_types
@@ -486,6 +592,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarAr
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_iter_udf_three_columns
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_iter_udf_two_columns
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_chained
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_chained_ii
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_chained_iii
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_chained_struct_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_datatype_string
@@ -502,6 +609,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarAr
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_named_arguments
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_named_arguments_and_defaults
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_named_arguments_negative
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_null_array
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_null_binary
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_null_boolean
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_null_byte
@@ -523,6 +631,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarAr
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_tokenize
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_catalog_register_arrow_udf_basic
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_catalog_register_nondeterministic_arrow_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_nondeterministic_arrow_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_nondeterministic_arrow_udf_in_aggregate
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_return_type_coercion
@@ -533,6 +642,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarAr
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_udf_register_nondeterministic_arrow_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_unsupported_return_types
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_array_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_arrow_batch_slicing
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_bounded_mixed
@@ -541,6 +651,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowAr
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_complex_window_collect_list
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_complex_window_collect_set
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_complex_window_min_max_struct
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_growing_window
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_invalid_args
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_kwargs
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_mixed_sql
@@ -548,6 +659,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowAr
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_mixed_udf
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_multiple_udfs
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_named_arguments
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_named_arguments_negative
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_replace_existing
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_return_numpy_scalar
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_return_type_coercion
@@ -557,6 +669,7 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowAr
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_time_min
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_window_arrow_udf_with_logging
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_without_partitionBy
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_blocks_analyze_method_none_return_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_blocks_analyze_method_with_return_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_data_conversion_error
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_error_invalid_arrow_type
@@ -567,6 +680,8 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParit
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_lateral_join_with_table_argument_disallowed
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_partition_by_all_columns
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_partition_by_single_partition_multiple_input_partitions
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_partition_column_removal
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_record_batch_iterator
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_scalar_args_only
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_sql_conditional_yield
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_sql_empty_result
@@ -600,11 +715,13 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParit
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_return_type_coercion_multiple_columns
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_return_type_coercion_overflow
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_return_type_coercion_success
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_add_archive
 python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_add_file
 python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_add_not_existing_artifact
 python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_add_pyfile
+python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_add_zipped_package
 python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_artifacts_cannot_be_overwritten
 python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_basic_requests
@@ -620,12 +737,15 @@ python/pyspark/sql/tests/connect/client/test_artifact_localcluster.py::LocalClus
 python/pyspark/sql/tests/connect/client/test_artifact_localcluster.py::LocalClusterArtifactTests::test_add_pyfile
 python/pyspark/sql/tests/connect/client/test_artifact_localcluster.py::LocalClusterArtifactTests::test_add_zipped_package
 python/pyspark/sql/tests/connect/client/test_artifact_localcluster.py::LocalClusterArtifactTests::test_artifacts_cannot_be_overwritten
+python/pyspark/sql/tests/connect/client/test_artifact_localcluster.py::LocalClusterArtifactTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/client/test_artifact_localcluster.py::ReusedConnectTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/client/test_client.py::SparkConnectClientTestCase::test_session_hook
+python/pyspark/sql/tests/connect/client/test_client.py::SparkConnectClientReattachTestCase::test_server_unreachable
+python/pyspark/sql/tests/connect/client/test_client.py::SparkConnectClientTestCase::test_properties
 python/pyspark/sql/tests/connect/client/test_reattach.py::ReusedMixedTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/client/test_reattach.py::SparkConnectReattachTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/client/test_reattach.py::SparkConnectReattachTestCase::test_release_sessions
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_grouped_map_with_state.py::GroupedApplyInPandasWithStateTests::test_apply_in_pandas_with_state_basic
+python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_grouped_map_with_state.py::GroupedApplyInPandasWithStateTests::test_apply_in_pandas_with_state_basic_fewer_data
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_grouped_map_with_state.py::GroupedApplyInPandasWithStateTests::test_apply_in_pandas_with_state_basic_more_data
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_grouped_map_with_state.py::GroupedApplyInPandasWithStateTests::test_apply_in_pandas_with_state_basic_no_state
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_grouped_map_with_state.py::GroupedApplyInPandasWithStateTests::test_apply_in_pandas_with_state_basic_no_state_no_data
@@ -636,6 +756,7 @@ python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_grouped_map
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_grouped_map_with_state.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state.py::TransformWithStateInPandasParityTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state.py::TransformWithStateInPandasParityTests::test_composite_output_schema
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state.py::TransformWithStateInPandasParityTests::test_not_nullable_fails
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state.py::TransformWithStateInPandasParityTests::test_schema_evolution_fails
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state.py::TransformWithStateInPandasParityTests::test_schema_evolution_scenarios
@@ -661,12 +782,14 @@ python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_w
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_map_state_metadata
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_map_state_metadata_with_init_state
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_basic
+python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_init_state
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_init_state_with_extra_transformation
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_init_state_with_timers
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_list_state
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_list_state_large_list
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_list_state_large_ttl
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_map_state
+python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_map_state_large_ttl
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_non_exist_value_state
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_restart_with_multiple_rows_init_state
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_with_timers_single_partition
@@ -675,6 +798,7 @@ python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_w
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_value_state_ttl_expiration
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state.py::TransformWithStateInPySparkParityTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state.py::TransformWithStateInPySparkParityTests::test_composite_output_schema
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state.py::TransformWithStateInPySparkParityTests::test_not_nullable_fails
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state.py::TransformWithStateInPySparkParityTests::test_schema_evolution_fails
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state.py::TransformWithStateInPySparkParityTests::test_schema_evolution_scenarios
@@ -701,6 +825,7 @@ python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_sta
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state_state_variable.py::TransformWithStateInPySparkStateVariableParityTests::test_transform_with_map_state_metadata_with_init_state
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state_state_variable.py::TransformWithStateInPySparkStateVariableParityTests::test_transform_with_state_basic
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state_state_variable.py::TransformWithStateInPySparkStateVariableParityTests::test_transform_with_state_init_state
+python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state_state_variable.py::TransformWithStateInPySparkStateVariableParityTests::test_transform_with_state_init_state_with_extra_transformation
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state_state_variable.py::TransformWithStateInPySparkStateVariableParityTests::test_transform_with_state_init_state_with_timers
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state_state_variable.py::TransformWithStateInPySparkStateVariableParityTests::test_transform_with_state_list_state
 python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state_state_variable.py::TransformWithStateInPySparkStateVariableParityTests::test_transform_with_state_list_state_large_list
@@ -722,6 +847,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::Cog
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::CogroupedApplyInPandasTests::test_apply_in_pandas_returning_no_column_names_and_wrong_amount
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::CogroupedApplyInPandasTests::test_apply_in_pandas_returning_wrong_column_names
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::CogroupedApplyInPandasTests::test_arrow_batch_slicing
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::CogroupedApplyInPandasTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::CogroupedApplyInPandasTests::test_case_insensitive_grouping_column
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::CogroupedApplyInPandasTests::test_cogroup_apply_in_pandas_with_logging
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::CogroupedApplyInPandasTests::test_cogroup_apply_int_to_decimal_coercion
@@ -754,6 +880,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::Apply
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_iterator_partial_iteration
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_iterator_process_multiple_input_batches
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_iterator_streaming_aggregation
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_iterator_with_compression_codec
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_iterator_with_keys
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_iterator_with_keys_batch_slicing
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_iterator_with_keys_multiple_batches
@@ -761,6 +888,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::Apply
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_returning_column_names
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_returning_column_names_sometimes
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_returning_empty_dataframe
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_returning_incompatible_type
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_returning_no_column_names
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_returning_no_column_names_and_wrong_amount
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_returning_wrong_column_names
@@ -772,6 +900,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::Apply
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_arrow_cast_enabled_str_to_numeric
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_case_insensitive_grouping_column
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_coerce
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_column_order
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_complex_groupby
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_datatype_string
@@ -787,12 +916,14 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::Apply
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_register_grouped_map_udf
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_self_join_with_pandas
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_supported_types
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_timestamp_dst
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_udf_with_key
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_unsupported_types
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_wrong_args
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_wrong_args_in_apply_func
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_wrong_return_type
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_chain_map_partitions_in_pandas
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_dataframes_with_duplicate_column_names
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_dataframes_with_incompatible_types
@@ -804,6 +935,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasPa
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_empty_dataframes_with_less_columns
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_empty_dataframes_with_more_columns
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_empty_dataframes_with_other_columns
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_empty_dataframes_without_columns
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_empty_iterator
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_large_variable_types
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_map_in_pandas
@@ -814,6 +946,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasPa
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_map_in_pandas_with_logging
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_multiple_columns
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_no_column_names
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_not_null
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_other_than_dataframe_iter
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_self_join
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_violate_not_null
@@ -822,6 +955,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFPari
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFParityTests::test_pandas_udf_arrow_overflow
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFParityTests::test_pandas_udf_basic
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFParityTests::test_pandas_udf_basic_with_return_type_string
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFParityTests::test_pandas_udf_day_time_interval_type
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFParityTests::test_pandas_udf_decorator
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFParityTests::test_pandas_udf_decorator_with_return_type_string
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFParityTests::test_pandas_udf_detect_unsafe_type_conversion
@@ -844,6 +978,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::P
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_basic
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_complex_expressions
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_complex_groupby
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_grouped_agg_pandas_udf_with_compression_codec
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_grouped_agg_pandas_udf_with_compression_codec_complex
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_grouped_agg_pandas_udf_with_logging
@@ -870,6 +1005,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::P
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_retain_group_columns
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_unsupported_types
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_scalar.py::PandasUDFScalarParityTests::test_arrow_cast_enabled_numeric_to_decimal
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_scalar.py::PandasUDFScalarParityTests::test_arrow_cast_enabled_str_to_numeric
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_scalar.py::PandasUDFScalarParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_scalar.py::PandasUDFScalarParityTests::test_chained_udfs_with_complex_variant
@@ -952,6 +1088,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_scalar.py::Pandas
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_scalar.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_array_type
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_arrow_batch_slicing
+python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_arrow_cast_numeric_to_decimal
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_arrow_cast_str_to_numeric
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_bounded_mixed
@@ -973,6 +1110,7 @@ python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::Pandas
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_window_pandas_udf_with_logging
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_without_partitionBy
 python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/shell/test_progress.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/shell/test_progress.py::SparkConnectProgressHandlerE2E::test_assert_remote_mode
 python/pyspark/sql/tests/connect/shell/test_progress.py::SparkConnectProgressHandlerE2E::test_custom_handler_works
 python/pyspark/sql/tests/connect/shell/test_progress.py::SparkConnectProgressHandlerE2E::test_progress_properly_recorded
@@ -982,6 +1120,7 @@ python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingFore
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingForeachParityTests::test_streaming_foreach_with_invalid_writers
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingForeachParityTests::test_streaming_foreach_with_open_returning_false
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingForeachParityTests::test_streaming_foreach_with_process_throwing_error
+python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingForeachParityTests::test_streaming_foreach_with_simple_function
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingForeachParityTests::test_streaming_foreach_without_close_method
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingForeachParityTests::test_streaming_foreach_without_open_and_close_methods
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingForeachParityTests::test_streaming_foreach_without_open_method
@@ -992,6 +1131,7 @@ python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::Streami
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::StreamingForeachBatchParityTests::test_nested_dataframes
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::StreamingForeachBatchParityTests::test_pickling_error
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::StreamingForeachBatchParityTests::test_streaming_foreach_batch
+python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::StreamingForeachBatchParityTests::test_streaming_foreach_batch_external_column
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::StreamingForeachBatchParityTests::test_streaming_foreach_batch_function_calling
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::StreamingForeachBatchParityTests::test_streaming_foreach_batch_graceful_stop
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::StreamingForeachBatchParityTests::test_streaming_foreach_batch_import
@@ -1002,6 +1142,7 @@ python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::Streami
 python/pyspark/sql/tests/connect/streaming/test_parity_foreach_batch.py::StreamingForeachBatchParityTests::test_worker_initialization_error
 python/pyspark/sql/tests/connect/streaming/test_parity_listener.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/streaming/test_parity_listener.py::StreamingListenerParityTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/streaming/test_parity_listener.py::StreamingListenerParityTests::test_listener_events_spark_command
 python/pyspark/sql/tests/connect/streaming/test_parity_listener.py::StreamingListenerParityTests::test_listener_management
 python/pyspark/sql/tests/connect/streaming/test_parity_listener.py::StreamingListenerParityTests::test_listener_observed_metrics
 python/pyspark/sql/tests/connect/streaming/test_parity_listener.py::StreamingListenerParityTests::test_listener_throw
@@ -1011,6 +1152,7 @@ python/pyspark/sql/tests/connect/streaming/test_parity_listener.py::StreamingLis
 python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_invalid_name_wrong_type
+python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_invalid_names
 python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_name_before_format
 python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_name_method_chaining
 python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_name_with_different_formats
@@ -1036,6 +1178,7 @@ python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingPa
 python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_streaming_write_to_table
 python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_streaming_write_to_table_cluster_by
 python/pyspark/sql/tests/connect/test_connect_basic.py::ReusedMixedTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_alias
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_alias_metadata
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_column_regexp
@@ -1058,6 +1201,7 @@ python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_is_local
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_is_streaming
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_join_ambiguous_cols
+python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_join_condition_column_list_columns
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_join_hint
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_join_with_cte
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_limit_offset
@@ -1087,8 +1231,10 @@ python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_sql
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_sql_with_command
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_sql_with_invalid_args
+python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_sql_with_named_args
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_sql_with_pos_args
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_subquery_alias
+python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_tail
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_to
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_toDF
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_toJSON
@@ -1101,10 +1247,13 @@ python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_with_columns_renamed
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_with_metadata
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectGCTests::test_arrow_batch_result_chunking
+python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectGCTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectGCTests::test_garbage_collection_checkpoint
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectGCTests::test_garbage_collection_derived_checkpoint
 python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectSQLTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_channel.py::ChannelBuilderTests::test_sensible_defaults
 python/pyspark/sql/tests/connect/test_connect_clone_session.py::SparkConnectCloneSessionTest::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_clone_session.py::SparkConnectCloneSessionTest::test_clone_session_auto_generated_id
 python/pyspark/sql/tests/connect/test_connect_clone_session.py::SparkConnectCloneSessionTest::test_clone_session_basic
 python/pyspark/sql/tests/connect/test_connect_clone_session.py::SparkConnectCloneSessionTest::test_clone_session_preserves_temp_views
 python/pyspark/sql/tests/connect/test_connect_clone_session.py::SparkConnectCloneSessionTest::test_clone_session_with_custom_id
@@ -1115,6 +1264,7 @@ python/pyspark/sql/tests/connect/test_connect_collection.py::ReusedMixedTestCase
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_collect
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_collect_binary_type
+python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_collect_nested_type
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_collect_timestamp
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_first
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_foreach_partition_binary_type
@@ -1122,32 +1272,35 @@ python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollect
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_take
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_to_local_iterator_binary_type
 python/pyspark/sql/tests/connect/test_connect_collection.py::SparkConnectCollectionTests::test_to_pandas
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_assert_remote_mode
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_between
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast_default_column_name
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_accessor
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_arithmetic_ops
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_bitwise_ops
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_field_ops
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_string_ops
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_with_null
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_columns
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_datetime
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_decimal
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_distributed_sequence_id
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_invalid_ops
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_isin
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_lambda_str_representation
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_integers
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_null
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_with_acceptable_type
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_with_unsupported_type
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_none
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_simple_binary_expressions
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_transform
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_with_field_column_name
+python/pyspark/sql/tests/connect/test_connect_column.py::ReusedMixedTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_between
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast_default_column_name
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_accessor
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_arithmetic_ops
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_bitwise_ops
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_field_ops
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_operator
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_string_ops
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_with_null
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_columns
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_datetime
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_decimal
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_distributed_sequence_id
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_invalid_ops
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_isin
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_lambda_str_representation
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_integers
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_null
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_with_acceptable_type
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_with_unsupported_type
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_none
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_simple_binary_expressions
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_transform
+python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_with_field_column_name
 python/pyspark/sql/tests/connect/test_connect_creation.py::ReusedMixedTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_array_has_nullable
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_cast_with_ddl
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_create_dataframe_from_arrays
@@ -1158,6 +1311,7 @@ python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationT
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_create_empty_df
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_from_empty_pandas_dataframe
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_from_pandas_dataframe_with_zero_columns
+python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_large_client_data
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_map_has_nullable
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_nested_type_create_from_rows
 python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_schema_has_nullable
@@ -1175,6 +1329,7 @@ python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::ReusedMixed
 python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_property_is_copied
 python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_schema_cogroup_apply_in_arrow
+python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_schema_cogroup_apply_in_pandas
 python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_schema_group_apply_in_arrow
 python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_schema_group_apply_in_pandas
 python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_schema_in_chain_op
@@ -1183,6 +1338,7 @@ python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnec
 python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_schema_set_op
 python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_schema_to
 python/pyspark/sql/tests/connect/test_connect_error.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_error.py::SparkConnectErrorTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_connect_error.py::SparkConnectErrorTests::test_column_cannot_be_constructed_from_string
 python/pyspark/sql/tests/connect/test_connect_error.py::SparkConnectErrorTests::test_deduplicate_within_watermark_in_batch
 python/pyspark/sql/tests/connect/test_connect_error.py::SparkConnectErrorTests::test_different_spark_session_join_or_union
@@ -1202,6 +1358,7 @@ python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionT
 python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_collection_functions
 python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_count_star
 python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_csv_functions
+python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_date_ts_functions
 python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_function_parity
 python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_generator_functions
 python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_json_functions
@@ -1225,6 +1382,7 @@ python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionT
 python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_window_order
 python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_xml_functions
 python/pyspark/sql/tests/connect/test_connect_readwriter.py::SparkConnectReadWriterTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_readwriter.py::SparkConnectReadWriterTests::test_csv
 python/pyspark/sql/tests/connect/test_connect_readwriter.py::SparkConnectReadWriterTests::test_json
 python/pyspark/sql/tests/connect/test_connect_readwriter.py::SparkConnectReadWriterTests::test_multi_paths
 python/pyspark/sql/tests/connect/test_connect_readwriter.py::SparkConnectReadWriterTests::test_orc
@@ -1257,12 +1415,14 @@ python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTes
 python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_error_stack_trace
 python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_get_message_parameters_without_enriched_error
 python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_not_hitting_netty_header_limit
+python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_progress_handler
 python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_reset_when_server_and_client_sessionids_mismatch
 python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_reset_when_server_session_id_mismatch
 python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_stop_invalid_session
 python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_stop_session
 python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionWithOptionsTest::test_config
 python/pyspark/sql/tests/connect/test_connect_stat.py::SparkConnectSQLTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_connect_stat.py::SparkConnectStatTests::test_agg_with_avg
 python/pyspark/sql/tests/connect/test_connect_stat.py::SparkConnectStatTests::test_agg_with_two_agg_exprs
 python/pyspark/sql/tests/connect/test_connect_stat.py::SparkConnectStatTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_connect_stat.py::SparkConnectStatTests::test_describe
@@ -1283,6 +1443,8 @@ python/pyspark/sql/tests/connect/test_df_debug.py::ReusedConnectTestCase::test_a
 python/pyspark/sql/tests/connect/test_df_debug.py::SparkConnectDataFrameDebug::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_df_debug.py::SparkConnectDataFrameDebug::test_df_debug_basics
 python/pyspark/sql/tests/connect/test_df_debug.py::SparkConnectDataFrameDebug::test_df_query_execution_metrics_to_dot
+python/pyspark/sql/tests/connect/test_df_debug.py::SparkConnectDataFrameDebug::test_df_query_execution_with_writes
+python/pyspark/sql/tests/connect/test_df_debug.py::SparkConnectDataFrameDebug::test_df_quey_execution_empty_before_execution
 python/pyspark/sql/tests/connect/test_df_debug.py::SparkConnectDataFrameDebug::test_query_execution_text_format
 python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_current_database
@@ -1292,6 +1454,7 @@ python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::tes
 python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_get_function
 python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_get_table
 python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_list_columns
+python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_list_databases
 python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_list_functions
 python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_list_tables
 python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_refresh_table
@@ -1305,6 +1468,7 @@ python/pyspark/sql/tests/connect/test_parity_collection.py::DataFrameCollectionP
 python/pyspark/sql/tests/connect/test_parity_collection.py::DataFrameCollectionParityTests::test_to_local_iterator_prefetch
 python/pyspark/sql/tests/connect/test_parity_collection.py::DataFrameCollectionParityTests::test_to_pandas
 python/pyspark/sql/tests/connect/test_parity_collection.py::DataFrameCollectionParityTests::test_to_pandas_avoid_astype
+python/pyspark/sql/tests/connect/test_parity_collection.py::DataFrameCollectionParityTests::test_to_pandas_for_array_of_struct
 python/pyspark/sql/tests/connect/test_parity_collection.py::DataFrameCollectionParityTests::test_to_pandas_for_empty_df_with_nested_array_columns
 python/pyspark/sql/tests/connect/test_parity_collection.py::DataFrameCollectionParityTests::test_to_pandas_from_empty_dataframe
 python/pyspark/sql/tests/connect/test_parity_collection.py::DataFrameCollectionParityTests::test_to_pandas_from_mixed_dataframe
@@ -1316,6 +1480,7 @@ python/pyspark/sql/tests/connect/test_parity_collection.py::ReusedConnectTestCas
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_access_column
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_alias_metadata
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_alias_negative
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_and_in_expression
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_bitwise_operations
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_cast_negative
@@ -1341,6 +1506,7 @@ python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_validate_column_types
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_with_field
 python/pyspark/sql/tests/connect/test_parity_column.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_conf.py::ConfParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_conf.py::ConfParityTests::test_conf
 python/pyspark/sql/tests/connect/test_parity_conf.py::ConfParityTests::test_conf_with_python_objects
 python/pyspark/sql/tests/connect/test_parity_conf.py::ConfParityTests::test_get_all
@@ -1351,6 +1517,7 @@ python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParit
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_datetime_time
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_pandas_with_day_time_interval
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_pandas_with_dst
+python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_pandas_with_timestamp
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_required_pandas_not_found
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_nan_decimal_dataframe
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_str_from_dict
@@ -1361,6 +1528,7 @@ python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParit
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_partial_inference_failure
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_schema_inference_from_pandas_with_dict
 python/pyspark/sql/tests/connect/test_parity_creation.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_cache_dataframe
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_cache_table
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_coalesce_hints_with_string_parameter
@@ -1373,6 +1541,7 @@ python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests:
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_df_show
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_col_from_different_dataframe
+python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_column_name_with_dot
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_duplicates
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_duplicates_with_ambiguous_reference
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_empty_column
@@ -1423,6 +1592,7 @@ python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests:
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_with_columns_renamed_with_duplicated_names
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_zip_with_index
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_dataframe_query_context.py::DataFrameQueryContextParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_dataframe_query_context.py::DataFrameQueryContextParityTests::test_dataframe_query_context
 python/pyspark/sql/tests/connect/test_parity_dataframe_query_context.py::DataFrameQueryContextParityTests::test_dataframe_query_context_col
 python/pyspark/sql/tests/connect/test_parity_dataframe_query_context.py::DataFrameQueryContextParityTests::test_query_context_complex
@@ -1433,6 +1603,7 @@ python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTe
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_csv_sampling_ratio
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_custom_data_source
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_encoding_json
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_ignore_column_of_all_nulls
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_ignorewhitespace_csv
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_input_partition
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_jdbc
@@ -1454,11 +1625,13 @@ python/pyspark/sql/tests/connect/test_parity_errors.py::ErrorsParityTests::test_
 python/pyspark/sql/tests/connect/test_parity_errors.py::ErrorsParityTests::test_number_format_exception
 python/pyspark/sql/tests/connect/test_parity_errors.py::ErrorsParityTests::test_spark_runtime_exception
 python/pyspark/sql/tests/connect/test_parity_errors.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_frame_plot.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_frame_plot_plotly.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_add_months_function
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_approxQuantile
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_array_contains_function
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_array_repeat
+python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_assert_true
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_avro_type_check
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_basic_functions
@@ -1619,6 +1792,7 @@ python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests:
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_window_functions_without_partitionBy
 python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_window_time
 python/pyspark/sql/tests/connect/test_parity_functions.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_geographytype.py::GeographyTypeParityTest::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_geographytype.py::GeographyTypeParityTest::test_geographytype_any_specifier
 python/pyspark/sql/tests/connect/test_parity_geographytype.py::GeographyTypeParityTest::test_geographytype_different_srid_values
 python/pyspark/sql/tests/connect/test_parity_geographytype.py::GeographyTypeParityTest::test_geographytype_from_invalid_algorithm
@@ -1628,6 +1802,7 @@ python/pyspark/sql/tests/connect/test_parity_geographytype.py::GeographyTypePari
 python/pyspark/sql/tests/connect/test_parity_geographytype.py::GeographyTypeParityTest::test_geographytype_specified_invalid_srid
 python/pyspark/sql/tests/connect/test_parity_geographytype.py::GeographyTypeParityTest::test_geographytype_specified_valid_srid
 python/pyspark/sql/tests/connect/test_parity_geographytype.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_geometrytype.py::GeometryTypeParityTest::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_geometrytype.py::GeometryTypeParityTest::test_geometrytype_any_specifier
 python/pyspark/sql/tests/connect/test_parity_geometrytype.py::GeometryTypeParityTest::test_geometrytype_different_srid_values
 python/pyspark/sql/tests/connect/test_parity_geometrytype.py::GeometryTypeParityTest::test_geometrytype_from_invalid_crs
@@ -1637,20 +1812,24 @@ python/pyspark/sql/tests/connect/test_parity_geometrytype.py::GeometryTypeParity
 python/pyspark/sql/tests/connect/test_parity_geometrytype.py::GeometryTypeParityTest::test_geometrytype_specified_valid_srid
 python/pyspark/sql/tests/connect/test_parity_geometrytype.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_group.py::GroupParityTests::test_agg_func
+python/pyspark/sql/tests/connect/test_parity_group.py::GroupParityTests::test_aggregator
 python/pyspark/sql/tests/connect/test_parity_group.py::GroupParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_group.py::GroupParityTests::test_group_by_ordinal
 python/pyspark/sql/tests/connect/test_parity_group.py::GroupParityTests::test_numeric_agg_with_nest_type
 python/pyspark/sql/tests/connect/test_parity_group.py::GroupParityTests::test_order_by_ordinal
 python/pyspark/sql/tests/connect/test_parity_group.py::GroupParityTests::test_pivot_exceed_max_values
+python/pyspark/sql/tests/connect/test_parity_group.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_job_cancellation.py::JobCancellationParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_job_cancellation.py::JobCancellationParityTests::test_inheritable_tags
 python/pyspark/sql/tests/connect/test_parity_job_cancellation.py::JobCancellationParityTests::test_inheritable_tags_with_deco
 python/pyspark/sql/tests/connect/test_parity_job_cancellation.py::JobCancellationParityTests::test_interrupt_all
 python/pyspark/sql/tests/connect/test_parity_job_cancellation.py::JobCancellationParityTests::test_interrupt_tag
 python/pyspark/sql/tests/connect/test_parity_job_cancellation.py::JobCancellationParityTests::test_tags
+python/pyspark/sql/tests/connect/test_parity_job_cancellation.py::JobCancellationParityTests::test_tags_multithread
 python/pyspark/sql/tests/connect/test_parity_job_cancellation.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_memory_profiler.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_observation.py::DataFrameObservationParityTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_observation.py::DataFrameObservationParityTests::test_observation_errors_propagated_to_client
 python/pyspark/sql/tests/connect/test_parity_observation.py::DataFrameObservationParityTests::test_observe
 python/pyspark/sql/tests/connect/test_parity_observation.py::DataFrameObservationParityTests::test_observe_on_commands
 python/pyspark/sql/tests/connect/test_parity_observation.py::DataFrameObservationParityTests::test_observe_str
@@ -1660,6 +1839,7 @@ python/pyspark/sql/tests/connect/test_parity_observation.py::DataFrameObservatio
 python/pyspark/sql/tests/connect/test_parity_observation.py::DataFrameObservationParityTests::test_observe_with_struct_type
 python/pyspark/sql/tests/connect/test_parity_observation.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_python_datasource.py::PythonDataSourceParityTests::test_arrow_batch_data_source
+python/pyspark/sql/tests/connect/test_parity_python_datasource.py::PythonDataSourceParityTests::test_arrow_batch_sink
 python/pyspark/sql/tests/connect/test_parity_python_datasource.py::PythonDataSourceParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_python_datasource.py::PythonDataSourceParityTests::test_basic_data_source_class
 python/pyspark/sql/tests/connect/test_parity_python_datasource.py::PythonDataSourceParityTests::test_basic_data_source_reader_class
@@ -1704,6 +1884,7 @@ python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::Pyt
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_basic_streaming_data_source_class
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_simple_stream_reader
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_simple_stream_reader_empty_iterator_start_equals_end_allowed
+python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_simple_stream_reader_offset_did_not_advance_raises
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_simple_stream_reader_trigger_available_now
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_stream_arrow_writer
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_stream_reader
@@ -1714,6 +1895,7 @@ python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::Pyt
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_stream_reader_trigger_available_now
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::PythonStreamingDataSourceParityTests::test_stream_writer
 python/pyspark/sql/tests/connect/test_parity_python_streaming_datasource.py::ReusedConnectTestCase::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterParityTests::test_binary_type
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterParityTests::test_bucketed_write
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterParityTests::test_cached_table
@@ -1725,11 +1907,13 @@ python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterParityTest
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterV2ParityTests::test_api
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterV2ParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterV2ParityTests::test_cluster_by
+python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterV2ParityTests::test_create
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterV2ParityTests::test_create_without_provider
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterV2ParityTests::test_partitioning_functions
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterV2ParityTests::test_table_overwrite
 python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_repartition.py::DataFrameRepartitionParityTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_repartition.py::DataFrameRepartitionParityTests::test_repartition
 python/pyspark/sql/tests/connect/test_parity_repartition.py::DataFrameRepartitionParityTests::test_repartition_by_id
 python/pyspark/sql/tests/connect/test_parity_repartition.py::DataFrameRepartitionParityTests::test_repartition_by_id_error_invalid_num_partitions
 python/pyspark/sql/tests/connect/test_parity_repartition.py::DataFrameRepartitionParityTests::test_repartition_by_id_error_non_int_type
@@ -1745,6 +1929,7 @@ python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_as
 python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_bytes_as_binary_type
 python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_datetime_at_epoch
 python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_decimal
+python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_filter_with_datetime
 python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_filter_with_datetime_timezone
 python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_int_array_serialization
 python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_ntz_from_internal
@@ -1755,6 +1940,7 @@ python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_ti
 python/pyspark/sql/tests/connect/test_parity_sql.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_args_dict
 python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_args_list
+python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_kwargs_dataframe
 python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_kwargs_dataframe_with_column
 python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_kwargs_literal
@@ -1764,6 +1950,7 @@ python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_nested
 python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_nested_view
 python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_simple
 python/pyspark/sql/tests/connect/test_parity_stat.py::DataFrameStatParityTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_stat.py::DataFrameStatParityTests::test_dropna
 python/pyspark/sql/tests/connect/test_parity_stat.py::DataFrameStatParityTests::test_fillna
 python/pyspark/sql/tests/connect/test_parity_stat.py::DataFrameStatParityTests::test_freqItems
 python/pyspark/sql/tests/connect/test_parity_stat.py::DataFrameStatParityTests::test_melt_groupby
@@ -1776,6 +1963,7 @@ python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::t
 python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::test_correlated_scalar_subquery
 python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::test_exists_subquery
 python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::test_in_subquery
+python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::test_lateral_join_in_between_regular_joins
 python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::test_lateral_join_inside_subquery
 python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::test_lateral_join_reference_preceding_from_clause_items
 python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::test_lateral_join_with_aggregation_and_correlated_predicates
@@ -1811,6 +1999,7 @@ python/pyspark/sql/tests/connect/test_parity_tvf.py::TVFParityTestsMixin::test_e
 python/pyspark/sql/tests/connect/test_parity_tvf.py::TVFParityTestsMixin::test_explode_with_lateral_join
 python/pyspark/sql/tests/connect/test_parity_tvf.py::TVFParityTestsMixin::test_inline
 python/pyspark/sql/tests/connect/test_parity_tvf.py::TVFParityTestsMixin::test_inline_outer
+python/pyspark/sql/tests/connect/test_parity_tvf.py::TVFParityTestsMixin::test_inline_outer_with_lateral_join
 python/pyspark/sql/tests/connect/test_parity_tvf.py::TVFParityTestsMixin::test_inline_with_lateral_join
 python/pyspark/sql/tests/connect/test_parity_tvf.py::TVFParityTestsMixin::test_json_tuple
 python/pyspark/sql/tests/connect/test_parity_tvf.py::TVFParityTestsMixin::test_json_tuple_with_lateral_join
@@ -1832,6 +2021,7 @@ python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_ap
 python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_apply_schema_to_row
 python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_apply_schema_with_nullable_udt
 python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_apply_schema_with_udt
+python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_array_type_from_json
 python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_array_types
 python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_cal_interval_in_collect
@@ -1923,6 +2113,7 @@ python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_comple
 python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_datasource_with_udf
 python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_err_udf_init
 python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_err_udf_registration
+python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_file_dsv2_with_udf_filter
 python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_kwargs
 python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_multiple_udfs
 python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_multiple_udfs_with_logging
@@ -2008,6 +2199,7 @@ python/pyspark/sql/tests/connect/test_parity_udf_combinations.py::UDFCombination
 python/pyspark/sql/tests/connect/test_parity_udf_combinations.py::UDFCombinationsParityTests::test_combination_4
 python/pyspark/sql/tests/connect/test_parity_udf_combinations.py::UDFCombinationsParityTests::test_combination_5
 python/pyspark/sql/tests/connect/test_parity_udf_combinations.py::UDFCombinationsParityTests::test_combination_6
+python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_aggregate_in_pandas
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_arrow_udf
@@ -2018,6 +2210,7 @@ python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityT
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_clear
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_cogroup_apply_in_arrow
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_cogroup_apply_in_pandas
+python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_group_apply_in_arrow
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_group_apply_in_pandas
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_map_in_arrow
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_map_in_pandas
@@ -2041,6 +2234,7 @@ python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithout
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_cogroup_apply_in_arrow
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_cogroup_apply_in_pandas
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_group_apply_in_arrow
+python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_group_apply_in_pandas
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_map_in_arrow
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_map_in_pandas
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_pandas_udf
@@ -2054,6 +2248,7 @@ python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithout
 python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_udf_with_arrow
 python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_array_output_type_casting
 python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_decimal_round
 python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_df_asTable
 python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_df_asTable_chaining_methods
 python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_docstring
@@ -2188,6 +2383,7 @@ python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test
 python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_udtf_yield_multi_rows
 python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_udtf_yield_single_row_col
 python/pyspark/sql/tests/connect/test_parity_udtf.py::LegacyArrowUDTFParityTests::test_array_output_type_casting
+python/pyspark/sql/tests/connect/test_parity_udtf.py::LegacyArrowUDTFParityTests::test_assert_remote_mode
 python/pyspark/sql/tests/connect/test_parity_udtf.py::LegacyArrowUDTFParityTests::test_df_asTable
 python/pyspark/sql/tests/connect/test_parity_udtf.py::LegacyArrowUDTFParityTests::test_df_asTable_chaining_methods
 python/pyspark/sql/tests/connect/test_parity_udtf.py::LegacyArrowUDTFParityTests::test_docstring
@@ -2329,6 +2525,7 @@ python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_df_a
 python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_docstring
 python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_eval_with_exception
 python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_inconsistent_output_types
+python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_init_with_exception
 python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_map_output_type_casting
 python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_nondeterministic_udtf
 python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_numeric_output_type_casting
@@ -2460,6 +2657,7 @@ python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTes
 python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_grouped_agg_arrow_udf
 python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_grouped_agg_pandas_udf
 python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_regular_python_udf
+python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_scalar_arrow_iter_udf
 python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_scalar_arrow_iter_udf_II
 python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_scalar_arrow_udf
 python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_scalar_arrow_udf_II
@@ -2470,6 +2668,7 @@ python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTes
 python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_window_agg_arrow_udf
 python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_window_agg_pandas_udf
 python/pyspark/sql/tests/connect/test_resources.py::ResourceProfileTests::test_assert_remote_mode
+python/pyspark/sql/tests/connect/test_resources.py::ResourceProfileTests::test_map_in_arrow_with_profile
 python/pyspark/sql/tests/connect/test_resources.py::ResourceProfileTests::test_map_in_arrow_without_profile
 python/pyspark/sql/tests/connect/test_resources.py::ResourceProfileTests::test_map_in_pandas_with_profile
 python/pyspark/sql/tests/connect/test_resources.py::ResourceProfileTests::test_map_in_pandas_without_profile
@@ -2480,6 +2679,7 @@ python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_a
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_approx_equal_decimaltype_custom_rtol_pass
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_approx_equal_doubletype_custom_rtol_pass
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_approx_equal_fail_exact_pandas_df
+python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_approx_equal_maptype_double
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_approx_equal_nested_struct_double
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_approx_equal_pandas_df
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_data_frame_equal_not_support_streaming
@@ -2549,217 +2749,3 @@ python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_spark_sq
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_spark_upgrade_exception
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_special_vals
 python/pyspark/sql/tests/connect/test_utils.py::ReusedConnectTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_map.py::ReusedConnectTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityNonLegacyTests::test_complex_return_types
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityTests::test_day_time_interval_type_casting
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::UDFParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf.py::ArrowPythonUDFParityTests::test_arrow_udf_day_time_interval_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_0_args
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_grouped_agg.py::GroupedAggArrowPythonUDFParityTests::test_return_numpy_scalar
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_catalog_register_nondeterministic_arrow_udf
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_array_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_window.py::WindowArrowPythonUDFParityTests::test_growing_window
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_blocks_analyze_method_none_return_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_partition_column_removal
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_arrow_udtf_record_batch_iterator
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udtf.py::ArrowUDTFParityTests::test_return_type_coercion_success
-python/pyspark/sql/tests/connect/client/test_artifact_localcluster.py::LocalClusterArtifactTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state.py::TransformWithStateInPandasParityTests::test_composite_output_schema
-python/pyspark/sql/tests/connect/pandas/streaming/test_parity_pandas_transform_with_state_state_variable.py::TransformWithStateInPandasStateVariableParityTests::test_transform_with_state_init_state
-python/pyspark/sql/tests/connect/pandas/streaming/test_parity_transform_with_state.py::TransformWithStateInPySparkParityTests::test_composite_output_schema
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_cogrouped_map.py::CogroupedApplyInPandasTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_returning_incompatible_type
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_coerce
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_timestamp_dst
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf.py::PandasUDFParityTests::test_pandas_udf_day_time_interval_type
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_grouped_agg.py::PandasUDFGroupedAggParityTests::test_complex_groupby
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_scalar.py::PandasUDFScalarParityTests::test_arrow_cast_enabled_numeric_to_decimal
-python/pyspark/sql/tests/connect/shell/test_progress.py::ReusedConnectTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/streaming/test_parity_foreach.py::StreamingForeachParityTests::test_streaming_foreach_with_simple_function
-python/pyspark/sql/tests/connect/streaming/test_parity_listener.py::StreamingListenerParityTests::test_listener_events_spark_command
-python/pyspark/sql/tests/connect/streaming/test_parity_streaming.py::StreamingParityTests::test_invalid_names
-python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_join_condition_column_list_columns
-python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_tail
-python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectGCTests::test_assert_remote_mode
-# python/pyspark/sql/tests/connect/test_connect_column.py::ReusedMixedTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_array_has_nullable
-python/pyspark/sql/tests/connect/test_connect_creation.py::SparkConnectCreationTests::test_large_client_data
-python/pyspark/sql/tests/connect/test_connect_dataframe_property.py::SparkConnectDataFramePropertyTests::test_cached_schema_cogroup_apply_in_pandas
-python/pyspark/sql/tests/connect/test_connect_error.py::SparkConnectErrorTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_connect_function.py::SparkConnectFunctionTests::test_date_ts_functions
-python/pyspark/sql/tests/connect/test_connect_readwriter.py::SparkConnectReadWriterTests::test_csv
-python/pyspark/sql/tests/connect/test_connect_session.py::SparkConnectSessionTests::test_progress_handler
-python/pyspark/sql/tests/connect/test_df_debug.py::SparkConnectDataFrameDebug::test_df_query_execution_with_writes
-python/pyspark/sql/tests/connect/test_df_debug.py::SparkConnectDataFrameDebug::test_df_quey_execution_empty_before_execution
-python/pyspark/sql/tests/connect/test_parity_catalog.py::CatalogParityTests::test_list_databases
-python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_and_in_expression
-python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_dataframe_query_context.py::DataFrameQueryContextParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_ignore_column_of_all_nulls
-python/pyspark/sql/tests/connect/test_parity_frame_plot.py::ReusedConnectTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_geographytype.py::GeographyTypeParityTest::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_geometrytype.py::GeometryTypeParityTest::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_group.py::GroupParityTests::test_aggregator
-python/pyspark/sql/tests/connect/test_parity_group.py::ReusedConnectTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_observation.py::DataFrameObservationParityTests::test_observation_errors_propagated_to_client
-python/pyspark/sql/tests/connect/test_parity_python_datasource.py::PythonDataSourceParityTests::test_arrow_batch_sink
-python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_readwriter.py::ReadwriterV2ParityTests::test_create
-python/pyspark/sql/tests/connect/test_parity_repartition.py::DataFrameRepartitionParityTests::test_repartition
-python/pyspark/sql/tests/connect/test_parity_sql.py::SQLParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_stat.py::DataFrameStatParityTests::test_dropna
-python/pyspark/sql/tests/connect/test_parity_subquery.py::SubqueryParityTests::test_lateral_join_in_between_regular_joins
-python/pyspark/sql/tests/connect/test_parity_types.py::TypesParityTests::test_array_type_from_json
-python/pyspark/sql/tests/connect/test_parity_udf.py::UDFParityTests::test_file_dsv2_with_udf_filter
-python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerParityTests::test_perf_profiler_group_apply_in_arrow
-python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::UDFProfilerWithoutPlanCacheParityTests::test_perf_profiler_group_apply_in_pandas
-python/pyspark/sql/tests/connect/test_parity_udtf.py::ArrowUDTFParityTests::test_decimal_round
-python/pyspark/sql/tests/connect/test_parity_udtf.py::LegacyArrowUDTFParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_udtf.py::UDTFParityTests::test_init_with_exception
-python/pyspark/sql/tests/connect/test_resources.py::ResourceProfileTests::test_map_in_arrow_with_profile
-python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_approx_equal_maptype_double
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_python_udf.py::ArrowPythonUDFParityLegacyTests::test_day_time_interval_in_struct
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow_udf_scalar.py::ScalarArrowPythonUDFParityTests::test_arrow_udf_null_array
-python/pyspark/sql/tests/connect/client/test_artifact.py::ArtifactTests::test_add_zipped_package
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_grouped_map.py::ApplyInPandasTests::test_apply_in_pandas_iterator_with_compression_codec
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_map.py::MapInPandasParityTests::test_not_null
-python/pyspark/sql/tests/connect/pandas/test_parity_pandas_udf_window.py::PandasUDFWindowParityTests::test_arrow_cast_numeric_to_decimal
-python/pyspark/sql/tests/connect/test_parity_conf.py::ConfParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_pandas_with_timestamp
-python/pyspark/sql/tests/connect/test_parity_serde.py::SerdeParityTests::test_filter_with_datetime
-python/pyspark/sql/tests/connect/test_parity_udf_profiler.py::ReusedConnectTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_connect_basic.py::SparkConnectBasicTests::test_alias
-python/pyspark/sql/tests/connect/test_connect_clone_session.py::SparkConnectCloneSessionTest::test_clone_session_auto_generated_id
-python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_parity_unified_udf.py::UnifiedUDFParityTests::test_scalar_arrow_iter_udf
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_operator
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_arrow_map_timestamp_nulls_round_trip
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ReusedConnectTestCase::test_assert_remote_mode
-python/pyspark/sql/tests/connect/test_connect_stat.py::SparkConnectStatTests::test_agg_with_avg
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_arrow_round_trip
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_duplicate_field_names
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_fixed_size_list
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_large_list
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_pandas
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_respect_session_timezone
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_truncate_timestamp
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_array_type_nulls
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_map_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_map_type_nulls
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_struct_type_nulls
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_empty_partition
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_dataframe_namedtuples
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_duplicate_field_names
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_nested_timestamp
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_array_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_map_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_schema
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_struct_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_arrow_day_time_internal
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_arrow_timestamp_ntz
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_toggle
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_pandas_day_time_internal
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_pandas_timestamp_ntz
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_udt
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_category_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_int64
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_single_data_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_string_dtype
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_filtered_frame
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_large_local_relation_size_limit_exceeded
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_pandas_round_trip
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_pandas_self_destruct
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_propagates_spark_exception
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_timestamp_dst
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_timestamp_nat
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_duplicate_field_names
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_error
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_keep_utc_timezone
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_nested_timestamp
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_array_type_nulls
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_compression_codec
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_compression_codec_large_dataset
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_map_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_map_type_nulls
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_arrow_toggle
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_duplicate_field_names
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_empty_df_arrow_enabled
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_error
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_nested_timestamp
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_respect_session_timezone
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_timestmap_tzinfo
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_udt
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_array_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_compression_codec
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_compression_codec_large_dataset
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_map_type
-spark_clone/python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_map_type_nulls
-
-# Automatically added on 2026-03-24
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_arrow_round_trip
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_duplicate_field_names
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_fixed_size_list
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_large_list
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_pandas
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_truncate_timestamp
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_array_type_nulls
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_map_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_map_type_nulls
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_struct_type_nulls
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_empty_partition
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_duplicate_field_names
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_nested_timestamp
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_array_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_map_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_schema
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_struct_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_udt
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_with_single_data_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_arrow_day_time_internal
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_arrow_timestamp_ntz
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_pandas_day_time_internal
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_data_frame_to_pandas_timestamp_ntz
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_create_dataframe_namedtuples
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_filtered_frame
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_large_local_relation_size_limit_exceeded
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_pandas_round_trip
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_propagates_spark_exception
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_timestamp_dst
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_timestamp_nat
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_duplicate_field_names
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_error
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_keep_utc_timezone
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_nested_timestamp
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_array_type_nulls
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_compression_codec
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_compression_codec_large_dataset
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_map_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toArrow_with_map_type_nulls
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_arrow_toggle
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_duplicate_field_names
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_empty_df_arrow_enabled
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_error
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_nested_timestamp
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_timestmap_tzinfo
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_udt
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_array_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_compression_codec
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_map_type
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_with_map_type_nulls
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_between
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_cast_default_column_name
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_accessor
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_arithmetic_ops
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_bitwise_ops
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_field_ops
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_column_with_null
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_columns
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_datetime
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_distributed_sequence_id
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_literal_integers
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_none
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_simple_binary_expressions
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_transform
-# python/pyspark/sql/tests/connect/test_connect_column.py::SparkConnectColumnTests::test_with_field_column_name

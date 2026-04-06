@@ -117,7 +117,7 @@ tasks.register<Exec>("complianceTests") {
   
   workingDir = projectDir
   
-  val argsList = mutableListOf("./run_compliance_tests.sh")
+  val argsList = mutableListOf("./compliance_testing.py", "run")
   if (project.hasProperty("noIgnoreList")) {
       argsList.add("--no-ignore")
   }
@@ -131,12 +131,12 @@ tasks.register<Exec>("computeComplianceStats") {
   group = "Verification"
   description = "Computes the current compliance stats over Spark Connect tests"
   workingDir = projectDir
-  commandLine("./compute_compliance_stats.py")
+  commandLine("./compliance_testing.py", "stats")
 }
 
 tasks.register<Exec>("updateIgnoreList") {
   group = "Verification"
   description = "Updates the ignored_tests.txt file based on test failures"
   workingDir = projectDir
-  commandLine("./update_ignore_list.py")
+  commandLine("./compliance_testing.py", "update-ignore-list")
 }

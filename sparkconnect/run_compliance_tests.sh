@@ -22,6 +22,9 @@ if [ ! -d "${VENV_DIR}" ]; then
 else
   source "${VENV_DIR}/bin/activate"
 fi
+
+echo "Installing pytest-timeout and pytest-xdist... "
+pip install --quiet pytest-timeout pytest-xdist --index-url=https://pypi.org/simple/
 if [ -z "$JAVA_HOME" ]; then
   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 fi
@@ -94,6 +97,6 @@ echo "Checking PySpark requirements..."
 python3 -c 'from pyspark.testing.utils import should_test_connect, connect_requirement_message; print(f"should_test_connect: {should_test_connect}"); print(f"connect_requirement_message: {connect_requirement_message}")'
 
 # test_session.py causes a hang, so we continue to ignore it entirely.
-pytest -v "${TEST_TARGET[@]}" "${PYTEST_ARGS[@]}" --ignore="${TEST_DIR}/test_session.py"
+pytest -n auto -v "${TEST_TARGET[@]}" "${PYTEST_ARGS[@]}" --ignore="${TEST_DIR}/test_session.py" --timeout=10 --durations=100
 
 echo "Tests completed."

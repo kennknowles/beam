@@ -371,6 +371,7 @@ public class SparkRelationToRelNode {
     }
   }
 
+  @SuppressWarnings("unused")
   private RelNode translateReadNamedTable(Read.NamedTable readNamedTable) {
     throw new UnsupportedOperationException("Reading named tables not supported");
   }
@@ -679,6 +680,7 @@ public class SparkRelationToRelNode {
     return LogicalSort.create(input, RelCollations.EMPTY, offset, null);
   }
 
+  @SuppressWarnings("unused")
   private RelNode translateTail(Tail tailProto) {
     // TAIL N is equivalent to ORDER BY all columns DESC (for some stable order) and then LIMIT N,
     // but applied from the end. This is not standard SQL and hard to map directly.
@@ -986,6 +988,7 @@ public class SparkRelationToRelNode {
     return beamSqlEnv.parseQuery(sql);
   }
 
+  @SuppressWarnings("unused")
   private RelNode translateDrop(Drop dropProto) {
     return unsupported("Drop");
     //    RelNode input = translate(dropProto.getInput());

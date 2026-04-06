@@ -56,8 +56,7 @@ public class ShowStringPTransform extends PTransform<PCollection<Row>, PCollecti
                 new DoFn<Iterable<Row>, Row>() {
                   @ProcessElement
                   public void processElement(@Element Iterable<Row> rows, OutputReceiver<Row> out) {
-                    String result =
-                        formatRows(schema, ImmutableList.copyOf(rows), numRows, truncate, vertical);
+                    String result = formatRows(schema, ImmutableList.copyOf(rows), truncate);
                     out.output(Row.withSchema(OUTPUT_SCHEMA).addValue(result).build());
                   }
                 }))
@@ -68,8 +67,7 @@ public class ShowStringPTransform extends PTransform<PCollection<Row>, PCollecti
    * This method contains the core logic for formatting the rows into a string, similar to Spark's
    * showString.
    */
-  private String formatRows(
-      Schema schema, List<Row> rows, int numRows, int truncate, boolean vertical) {
+  private String formatRows(Schema schema, List<Row> rows, int truncate) {
 
     // Assemble rows, including headers
     List<List<String>> stringRows = new ArrayList<>();

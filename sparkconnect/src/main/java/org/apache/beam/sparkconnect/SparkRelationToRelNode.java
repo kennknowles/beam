@@ -526,7 +526,7 @@ public class SparkRelationToRelNode {
   public static Schema parseDataSourceSchema(String schemaString) {
     DataType dataType = DataType.fromJson(schemaString);
 
-    LOG.info("Here's the type: " + dataType);
+    LOG.info("Here's the type: {}", dataType);
 
     return sparkStructTypeToBeamSchema((StructType) dataType);
     //    try {

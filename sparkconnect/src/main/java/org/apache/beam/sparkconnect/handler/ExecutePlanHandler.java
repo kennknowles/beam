@@ -91,10 +91,10 @@ public class ExecutePlanHandler {
     try {
       switch (request.getPlan().getOpTypeCase()) {
         case ROOT:
-          handleRootPlan(request.getPlan().getRoot(), responseBuilder, responseObserver);
+          handleRootPlan(request.getPlan().getRoot(), responseBuilder);
           break;
         case COMMAND:
-          handleCommand(request.getPlan().getCommand(), responseBuilder, responseObserver);
+          handleCommand(request.getPlan().getCommand(), responseBuilder);
           break;
         case OPTYPE_NOT_SET:
           throw new IllegalArgumentException("OpType not set");
@@ -121,14 +121,11 @@ public class ExecutePlanHandler {
     }
   }
 
-  private void handleCommand(
-      Command command,
-      ExecutePlanResponse.Builder responseBuilder,
-      StreamObserver<ExecutePlanResponse> responseObserver)
+  private void handleCommand(Command command, ExecutePlanResponse.Builder responseBuilder)
       throws IOException {
     switch (command.getCommandTypeCase()) {
       case SQL_COMMAND:
-        handleSqlCommand(command.getSqlCommand(), responseBuilder, responseObserver);
+        handleSqlCommand(command.getSqlCommand(), responseBuilder);
         break;
 
       case WRITE_STREAM_OPERATION_START:
@@ -179,10 +176,7 @@ public class ExecutePlanHandler {
    * <p>This operation takes a SQL string, parses and plans it using the Beam SQL environment, and
    * then executes the resulting plan.
    */
-  private void handleSqlCommand(
-      SqlCommand sqlCommand,
-      ExecutePlanResponse.Builder responseBuilder,
-      StreamObserver<ExecutePlanResponse> responseObserver)
+  private void handleSqlCommand(SqlCommand sqlCommand, ExecutePlanResponse.Builder responseBuilder)
       throws IOException {
     // Args are for parameterized queries, e.g., SELECT * FROM T WHERE id = ?
     if (!sqlCommand.getArgsMap().isEmpty()
@@ -266,28 +260,21 @@ public class ExecutePlanHandler {
       BeamRelNode beamRelNode = beamSqlEnv.parseQuery(sql);
 
       // Reuse the existing execution logic to run the plan and send the results.
-      executeCalcitePlanAndRespond(beamRelNode, responseBuilder, responseObserver);
+      executeCalcitePlanAndRespond(beamRelNode, responseBuilder);
     }
   }
 
-  private void handleRootPlan(
-      Relation root,
-      ExecutePlanResponse.Builder responseBuilder,
-      StreamObserver<ExecutePlanResponse> responseObserver)
+  private void handleRootPlan(Relation root, ExecutePlanResponse.Builder responseBuilder)
       throws IOException {
 
     SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(beamSqlEnv);
     RelNode relNode = sparkRelationToRelNode.translate(root);
 
-    executeCalcitePlanAndRespond(
-        beamSqlEnv.convertToBeamRel(relNode), responseBuilder, responseObserver);
+    executeCalcitePlanAndRespond(beamSqlEnv.convertToBeamRel(relNode), responseBuilder);
   }
 
   private void executeCalcitePlanAndRespond(
-      BeamRelNode beamRelNode,
-      ExecutePlanResponse.Builder responseBuilder,
-      StreamObserver<ExecutePlanResponse> responseObserver)
-      throws IOException {
+      BeamRelNode beamRelNode, ExecutePlanResponse.Builder responseBuilder) throws IOException {
 
     List<Row> outputRows = BeamEnumerableConverter.toRowList(beamRelNode);
 
@@ -470,7 +457,7 @@ public class ExecutePlanHandler {
   }
 
   /** Handles writing a DataFrame to a table using `saveAsTable`. */
-  private void handleTableWrite(WriteOperation writeOperation) {
+  private void handleTableWrite(@SuppressWarnings("unused") WriteOperation writeOperation) {
     throw new UnsupportedOperationException("Not yet implemented");
   }
 

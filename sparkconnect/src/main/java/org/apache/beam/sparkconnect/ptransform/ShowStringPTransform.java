@@ -36,12 +36,10 @@ public class ShowStringPTransform extends PTransform<PCollection<Row>, PCollecti
 
   private final int numRows;
   private final int truncate;
-  private final boolean vertical;
 
-  public ShowStringPTransform(int numRows, int truncate, boolean vertical) {
+  public ShowStringPTransform(int numRows, int truncate) {
     this.numRows = numRows;
     this.truncate = truncate;
-    this.vertical = vertical;
   }
 
   @Override

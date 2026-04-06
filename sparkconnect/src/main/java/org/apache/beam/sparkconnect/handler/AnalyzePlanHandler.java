@@ -27,12 +27,8 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDat
 import org.apache.spark.connect.proto.AnalyzePlanRequest;
 import org.apache.spark.connect.proto.AnalyzePlanResponse;
 import org.apache.spark.connect.proto.DataType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class AnalyzePlanHandler {
-
-  private static final Logger LOG = LoggerFactory.getLogger(AnalyzePlanHandler.class);
 
   private final BeamSqlEnv beamSqlEnv;
 
@@ -125,7 +121,8 @@ public final class AnalyzePlanHandler {
    * <p>This operation explains the given plan, returning a string representation of the logical and
    * physical plans. The level of detail is controlled by the `explain_mode`.
    */
-  private AnalyzePlanResponse.Explain handleExplain(AnalyzePlanRequest.Explain explainRequest) {
+  private AnalyzePlanResponse.Explain handleExplain(
+      @SuppressWarnings("unused") AnalyzePlanRequest.Explain explainRequest) {
     // TODO: Implement plan explanation. This would involve running the Calcite planner
     // and then using a pretty-printer to format the resulting logical and physical plans.
     throw Status.UNIMPLEMENTED.withDescription("Explain not implemented").asRuntimeException();
@@ -137,7 +134,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation returns a tree-like string representation of the plan's schema.
    */
   private AnalyzePlanResponse.TreeString handleTreeString(
-      AnalyzePlanRequest.TreeString treeStringRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.TreeString treeStringRequest) {
     // TODO: Implement tree string generation for the schema.
     throw Status.UNIMPLEMENTED.withDescription("TreeString not implemented").asRuntimeException();
   }
@@ -148,7 +145,8 @@ public final class AnalyzePlanHandler {
    * <p>This operation determines if the given plan can be executed locally on the driver. In a Beam
    * context, this would likely always be false.
    */
-  private AnalyzePlanResponse.IsLocal handleIsLocal(AnalyzePlanRequest.IsLocal isLocalRequest) {
+  private AnalyzePlanResponse.IsLocal handleIsLocal(
+      @SuppressWarnings("unused") AnalyzePlanRequest.IsLocal isLocalRequest) {
     return AnalyzePlanResponse.IsLocal.newBuilder().setIsLocal(false).build();
   }
 
@@ -159,7 +157,7 @@ public final class AnalyzePlanHandler {
    * determined by checking the boundedness of the PCollections.
    */
   private AnalyzePlanResponse.IsStreaming handleIsStreaming(
-      AnalyzePlanRequest.IsStreaming isStreamingRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.IsStreaming isStreamingRequest) {
     // TODO: Implement by checking the boundedness of the input PCollections in the plan.
     throw Status.UNIMPLEMENTED.withDescription("IsStreaming not implemented").asRuntimeException();
   }
@@ -171,7 +169,7 @@ public final class AnalyzePlanHandler {
    * file-based data sources.
    */
   private AnalyzePlanResponse.InputFiles handleInputFiles(
-      AnalyzePlanRequest.InputFiles inputFilesRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.InputFiles inputFilesRequest) {
     // TODO: This would require inspecting the source transforms in the Beam pipeline.
     throw Status.UNIMPLEMENTED.withDescription("InputFiles not implemented").asRuntimeException();
   }
@@ -182,7 +180,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation returns the version of the Spark Connect server.
    */
   private AnalyzePlanResponse.SparkVersion handleSparkVersion(
-      AnalyzePlanRequest.SparkVersion sparkVersionRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.SparkVersion sparkVersionRequest) {
     // You can return a hardcoded version string for your custom server.
     return AnalyzePlanResponse.SparkVersion.newBuilder().setVersion("1.0.0-custom-beam").build();
   }
@@ -315,7 +313,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation checks if two logical plans are semantically equivalent.
    */
   private AnalyzePlanResponse.SameSemantics handleSameSemantics(
-      AnalyzePlanRequest.SameSemantics sameSemanticsRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.SameSemantics sameSemanticsRequest) {
     // TODO: Implement semantic equivalence check. This can be complex.
     throw Status.UNIMPLEMENTED
         .withDescription("SameSemantics not implemented")
@@ -328,7 +326,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation calculates a hash value for the given logical plan.
    */
   private AnalyzePlanResponse.SemanticHash handleSemanticHash(
-      AnalyzePlanRequest.SemanticHash semanticHashRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.SemanticHash semanticHashRequest) {
     // TODO: Implement semantic hashing for plans.
     throw Status.UNIMPLEMENTED.withDescription("SemanticHash not implemented").asRuntimeException();
   }
@@ -338,7 +336,8 @@ public final class AnalyzePlanHandler {
    *
    * <p>This operation is a request to cache a DataFrame.
    */
-  private AnalyzePlanResponse.Persist handlePersist(AnalyzePlanRequest.Persist persistRequest) {
+  private AnalyzePlanResponse.Persist handlePersist(
+      @SuppressWarnings("unused") AnalyzePlanRequest.Persist persistRequest) {
     // TODO: Implement caching. This would involve materializing the PCollection.
     throw Status.UNIMPLEMENTED.withDescription("Persist not implemented").asRuntimeException();
   }
@@ -349,7 +348,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation is a request to uncache a DataFrame.
    */
   private AnalyzePlanResponse.Unpersist handleUnpersist(
-      AnalyzePlanRequest.Unpersist unpersistRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.Unpersist unpersistRequest) {
     // TODO: Implement uncaching.
     throw Status.UNIMPLEMENTED.withDescription("Unpersist not implemented").asRuntimeException();
   }
@@ -360,7 +359,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation retrieves the storage level of a cached DataFrame.
    */
   private AnalyzePlanResponse.GetStorageLevel handleGetStorageLevel(
-      AnalyzePlanRequest.GetStorageLevel getStorageLevelRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.GetStorageLevel getStorageLevelRequest) {
     // TODO: Implement storage level retrieval.
     throw Status.UNIMPLEMENTED
         .withDescription("GetStorageLevel not implemented")
@@ -373,7 +372,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation converts a JSON schema string to a DDL string.
    */
   private AnalyzePlanResponse.JsonToDDL handleJsonToDdl(
-      AnalyzePlanRequest.JsonToDDL jsonToDdlRequest) {
+      @SuppressWarnings("unused") AnalyzePlanRequest.JsonToDDL jsonToDdlRequest) {
     // TODO: Implement JSON schema to DDL conversion.
     throw Status.UNIMPLEMENTED.withDescription("JsonToDDL not implemented").asRuntimeException();
   }

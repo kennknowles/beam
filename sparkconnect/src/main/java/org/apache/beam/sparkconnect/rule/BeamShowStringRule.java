@@ -45,7 +45,6 @@ public class BeamShowStringRule extends ConverterRule {
         showString.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         showString.numRows,
-        showString.truncate,
-        showString.vertical);
+        showString.truncate);
   }
 }

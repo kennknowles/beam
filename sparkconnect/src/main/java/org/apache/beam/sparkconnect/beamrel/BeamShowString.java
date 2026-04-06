@@ -43,20 +43,13 @@ public class BeamShowString extends SingleRel implements BeamRelNode {
 
   private final int numRows;
   private final int truncate;
-  private final boolean vertical;
 
   public BeamShowString(
-      RelOptCluster cluster,
-      RelTraitSet traits,
-      RelNode input,
-      int numRows,
-      int truncate,
-      boolean vertical) {
+      RelOptCluster cluster, RelTraitSet traits, RelNode input, int numRows, int truncate) {
     super(cluster, traits, input);
 
     this.numRows = numRows;
     this.truncate = truncate;
-    this.vertical = vertical;
   }
 
   @Override
@@ -71,7 +64,7 @@ public class BeamShowString extends SingleRel implements BeamRelNode {
             pinput);
         PCollection<Row> upstream = pinput.get(0);
 
-        return upstream.apply(new ShowStringPTransform(numRows, truncate, vertical));
+        return upstream.apply(new ShowStringPTransform(numRows, truncate));
       }
     };
   }
@@ -101,6 +94,6 @@ public class BeamShowString extends SingleRel implements BeamRelNode {
 
   @Override
   public final BeamShowString copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new BeamShowString(getCluster(), traitSet, sole(inputs), numRows, truncate, vertical);
+    return new BeamShowString(getCluster(), traitSet, sole(inputs), numRows, truncate);
   }
 }

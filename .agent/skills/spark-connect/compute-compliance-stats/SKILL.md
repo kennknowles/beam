@@ -14,18 +14,20 @@ This task parses `ignored_tests.txt` for ignored tests, reads the total count fr
 =================================================
         COMPLIANCE STATUS SUMMARY                
 =================================================
-Total Connect Tests : 2920
-Supported Tests     : 202
-Ignored Tests       : 2718
-Compliance Rate     : 6.92%
+Total Connect Tests : 5136
+Supported Tests     : 2387
+Ignored Tests       : 2749
+Compliance Rate     : 46.48%
 =================================================
-        COMPLIANCE BY CATEGORY                   
+        COMPLIANCE BY CATEGORY & SUBCATEGORY     
 =================================================
-Category                       | Total  | Supp  | Ign  | Compliance %
------------------------------------------------------------------
-arrow                          | 717    | 0     | 717  |   0.00%
-test_parity_udtf               | 403    | 0     | 403  |   0.00%
-pandas                         | 366    | 4     | 362  |   1.09%
+Category        | Subcategory                    | Total  | Supp  | Ign  | Compliance %
+--------------------------------------------------------------------------------
+errors          |                                | 7      | 7     | 0    | 100.00%
+logger          |                                | 11     | 11    | 0    | 100.00%
+ml              |                                | 244    | 244   | 0    | 100.00%
+pandas          |                                | 145    | 145   | 0    | 100.00%
+pandas          | computation                    | 141    | 141   | 0    | 100.00%
 ...
 ```
 

@@ -14,7 +14,8 @@ When you fix a bug that unblocks new tests, or when you are assigned to update t
 **What the Script Does**:
 *   **Step 1**: It automatically runs the *entire* compliance test suite (bypassing `ignored_tests.txt`) to identify exactly what is failing in the current build.
 *   **Step 2**: It parses the output, records all `FAILED` or `ERROR` tests, and automatically rewrites the `ignored_tests.txt` file to match this exact result.
-*   **Step 3**: It runs the full compliance test suite again, this time utilizing the newly generated `ignored_tests.txt`, to verify that 100% of the non-ignored tests pass successfully and the ignore tests fail.
 
 **Important Considerations**:
-Because this script runs the test suite twice (once fully, once filtered), it may take several minutes to run. Please patiently wait out the task execution until the output confirms the verification status.
+*   **Skip Verification run**: We used to run the tests again to ensure we got it right. We don't need to do that. However, if the number of tests ignored or unignored is large, it is a good idea to alert the user and have them review the change. If a large number of tests have been regressed, it could mean that there was a failure unrelated to code changes (such as the whole test run failing due to a server issue). If a large number of tests have started passing, it could mean that we are accidentally skipping them but don't realize it.
+*   **Time to Run**: Even without the verification run, running the full test suite in Step 1 may take several minutes. Please be patient.
+

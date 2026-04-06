@@ -114,6 +114,7 @@ tasks.register("printClasspath") {
 tasks.register<Exec>("complianceTests") {
   group = "Verification"
   description = "Runs the Apache Spark python connect compliance tests against the blockingServer"
+  dependsOn(tasks.named("compileJava"))
   
   workingDir = projectDir
   
@@ -137,6 +138,7 @@ tasks.register<Exec>("computeComplianceStats") {
 tasks.register<Exec>("updateIgnoreList") {
   group = "Verification"
   description = "Updates the ignored_tests.txt file based on test failures"
+  dependsOn(tasks.named("compileJava"))
   workingDir = projectDir
   commandLine("./compliance_testing.py", "update-ignore-list")
 }

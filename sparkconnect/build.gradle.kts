@@ -40,6 +40,11 @@ val blockingServerRuntime = configurations.register("blockingServerRuntime") {
   isVisible = false
 }
 
+configurations.all {
+  exclude(group = "org.slf4j", module = "slf4j-jdk14")
+}
+
+
 dependencies {
   // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
   // also discussed at https://github.com/immutables/immutables/issues/291

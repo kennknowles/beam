@@ -61,11 +61,29 @@ def ensure_venv():
 
     cmd = [
         pip_exec, "install", "--quiet", "--upgrade",
-        "pytest", "pyspark", "pandas<3.0.0", "pyarrow", "grpcio", "grpcio-status",
+        "pytest", "pandas<3.0.0", "pyarrow", "grpcio", "grpcio-status",
         "py4j", "googleapis-common-protos", "zstandard", "pytest-timeout", "pytest-xdist",
         "--index-url=https://pypi.org/simple/"
     ]
     subprocess.run(cmd, check=True)
+
+    print("Ensuring pyspark is not installed in the virtual environment...")
+    cmd = [pip_exec, "uninstall", "-y", "pyspark"]
+    subprocess.run(cmd, check=False)
+
+def ensure_spark_clone():
+    """Ensures the Spark clone exists, is fetched, and is hard reset."""
+    print(f"Ensuring Spark clone at {SPARK_CLONE_DIR}...")
+    
+    if not os.path.exists(SPARK_CLONE_DIR):
+        print(f"Spark clone not found. Cloning from https://github.com/apache/spark.git ...")
+        subprocess.run(["git", "clone", "https://github.com/apache/spark.git", SPARK_CLONE_DIR], check=True)
+    else:
+        print("Spark clone exists. Fetching updates...")
+        subprocess.run(["git", "fetch"], cwd=SPARK_CLONE_DIR)
+        
+    print("Performing hard reset to origin/master...")
+    subprocess.run(["git", "reset", "--hard", "origin/master"], cwd=SPARK_CLONE_DIR, check=True)
 
 def wait_for_port(port, host='localhost', timeout=900, process=None):
     """Wait until a port starts accepting TCP connections."""
@@ -175,6 +193,7 @@ def extract_category(test_identifier):
 def do_run(args):
     """Executes the Pytest suite utilizing the ignore list."""
     ensure_venv()
+    ensure_spark_clone()
     
     with BlockingServerManager():
         print("Running compliance tests...")
@@ -222,6 +241,7 @@ def do_run(args):
 def do_update_ignore_list(args):
     """Rebuilds the ignore list by running all tests, tracking failures, and regenerating."""
     ensure_venv()
+    ensure_spark_clone()
     
     with BlockingServerManager() as server:
         print("Step 1: Running the full compliance test suite to determine failing tests...")

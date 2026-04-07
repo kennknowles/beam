@@ -1106,6 +1106,21 @@ public class SparkRelationToRelNode {
     } else if (arrowType instanceof ArrowType.Binary
         || arrowType instanceof ArrowType.FixedSizeBinary) {
       type = typeFactory.createSqlType(SqlTypeName.VARBINARY);
+    } else if (arrowType instanceof ArrowType.Map) {
+      Field structField = field.getChildren().get(0);
+      Field keyField = structField.getChildren().get(0);
+      Field valueField = structField.getChildren().get(1);
+      RelDataType keyType = arrowFieldToSqlType(keyField, typeFactory);
+      RelDataType valueType = arrowFieldToSqlType(valueField, typeFactory);
+      RelDataType structType =
+          typeFactory.createStructType(
+              com.google.common.collect.ImmutableList.of(keyType, valueType),
+              com.google.common.collect.ImmutableList.of("key", "value"));
+      type = typeFactory.createArrayType(structType, -1);
+    } else if (arrowType instanceof ArrowType.List) {
+      Field elementField = field.getChildren().get(0);
+      RelDataType elementType = arrowFieldToSqlType(elementField, typeFactory);
+      type = typeFactory.createArrayType(elementType, -1);
     } else {
       try {
         type = ArrowFieldTypeFactory.toType(arrowType, typeFactory);
@@ -1165,7 +1180,10 @@ public class SparkRelationToRelNode {
   }
 
   private RexLiteral createRexLiteral(
-      RexBuilder rexBuilder, Object javaValue, RelDataType relDataType, ArrowType arrowType) {
+      RexBuilder rexBuilder,
+      Object javaValue,
+      RelDataType relDataType,
+      @Nullable ArrowType arrowType) {
     if (javaValue == null) {
       checkArgument(
           relDataType.isNullable(), "Received null arrow value for non-nullable Calcite type");
@@ -1219,6 +1237,9 @@ public class SparkRelationToRelNode {
       case TIMESTAMP_TZ:
       case TIMESTAMP:
         if (javaValue instanceof Long) {
+          if (arrowType == null) {
+            throw new IllegalStateException("ArrowType is null for Timestamp");
+          }
           long epochMillis = translateArrowTimestampToMillis((Long) javaValue, arrowType);
           int precision =
               relDataType.getPrecision() == RelDataType.PRECISION_NOT_SPECIFIED
@@ -1316,6 +1337,112 @@ public class SparkRelationToRelNode {
     throw new IllegalArgumentException("Unsupported Timestamp unit in Arrow type: " + arrowType);
   }
 
+  private RexNode createRexNode(
+      RexBuilder rexBuilder,
+      @Nullable Object javaValue,
+      RelDataType relDataType,
+      @Nullable ArrowType arrowType) {
+    if (javaValue == null) {
+      return rexBuilder.makeNullLiteral(relDataType);
+    }
+
+    SqlTypeName sqlTypeName = relDataType.getSqlTypeName();
+    if (sqlTypeName == SqlTypeName.ARRAY) {
+      List<RexNode> elements = new ArrayList<>();
+      RelDataType componentType = relDataType.getComponentType();
+      if (componentType == null) {
+        throw new IllegalStateException("Component type of ARRAY is null");
+      }
+      if (javaValue instanceof List) {
+        for (Object element : (List<?>) javaValue) {
+          elements.add(createRexNode(rexBuilder, element, componentType, null));
+        }
+      }
+      return rexBuilder.makeCall(
+          relDataType,
+          org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+              .ARRAY_VALUE_CONSTRUCTOR,
+          elements);
+    } else if (relDataType.isStruct()) {
+      List<RexNode> fieldNodes = new ArrayList<>();
+      List<RelDataTypeField> fields = relDataType.getFieldList();
+      if (javaValue instanceof Map) {
+        Map<?, ?> mapValue = (Map<?, ?>) javaValue;
+        for (RelDataTypeField field : fields) {
+          Object val = mapValue.get(field.getName());
+          fieldNodes.add(createRexNode(rexBuilder, val, field.getType(), null));
+        }
+      }
+      return rexBuilder.makeCall(
+          relDataType,
+          org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable.ROW,
+          fieldNodes);
+    } else if (sqlTypeName == SqlTypeName.MAP) {
+      List<RexNode> operands = new ArrayList<>();
+      RelDataType keyType = relDataType.getKeyType();
+      RelDataType valueType = relDataType.getValueType();
+      if (keyType == null || valueType == null) {
+        throw new IllegalStateException("Key or Value type of MAP is null");
+      }
+      if (javaValue instanceof List) {
+        for (Object entry : (List<?>) javaValue) {
+          if (entry instanceof Map) {
+            Map<?, ?> mapEntry = (Map<?, ?>) entry;
+            operands.add(createRexNode(rexBuilder, mapEntry.get("key"), keyType, null));
+            operands.add(createRexNode(rexBuilder, mapEntry.get("value"), valueType, null));
+          }
+        }
+      }
+      return rexBuilder.makeCall(
+          relDataType,
+          org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+              .MAP_VALUE_CONSTRUCTOR,
+          operands);
+    }
+
+    return createRexLiteral(rexBuilder, javaValue, relDataType, arrowType);
+  }
+
+  private void addRowsAsProjects(
+      List<RelNode> projects,
+      RexBuilder rexBuilder,
+      VectorSchemaRoot root,
+      RelDataType rowType,
+      RelNode dummyValues) {
+
+    int rowCount = root.getRowCount();
+    if (rowCount == 0) {
+      return;
+    }
+
+    List<org.apache.arrow.vector.types.pojo.Field> arrowFields = root.getSchema().getFields();
+    List<FieldVector> vectors = root.getFieldVectors();
+
+    for (int i = 0; i < rowCount; i++) {
+      List<RexNode> rowProjects = new ArrayList<>();
+
+      for (int j = 0; j < vectors.size(); j++) {
+        FieldVector vector = vectors.get(j);
+        Object javaValue = vector.getObject(i);
+
+        RelDataType fieldType = rowType.getFieldList().get(j).getType();
+        ArrowType arrowType = arrowFields.get(j).getType();
+
+        RexNode node = createRexNode(rexBuilder, javaValue, fieldType, arrowType);
+        rowProjects.add(node);
+      }
+
+      RelNode project =
+          LogicalProject.create(
+              dummyValues,
+              Collections.emptyList(),
+              rowProjects,
+              rowType.getFieldNames(),
+              Collections.emptySet());
+      projects.add(project);
+    }
+  }
+
   private RelNode translateLocalRelation(LocalRelation localRelation) {
     if (!localRelation.hasData()) {
       throw new UnsupportedOperationException(
@@ -1327,19 +1454,51 @@ public class SparkRelationToRelNode {
       ByteArrayInputStream arrowBytesInputStream =
           new ByteArrayInputStream(localRelation.getData().toByteArray());
 
-      ImmutableList.Builder<ImmutableList<RexLiteral>> tuplesBuilder = ImmutableList.builder();
-
       try (ArrowStreamReader streamReader =
           new ArrowStreamReader(arrowBytesInputStream, allocator)) {
         VectorSchemaRoot root = streamReader.getVectorSchemaRoot();
         RelDataType rowType =
             arrowSchemaToRowType(root.getSchema(), (JavaTypeFactory) cluster.getTypeFactory());
-        addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
-        while (streamReader.loadNextBatch()) {
-          addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
+
+        boolean hasComplexTypes = false;
+        for (RelDataTypeField field : rowType.getFieldList()) {
+          SqlTypeName typeName = field.getType().getSqlTypeName();
+          if (typeName == SqlTypeName.ARRAY
+              || typeName == SqlTypeName.MAP
+              || field.getType().isStruct()) {
+            hasComplexTypes = true;
+            break;
+          }
         }
 
-        return LogicalValues.create(cluster, rowType, tuplesBuilder.build());
+        if (hasComplexTypes) {
+          RelDataType dummyRowType =
+              cluster
+                  .getTypeFactory()
+                  .createStructType(Collections.emptyList(), Collections.emptyList());
+          LogicalValues dummyValues =
+              LogicalValues.create(cluster, dummyRowType, ImmutableList.of(ImmutableList.of()));
+
+          List<RelNode> projects = new ArrayList<>();
+          addRowsAsProjects(projects, cluster.getRexBuilder(), root, rowType, dummyValues);
+          while (streamReader.loadNextBatch()) {
+            addRowsAsProjects(projects, cluster.getRexBuilder(), root, rowType, dummyValues);
+          }
+
+          if (projects.isEmpty()) {
+            return LogicalValues.create(cluster, rowType, ImmutableList.of());
+          }
+
+          return org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalUnion
+              .create(projects, true);
+        } else {
+          ImmutableList.Builder<ImmutableList<RexLiteral>> tuplesBuilder = ImmutableList.builder();
+          addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
+          while (streamReader.loadNextBatch()) {
+            addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
+          }
+          return LogicalValues.create(cluster, rowType, tuplesBuilder.build());
+        }
       } catch (IOException exc) {
         throw new RuntimeException("Failed to parse arrow data for LocalRelation", exc);
       }

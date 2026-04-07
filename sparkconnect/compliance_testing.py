@@ -92,6 +92,7 @@ class BlockingServerManager:
         print(f"Starting blockingServer in background via Gradle (JAVA_HOME={self.java_home})...")
         env = os.environ.copy()
         env["JAVA_HOME"] = self.java_home
+        env["PATH"] = os.path.join(self.java_home, "bin") + os.pathsep + env.get("PATH", "")
         gradlew = os.path.join(SCRIPT_DIR, "..", "gradlew")
         
         # We use Popen and keep the reference to terminate it later.

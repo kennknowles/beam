@@ -205,9 +205,76 @@ public final class AnalyzePlanHandler {
             .asRuntimeException();
       }
     }
-    throw Status.UNIMPLEMENTED
-        .withDescription("DDLParse not implemented for non-JSON string: " + ddlString)
-        .asRuntimeException();
+    try {
+      DataType dataType = parseSimpleDdl(ddlString);
+      return AnalyzePlanResponse.DDLParse.newBuilder().setParsed(dataType).build();
+    } catch (Exception e) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Failed to parse DDL: " + e.getMessage())
+          .asRuntimeException();
+    }
+  }
+
+  private DataType parseSimpleDdl(String ddl) {
+    DataType.Struct.Builder structBuilder = DataType.Struct.newBuilder();
+    java.util.List<String> fields = splitTopLevelCommas(ddl);
+    for (String field : fields) {
+      field = field.trim();
+      int spaceIdx = field.indexOf(' ');
+      if (spaceIdx < 0) throw new RuntimeException("Invalid field: " + field);
+      String name = field.substring(0, spaceIdx).trim();
+      String typeStr = field.substring(spaceIdx + 1).trim();
+      structBuilder.addFields(
+          DataType.StructField.newBuilder()
+              .setName(name)
+              .setDataType(parseDdlType(typeStr))
+              .setNullable(true)
+              .build());
+    }
+    return DataType.newBuilder().setStruct(structBuilder.build()).build();
+  }
+
+  private java.util.List<String> splitTopLevelCommas(String s) {
+    java.util.List<String> result = new java.util.ArrayList<>();
+    int depth = 0;
+    StringBuilder current = new StringBuilder();
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      if (c == '<') depth++;
+      else if (c == '>') depth--;
+
+      if (c == ',' && depth == 0) {
+        result.add(current.toString());
+        current = new StringBuilder();
+      } else {
+        current.append(c);
+      }
+    }
+    if (current.length() > 0) {
+      result.add(current.toString());
+    }
+    return result;
+  }
+
+  private DataType parseDdlType(String typeStr) {
+    typeStr = typeStr.trim().toLowerCase();
+    if (typeStr.equals("long")) {
+      return DataType.newBuilder().setLong(DataType.Long.newBuilder().build()).build();
+    } else if (typeStr.equals("string")) {
+      return DataType.newBuilder().setString(DataType.String.newBuilder().build()).build();
+    } else if (typeStr.startsWith("map<")) {
+      String inner = typeStr.substring(4, typeStr.length() - 1);
+      int commaIdx = inner.indexOf(','); // Assuming no nested maps for now!
+      String keyTypeStr = inner.substring(0, commaIdx).trim();
+      String valueTypeStr = inner.substring(commaIdx + 1).trim();
+
+      DataType.Map.Builder mapBuilder = DataType.Map.newBuilder();
+      mapBuilder.setKeyType(parseDdlType(keyTypeStr));
+      mapBuilder.setValueType(parseDdlType(valueTypeStr));
+      mapBuilder.setValueContainsNull(true);
+      return DataType.newBuilder().setMap(mapBuilder.build()).build();
+    }
+    throw new RuntimeException("Unsupported type: " + typeStr);
   }
 
   private DataType parseJsonDataType(com.fasterxml.jackson.databind.JsonNode node) {

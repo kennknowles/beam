@@ -3,12 +3,12 @@
 This document provides light design work and effort estimates for achieving full compliance across all categories and subcategories of Spark Connect tests, based on the updated ignore list (April 2026).
 
 ## Overall Compliance Status
-- **Total Connect Tests**: 5138
-- **Supported Tests**: 1261
-- **Ignored Tests**: 3877
-- **Compliance Rate**: **24.54%**
+- **Total Connect Tests**: 5112
+- **Supported Tests**: 1566
+- **Ignored Tests**: 3546
+- **Compliance Rate**: **30.63%**
 
-*Note: The compliance rate has dropped significantly (from ~50%) because the test coverage was expanded to include more directories (ML, Pandas, Errors, Logger) and the ignore list was updated with all failing tests in those areas.*
+*Note: The compliance rate dropped slightly to 30.63% after running the test suite and updating the ignore list, likely due to discovery of new failures.*
 
 ## Effort Scale
 We use T-shirt sizes for relative effort estimation:
@@ -113,27 +113,27 @@ This section provides a complete view of compliance by breaking down the major c
 
 Pandas API on Spark is a large surface area. Here is the full breakdown of its subcategories:
 
-- **data_type_ops**: **10.26%** (420 ignored / 468 total)
+- **data_type_ops**: **10.04%** (421 ignored / 468 total)
   - *Effort*: **XL** | *AI Ease*: **Medium**
-- **series**: **14.57%** (217 ignored / 254 total)
+- **series**: **16.14%** (213 ignored / 254 total)
   - *Effort*: **L** | *AI Ease*: **Medium**
 - **frame**: **28.30%** (76 ignored / 106 total)
   - *Effort*: **M/L** | *AI Ease*: **Medium**
-- **computation**: **28.37%** (101 ignored / 141 total)
+- **computation**: **26.95%** (103 ignored / 141 total)
   - *Effort*: **L** | *AI Ease*: **Medium**
-- **indexes**: **35.06%** (176 ignored / 271 total)
+- **indexes**: **36.16%** (173 ignored / 271 total)
   - *Effort*: **L** | *AI Ease*: **Medium**
-- **window**: **40.00%** (48 ignored / 80 total)
+- **window**: **38.75%** (49 ignored / 80 total)
   - *Effort*: **M** | *AI Ease*: **Medium**
 - **io**: **40.98%** (36 ignored / 61 total)
   - *Effort*: **M** | *AI Ease*: **Medium**
-- **diff_frames_ops**: **43.96%** (102 ignored / 182 total)
+- **diff_frames_ops**: **37.91%** (113 ignored / 182 total)
   - *Effort*: **M** | *AI Ease*: **Medium**
-- **groupby**: **44.12%** (76 ignored / 136 total)
+- **groupby**: **42.65%** (78 ignored / 136 total)
   - *Effort*: **M** | *AI Ease*: **Medium**
 - **reshape**: **54.55%** (10 ignored / 22 total)
   - *Effort*: **S/M** | *AI Ease*: **Medium**
-- **resample**: **66.67%** (6 ignored / 18 total)
+- **resample**: **61.11%** (7 ignored / 18 total)
   - *Effort*: **S** | *AI Ease*: **Medium**
 - **plot**: **88.57%** (8 ignored / 70 total)
   - *Effort*: **S** | *AI Ease*: **High**
@@ -144,13 +144,13 @@ The core SQL category also has significant subcategories:
 
 - **pandas/streaming**: **20.21%** (75 ignored / 94 total)
   - *Effort*: **M/L** | *AI Ease*: **Low**
-- **pandas**: **18.01%** (223 ignored / 272 total)
+- **pandas**: **20.96%** (215 ignored / 272 total)
   - *Effort*: **L** | *AI Ease*: **Medium**
-- **arrow**: **18.83%** (582 ignored / 717 total)
+- **arrow**: **22.32%** (557 ignored / 717 total)
   - *Effort*: **XL** | *AI Ease*: **Low**
-- **streaming**: **22.22%** (49 ignored / 63 total)
+- **streaming**: **17.46%** (52 ignored / 63 total)
   - *Effort*: **L** | *AI Ease*: **Low**
-- **client**: **78.87%** (15 ignored / 71 total)
+- **client**: **91.55%** (6 ignored / 71 total)
   - *Effort*: **S** | *AI Ease*: **High**
 - **shell**: **77.78%** (2 ignored / 9 total)
   - *Effort*: **S** | *AI Ease*: **High**

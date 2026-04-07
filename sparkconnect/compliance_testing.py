@@ -27,14 +27,17 @@ from collections import defaultdict
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SPARK_CLONE_DIR = os.environ.get("SPARK_CLONE_DIR", os.path.join(os.path.dirname(SCRIPT_DIR), "..", "spark_clone"))
+SPARK_DOWNLOAD_DIR = os.environ.get("SPARK_DOWNLOAD_DIR", os.path.join(os.path.dirname(SPARK_CLONE_DIR), "spark-4.1.1-bin-hadoop3"))
 IGNORED_TESTS_FILE = os.path.join(SCRIPT_DIR, "ignored_tests.txt")
 TEST_DIR = os.path.join(SPARK_CLONE_DIR, "python", "pyspark", "sql", "tests", "connect")
 TARGET_DIRS = [
-    TEST_DIR,
-    os.path.join(SPARK_CLONE_DIR, "python", "pyspark", "ml", "tests", "connect"),
-    os.path.join(SPARK_CLONE_DIR, "python", "pyspark", "pandas", "tests", "connect"),
-    os.path.join(SPARK_CLONE_DIR, "python", "pyspark", "errors", "tests", "connect"),
-    os.path.join(SPARK_CLONE_DIR, "python", "pyspark", "logger", "tests", "connect")
+    os.path.join("python", "pyspark", "sql", "tests", "connect"),
+    os.path.join("python", "pyspark", "ml", "tests", "connect"),
+    os.path.join("python", "pyspark", "pandas", "tests", "connect"),
+    os.path.join("python", "pyspark", "errors", "tests", "connect"),
+    os.path.join("python", "pyspark", "logger", "tests", "connect"),
+    os.path.relpath(os.path.join(SCRIPT_DIR, "local_tests", "python", "pyspark", "sql", "tests", "connect"), SPARK_CLONE_DIR),
+    os.path.relpath(os.path.join(SCRIPT_DIR, "local_tests", "python", "pyspark", "ml", "tests", "connect"), SPARK_CLONE_DIR)
 ]
 VENV_DIR = os.path.join(SCRIPT_DIR, "build", "venv")
 
@@ -177,7 +180,9 @@ def do_run(args):
         env = os.environ.copy()
         env["SPARK_CONNECT_TESTING_REMOTE"] = "sc://localhost:12345"
         env["SPARK_TESTING"] = "1"
-        env["SPARK_HOME"] = SPARK_CLONE_DIR
+        env["SPARK_HOME"] = SPARK_DOWNLOAD_DIR
+        env["PYTHONPATH"] = os.path.join(SPARK_CLONE_DIR, "python") + (os.pathsep + env["PYTHONPATH"] if "PYTHONPATH" in env else "")
+        env["SPARK_SKIP_CONNECT_COMPAT_TESTS"] = "1"
         
         if args.profile and not args.test_targets:
             print("Error: You must specify specific test targets when profiling to avoid running the entire suite.")
@@ -188,14 +193,15 @@ def do_run(args):
         if args.profile:
             print("Profiling enabled. Disabling parallel execution.")
             pytest_args = [
-                get_python_exec(), "-m", "cProfile", "-s", "cumulative", "-m", "pytest", "-v",
+                get_python_exec(), "-m", "cProfile", "-s", "cumulative",
+                "-m", "pytest", "-v",
                 "--timeout=10", "--durations=100",
                 f"--ignore={os.path.join(TEST_DIR, 'test_session.py')}"
             ]
         else:
             pytest_args = [
                 get_python_exec(), "-m", "pytest", "-v",
-                "-n", "auto", "--timeout=10", "--durations=100",
+                "--timeout=10", "--durations=100",
                 f"--ignore={os.path.join(TEST_DIR, 'test_session.py')}"
             ]
         
@@ -222,7 +228,9 @@ def do_update_ignore_list(args):
         env = os.environ.copy()
         env["SPARK_CONNECT_TESTING_REMOTE"] = "sc://localhost:12345"
         env["SPARK_TESTING"] = "1"
-        env["SPARK_HOME"] = SPARK_CLONE_DIR
+        env["SPARK_HOME"] = SPARK_DOWNLOAD_DIR
+        env["PYTHONPATH"] = os.path.join(SPARK_CLONE_DIR, "python") + (os.pathsep + env["PYTHONPATH"] if "PYTHONPATH" in env else "")
+        env["SPARK_SKIP_CONNECT_COMPAT_TESTS"] = "1"
         
         cmd = [
             get_python_exec(), "-m", "pytest", "-n", "auto", "-q", "--tb=no",
@@ -305,7 +313,9 @@ def do_stats(args):
     print("Collecting total tests (this may take a few seconds)...")
     env = os.environ.copy()
     env["SPARK_TESTING"] = "1"
-    env["SPARK_HOME"] = SPARK_CLONE_DIR
+    env["SPARK_HOME"] = SPARK_DOWNLOAD_DIR
+    env["PYTHONPATH"] = os.path.join(SPARK_CLONE_DIR, "python") + (os.pathsep + env["PYTHONPATH"] if "PYTHONPATH" in env else "")
+    env["SPARK_SKIP_CONNECT_COMPAT_TESTS"] = "1"
     
     target_dirs = TARGET_DIRS
     

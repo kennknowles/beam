@@ -1560,7 +1560,6 @@ python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::t
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_incorrect_schema
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_map_type
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_map_type_nulls
-python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_arrow_with_struct_type_nulls
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_duplicate_field_names
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_nested_timestamp
 python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_createDataFrame_pandas_with_array_type
@@ -3546,3 +3545,4 @@ python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_remove_n
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_spark_sql_sort_rows
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_spark_upgrade_exception
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_special_vals
+python/pyspark/sql/tests/connect/arrow/test_parity_arrow.py::ArrowParityTests::test_toPandas_triple_nested_array_empty_outer

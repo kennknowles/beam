@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sparkconnect.handler;
 
-import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.csv.CsvIO;
@@ -50,7 +50,10 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sparkconnect.ProtoUtils;
 import org.apache.beam.sparkconnect.RowToArrowConverter;
 import org.apache.beam.sparkconnect.SparkRelationToRelNode;
+import org.apache.beam.sparkconnect.rel.SparkLocalRelation;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.QuoteMode;
@@ -266,7 +269,23 @@ public class ExecutePlanHandler {
     SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(beamSqlEnv);
     RelNode relNode = sparkRelationToRelNode.translate(root);
 
-    executeCalcitePlanAndRespond(beamSqlEnv.convertToBeamRel(relNode), responseBuilder);
+    if (relNode instanceof SparkLocalRelation) {
+      SparkLocalRelation localRel = (SparkLocalRelation) relNode;
+      respondWithArrow(
+          localRel.getRows(), CalciteUtils.toSchema(localRel.deriveRowType()), responseBuilder);
+    } else if (relNode instanceof LogicalProject) {
+      LogicalProject project = (LogicalProject) relNode;
+      if (project.getInput() instanceof SparkLocalRelation
+          && RexUtil.isIdentity(project.getProjects(), project.getInput().getRowType())) {
+        SparkLocalRelation localRel = (SparkLocalRelation) project.getInput();
+        respondWithArrow(
+            localRel.getRows(), CalciteUtils.toSchema(localRel.deriveRowType()), responseBuilder);
+      } else {
+        executeCalcitePlanAndRespond(beamSqlEnv.convertToBeamRel(relNode), responseBuilder);
+      }
+    } else {
+      executeCalcitePlanAndRespond(beamSqlEnv.convertToBeamRel(relNode), responseBuilder);
+    }
   }
 
   private void executeCalcitePlanAndRespond(
@@ -277,6 +296,16 @@ public class ExecutePlanHandler {
     org.apache.beam.sdk.schemas.Schema beamSchema =
         org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.toSchema(
             beamRelNode.getRowType());
+
+    respondWithArrow(outputRows, beamSchema, responseBuilder);
+  }
+
+  private void respondWithArrow(
+      List<Row> outputRows,
+      org.apache.beam.sdk.schemas.Schema beamSchema,
+      ExecutePlanResponse.Builder responseBuilder)
+      throws IOException {
+
     Schema arrowSchema = RowToArrowConverter.toArrowSchema(beamSchema);
 
     ExecutePlanResponse.ArrowBatch.Builder arrowBatchBuilder =
@@ -294,7 +323,7 @@ public class ExecutePlanHandler {
           writer.end();
         }
 
-        arrowBatchBuilder.setData(ByteString.copyFrom(out.toByteArray()));
+        arrowBatchBuilder.setData(com.google.protobuf.ByteString.copyFrom(out.toByteArray()));
       }
     }
 

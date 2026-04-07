@@ -46,11 +46,13 @@ import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sparkconnect.rel.LogicalShowString;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.arrow.ArrowFieldTypeFactory;
@@ -1114,13 +1116,18 @@ public class SparkRelationToRelNode {
       RelDataType valueType = arrowFieldToSqlType(valueField, typeFactory);
       RelDataType structType =
           typeFactory.createStructType(
-              com.google.common.collect.ImmutableList.of(keyType, valueType),
-              com.google.common.collect.ImmutableList.of("key", "value"));
+              ImmutableList.of(keyType, valueType), ImmutableList.of("key", "value"));
       type = typeFactory.createArrayType(structType, -1);
     } else if (arrowType instanceof ArrowType.List) {
       Field elementField = field.getChildren().get(0);
       RelDataType elementType = arrowFieldToSqlType(elementField, typeFactory);
       type = typeFactory.createArrayType(elementType, -1);
+    } else if (arrowType instanceof ArrowType.Struct) {
+      final RelDataTypeFactory.Builder structBuilder = typeFactory.builder();
+      for (Field childField : field.getChildren()) {
+        structBuilder.add(childField.getName(), arrowFieldToSqlType(childField, typeFactory));
+      }
+      type = structBuilder.build();
     } else {
       try {
         type = ArrowFieldTypeFactory.toType(arrowType, typeFactory);
@@ -1460,48 +1467,53 @@ public class SparkRelationToRelNode {
         RelDataType rowType =
             arrowSchemaToRowType(root.getSchema(), (JavaTypeFactory) cluster.getTypeFactory());
 
-        boolean hasComplexTypes = false;
-        for (RelDataTypeField field : rowType.getFieldList()) {
-          SqlTypeName typeName = field.getType().getSqlTypeName();
-          if (typeName == SqlTypeName.ARRAY
-              || typeName == SqlTypeName.MAP
-              || field.getType().isStruct()) {
-            hasComplexTypes = true;
-            break;
-          }
+        Schema beamSchema = CalciteUtils.toSchema(rowType);
+        List<Row> rows = new ArrayList<>();
+        rows.addAll(arrowToBeamRows(root, beamSchema));
+        while (streamReader.loadNextBatch()) {
+          rows.addAll(arrowToBeamRows(root, beamSchema));
         }
-
-        if (hasComplexTypes) {
-          RelDataType dummyRowType =
-              cluster
-                  .getTypeFactory()
-                  .createStructType(Collections.emptyList(), Collections.emptyList());
-          LogicalValues dummyValues =
-              LogicalValues.create(cluster, dummyRowType, ImmutableList.of(ImmutableList.of()));
-
-          List<RelNode> projects = new ArrayList<>();
-          addRowsAsProjects(projects, cluster.getRexBuilder(), root, rowType, dummyValues);
-          while (streamReader.loadNextBatch()) {
-            addRowsAsProjects(projects, cluster.getRexBuilder(), root, rowType, dummyValues);
-          }
-
-          if (projects.isEmpty()) {
-            return LogicalValues.create(cluster, rowType, ImmutableList.of());
-          }
-
-          return org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalUnion
-              .create(projects, true);
-        } else {
-          ImmutableList.Builder<ImmutableList<RexLiteral>> tuplesBuilder = ImmutableList.builder();
-          addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
-          while (streamReader.loadNextBatch()) {
-            addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
-          }
-          return LogicalValues.create(cluster, rowType, tuplesBuilder.build());
-        }
+        return new org.apache.beam.sparkconnect.rel.SparkLocalRelation(
+            cluster, cluster.traitSet(), rows, rowType);
       } catch (IOException exc) {
         throw new RuntimeException("Failed to parse arrow data for LocalRelation", exc);
       }
     }
+  }
+
+  private List<Row> arrowToBeamRows(VectorSchemaRoot root, Schema schema) {
+    List<Row> rows = new ArrayList<>();
+    int rowCount = root.getRowCount();
+    List<FieldVector> vectors = root.getFieldVectors();
+    for (int i = 0; i < rowCount; i++) {
+      List<@Nullable Object> values = new ArrayList<>();
+      for (int j = 0; j < vectors.size(); j++) {
+        FieldVector vector = vectors.get(j);
+        Object val = vector.getObject(i);
+        values.add(convertArrowValueToBeam(val, schema.getField(j).getType()));
+      }
+      rows.add(Row.withSchema(schema).addValues(values).build());
+    }
+    return rows;
+  }
+
+  private @Nullable Object convertArrowValueToBeam(@Nullable Object val, FieldType type) {
+    if (val == null) {
+      return null;
+    }
+    if (type.getTypeName() == Schema.TypeName.ROW) {
+      Map<String, Object> map = (Map<String, Object>) val;
+      Schema structSchema = checkArgumentNotNull(type.getRowSchema());
+      List<@Nullable Object> values = new ArrayList<>();
+      for (int i = 0; i < structSchema.getFieldCount(); i++) {
+        Schema.Field field = structSchema.getField(i);
+        values.add(convertArrowValueToBeam(map.get(field.getName()), field.getType()));
+      }
+      return Row.withSchema(structSchema).addValues(values).build();
+    }
+    if (val instanceof org.apache.arrow.vector.util.Text) {
+      return val.toString();
+    }
+    return val;
   }
 }

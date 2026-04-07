@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sparkconnect.rule;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Iterator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 public class SparkConnectRuleSet implements RuleSet {
 

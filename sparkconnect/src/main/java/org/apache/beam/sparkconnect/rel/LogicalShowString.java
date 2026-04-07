@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sparkconnect.rel;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
@@ -26,6 +25,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.SingleRel;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** A custom {@code RelNode} to represent the Spark {@code showString} operation. */
 public class LogicalShowString extends SingleRel {

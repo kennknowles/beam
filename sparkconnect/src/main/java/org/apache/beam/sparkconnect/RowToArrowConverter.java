@@ -89,6 +89,16 @@ public final class RowToArrowConverter {
       } else {
         arrowType = new ArrowType.Utf8();
       }
+    } else if (type.getTypeName() == TypeName.ROW) {
+      org.apache.beam.sdk.schemas.Schema schema = type.getRowSchema();
+      if (schema == null) {
+        throw new NullPointerException("schema is null");
+      }
+      arrowType = new ArrowType.Struct();
+      children = new java.util.ArrayList<>();
+      for (org.apache.beam.sdk.schemas.Schema.Field field : schema.getFields()) {
+        children.add(toBeamField(field));
+      }
     } else if (type.getTypeName() == TypeName.ARRAY) {
       org.apache.beam.sdk.schemas.Schema.FieldType componentType = type.getCollectionElementType();
       if (componentType == null) {

@@ -260,6 +260,8 @@ public final class AnalyzePlanHandler {
     typeStr = typeStr.trim().toLowerCase();
     if (typeStr.equals("long")) {
       return DataType.newBuilder().setLong(DataType.Long.newBuilder().build()).build();
+    } else if (typeStr.equals("int") || typeStr.equals("integer")) {
+      return DataType.newBuilder().setInteger(DataType.Integer.newBuilder().build()).build();
     } else if (typeStr.equals("string")) {
       return DataType.newBuilder().setString(DataType.String.newBuilder().build()).build();
     } else if (typeStr.startsWith("map<")) {
@@ -273,6 +275,24 @@ public final class AnalyzePlanHandler {
       mapBuilder.setValueType(parseDdlType(valueTypeStr));
       mapBuilder.setValueContainsNull(true);
       return DataType.newBuilder().setMap(mapBuilder.build()).build();
+    } else if (typeStr.startsWith("struct<")) {
+      String inner = typeStr.substring(7, typeStr.length() - 1);
+      java.util.List<String> fields = splitTopLevelCommas(inner);
+      DataType.Struct.Builder structBuilder = DataType.Struct.newBuilder();
+      for (String field : fields) {
+        field = field.trim();
+        int spaceIdx = field.indexOf(' ');
+        if (spaceIdx < 0) throw new RuntimeException("Invalid field in struct: " + field);
+        String name = field.substring(0, spaceIdx).trim();
+        String fTypeStr = field.substring(spaceIdx + 1).trim();
+        structBuilder.addFields(
+            DataType.StructField.newBuilder()
+                .setName(name)
+                .setDataType(parseDdlType(fTypeStr))
+                .setNullable(true)
+                .build());
+      }
+      return DataType.newBuilder().setStruct(structBuilder.build()).build();
     }
     throw new RuntimeException("Unsupported type: " + typeStr);
   }

@@ -159,7 +159,7 @@ public final class AnalyzePlanHandler {
   private AnalyzePlanResponse.IsStreaming handleIsStreaming(
       @SuppressWarnings("unused") AnalyzePlanRequest.IsStreaming isStreamingRequest) {
     // TODO: Implement by checking the boundedness of the input PCollections in the plan.
-    throw Status.UNIMPLEMENTED.withDescription("IsStreaming not implemented").asRuntimeException();
+    return AnalyzePlanResponse.IsStreaming.newBuilder().setIsStreaming(false).build();
   }
 
   /**

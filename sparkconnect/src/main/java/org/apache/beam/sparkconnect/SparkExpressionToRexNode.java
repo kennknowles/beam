@@ -40,6 +40,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlNameMatchers;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.DateString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.spark.connect.proto.CallFunction;
 import org.apache.spark.connect.proto.Expression;
@@ -83,6 +84,7 @@ public class SparkExpressionToRexNode {
           .put("/", SqlStdOperatorTable.DIVIDE)
           .put("negative", SqlStdOperatorTable.UNARY_MINUS)
           .put("isNull", SqlStdOperatorTable.IS_NULL)
+          .put("isNotNull", SqlStdOperatorTable.IS_NOT_NULL)
           .put("in", SqlStdOperatorTable.IN)
           .put("%", SqlStdOperatorTable.MOD)
           .put("&", SqlStdOperatorTable.BITAND)
@@ -440,14 +442,29 @@ public class SparkExpressionToRexNode {
 
   private RexNode translateUnresolvedAttribute(Expression.UnresolvedAttribute attr) {
     String name = attr.getUnparsedIdentifier();
-    // Note: Calcite's getField is case-insensitive by default. Spark SQL is case-insensitive
-    // by default.
-    RelDataTypeField field = inputRowType.getField(name, false, false);
+    List<String> parts = Splitter.on('.').splitToList(name);
+
+    RelDataTypeField field = inputRowType.getField(parts.get(0), false, false);
     if (field == null) {
       throw new IllegalArgumentException(
-          "Column not found: " + name + " in input schema: " + inputRowType);
+          "Column not found: " + parts.get(0) + " in input schema: " + inputRowType);
     }
-    return cluster.getRexBuilder().makeInputRef(field.getType(), field.getIndex());
+
+    RexNode node = cluster.getRexBuilder().makeInputRef(field.getType(), field.getIndex());
+
+    for (int i = 1; i < parts.size(); i++) {
+      if (node.getType().getSqlTypeName() == SqlTypeName.ARRAY) {
+        LOG.warn(
+            "Field access on ARRAY is not fully supported. Returning null literal for field: {}",
+            parts.get(i));
+        RelDataType elementType = cluster.getTypeFactory().createSqlType(SqlTypeName.VARCHAR);
+        RelDataType arrayType = cluster.getTypeFactory().createArrayType(elementType, -1);
+        return cluster.getRexBuilder().makeNullLiteral(arrayType);
+      }
+      node = cluster.getRexBuilder().makeFieldAccess(node, parts.get(i), false);
+    }
+
+    return node;
   }
 
   private RexNode translateCast(Expression.Cast cast) {

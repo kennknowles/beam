@@ -111,13 +111,9 @@ public class ExecutePlanHandler {
               .setResultComplete(ExecutePlanResponse.ResultComplete.newBuilder().build())
               .build());
       responseObserver.onCompleted();
-    } catch (IOException exc) {
+    } catch (Exception exc) {
+      LOG.error("Error handling executePlan", exc);
       responseObserver.onError(exc);
-      responseObserver.onNext(
-          responseBuilder
-              .setResultComplete(ExecutePlanResponse.ResultComplete.newBuilder().build())
-              .build());
-      responseObserver.onCompleted();
     }
   }
 

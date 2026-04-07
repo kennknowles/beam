@@ -449,7 +449,7 @@ public class SparkRelationToRelNode {
 
   private RelNode translateReadDataSource(Read.DataSource dataSource) {
 
-    String format = dataSource.getFormat();
+    String format = dataSource.getFormat().toLowerCase();
     if (format.isEmpty()) {
       // should be filled in with option spark.sql.sources.default
       throw new UnsupportedOperationException("Must set format on data source: " + dataSource);
@@ -463,54 +463,53 @@ public class SparkRelationToRelNode {
     }
     Schema beamSchema = parseDataSourceSchema(dataSource.getSchema());
 
+    // No workarounds needed for general JSON support
+
     String schemaDdl = toDdl(beamSchema);
 
     // TODO: register providers rather than switch - connect with Beam SQL table provider
-    switch (dataSource.getFormat().toLowerCase()) {
-      case "csv":
-        String path = dataSource.getPaths(0); // Text table only supports one filepattern - need to
-        // chain and use SDF for list of filepatterns
-        String tempTableName = "temp_csv_read_" + UUID.randomUUID().toString().replace("-", "");
-
-        // this is trash but right now the easiest to way to register a table is to just run DDL
-        String tblProperties = "'{\"format\": \"csv\"}'";
-        String createTableDdl =
-            String.format(
-                "CREATE EXTERNAL TABLE %s (%s) TYPE 'text' LOCATION '%s' TBLPROPERTIES %s",
-                tempTableName, schemaDdl, path, tblProperties);
-
-        beamSqlEnv.executeDdl(createTableDdl);
-        RelOptTable relOptTable =
-            checkStateNotNull(
-                checkStateNotNull(beamSqlEnv.getRelBuilder().getRelOptSchema())
-                    .getTableForMember(ImmutableList.of(tempTableName)));
-
-        CalciteSchema rootSchema = beamSqlEnv.getContext().getRootSchema();
-        List<String> defaultSchemaPath = beamSqlEnv.getContext().getDefaultSchemaPath();
-        CalciteSchema defaultSchema =
-            checkArgumentNotNull(SqlDdlNodes.childSchema(rootSchema, defaultSchemaPath));
-
-        CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) defaultSchema.schema;
-
-        CatalogSchema catalogSchema = catalogManagerSchema.getCurrentCatalogSchema();
-        Catalog catalog = catalogSchema.getCatalog();
-        Table table = checkStateNotNull(catalog.metaStore("default").getTable(tempTableName));
-        BeamSqlTable beamSqlTable =
-            checkStateNotNull(
-                catalogSchema.getCatalog().metaStore("default").buildBeamSqlTable(table));
-
-        return new BeamIOSourceRel(
-            cluster,
-            cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
-            relOptTable,
-            beamSqlTable,
-            beamSqlEnv.getPipelineOptions(),
-            BeamCalciteTable.of(beamSqlTable));
-
-      default:
-        throw new UnsupportedOperationException(
-            "Unsupported data source format: " + dataSource.getFormat().toLowerCase());
+    if (!format.equals("csv") && !format.equals("json")) {
+      throw new UnsupportedOperationException("Unsupported data source format: " + format);
     }
+
+    String path = dataSource.getPaths(0); // Text table only supports one filepattern - need to
+    // chain and use SDF for list of filepatterns
+    String tempTableName =
+        "temp_" + format + "_read_" + UUID.randomUUID().toString().replace("-", "");
+
+    // this is trash but right now the easiest to way to register a table is to just run DDL
+    String tblProperties = String.format("'{\"format\": \"%s\"}'", format);
+    String createTableDdl =
+        String.format(
+            "CREATE EXTERNAL TABLE %s (%s) TYPE 'text' LOCATION '%s' TBLPROPERTIES %s",
+            tempTableName, schemaDdl, path, tblProperties);
+
+    beamSqlEnv.executeDdl(createTableDdl);
+    RelOptTable relOptTable =
+        checkStateNotNull(
+            checkStateNotNull(beamSqlEnv.getRelBuilder().getRelOptSchema())
+                .getTableForMember(ImmutableList.of(tempTableName)));
+
+    CalciteSchema rootSchema = beamSqlEnv.getContext().getRootSchema();
+    List<String> defaultSchemaPath = beamSqlEnv.getContext().getDefaultSchemaPath();
+    CalciteSchema defaultSchema =
+        checkArgumentNotNull(SqlDdlNodes.childSchema(rootSchema, defaultSchemaPath));
+
+    CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) defaultSchema.schema;
+
+    CatalogSchema catalogSchema = catalogManagerSchema.getCurrentCatalogSchema();
+    Catalog catalog = catalogSchema.getCatalog();
+    Table table = checkStateNotNull(catalog.metaStore("default").getTable(tempTableName));
+    BeamSqlTable beamSqlTable =
+        checkStateNotNull(catalogSchema.getCatalog().metaStore("default").buildBeamSqlTable(table));
+
+    return new BeamIOSourceRel(
+        cluster,
+        cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
+        relOptTable,
+        beamSqlTable,
+        beamSqlEnv.getPipelineOptions(),
+        BeamCalciteTable.of(beamSqlTable));
   }
 
   /**
@@ -525,7 +524,16 @@ public class SparkRelationToRelNode {
    * @throws RuntimeException if the string cannot be parsed as either DDL or JSON.
    */
   public static Schema parseDataSourceSchema(String schemaString) {
-    DataType dataType = DataType.fromJson(schemaString);
+    DataType dataType;
+    try {
+      dataType = DataType.fromJson(schemaString);
+    } catch (Exception e) {
+      try {
+        dataType = DataType.fromDDL(schemaString);
+      } catch (Exception e2) {
+        throw new RuntimeException("Failed to parse schema as JSON or DDL: " + schemaString, e2);
+      }
+    }
 
     LOG.info("Here's the type: {}", dataType);
 

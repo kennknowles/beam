@@ -22,6 +22,7 @@ import subprocess
 import time
 import socket
 import argparse
+import shlex
 import re
 from collections import defaultdict
 
@@ -231,6 +232,9 @@ def do_run(args):
             
         pytest_args.extend(test_targets)
         
+        if args.extra_args:
+            pytest_args.extend(shlex.split(args.extra_args))
+        
         sys.stdout.flush()
         result = subprocess.run(pytest_args, cwd=SPARK_CLONE_DIR, env=env)
         
@@ -405,6 +409,7 @@ def main():
     parser_run = subparsers.add_parser("run", help="Run compliance tests")
     parser_run.add_argument("--no-ignore", action="store_true", help="Do not ignore failing tests")
     parser_run.add_argument("--profile", action="store_true", help="Enable profiling with cProfile (disables parallel execution)")
+    parser_run.add_argument("--extra-args", help="Extra arguments to pass to pytest")
     parser_run.add_argument("test_targets", nargs="*", help="Specific tests or directories to target")
     parser_run.set_defaults(func=do_run)
 

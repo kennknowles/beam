@@ -4,7 +4,7 @@
 
 **How to Use**:
 1. **Produce Compliance Report**:
-   Run the Gradle task to get the current compliance statistics:
+   Run the predefined Gradle task to get the current compliance statistics:
    ```bash
    ./gradlew :sparkconnect:computeComplianceStats
    ```

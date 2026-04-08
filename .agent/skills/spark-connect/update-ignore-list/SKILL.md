@@ -5,10 +5,9 @@
 **How to Use**:
 When you fix a bug that unblocks new tests, or when you are assigned to update the ignore list, we do not selectively target individual lines to edit manually. Instead, we use a fully automated process to guarantee accuracy.
 
-1. Navigate to the `sparkconnect/` directory in the `apache/beam-speak` repository.
-2. Run the automated update script using your `run_command` tool:
+1. Run the automated update script from the root of the repository:
    ```bash
-   cd /usr/local/google/home/klk/GitHub/apache/beam-speak/sparkconnect && ./update_ignore_list.py
+   ./gradlew :sparkconnect:updateIgnoreList
    ```
 
 **What the Script Does**:

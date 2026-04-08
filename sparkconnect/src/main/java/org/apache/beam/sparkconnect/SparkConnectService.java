@@ -103,7 +103,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       ExecutePlanRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
     LOG.debug("executePlan request:\n{}", ProtoUtils.debugString(request));
 
-    new ExecutePlanHandler(operationToExecutePlanResponse, getBeamSqlEnv())
+    new ExecutePlanHandler(operationToExecutePlanResponse, getBeamSqlEnv(), conf)
         .handle(request, responseObserver);
   }
 
@@ -187,7 +187,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       AnalyzePlanRequest request, StreamObserver<AnalyzePlanResponse> responseObserver) {
     LOG.debug("analyzePlan request:\n{}", ProtoUtils.debugString(request));
 
-    new AnalyzePlanHandler(getBeamSqlEnv()).handle(request, responseObserver);
+    new AnalyzePlanHandler(getBeamSqlEnv(), conf).handle(request, responseObserver);
   }
 
   /** Update or fetch the configurations and returns a [[ConfigResponse]] containing the result. */

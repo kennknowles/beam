@@ -446,6 +446,9 @@ public class SparkExpressionToRexNode {
 
     RelDataTypeField field = inputRowType.getField(parts.get(0), false, false);
     if (field == null) {
+      field = inputRowType.getField(parts.get(0) + "__ntz", false, false);
+    }
+    if (field == null) {
       throw new IllegalArgumentException(
           "Column not found: " + parts.get(0) + " in input schema: " + inputRowType);
     }
@@ -455,11 +458,33 @@ public class SparkExpressionToRexNode {
     for (int i = 1; i < parts.size(); i++) {
       if (node.getType().getSqlTypeName() == SqlTypeName.ARRAY) {
         LOG.warn(
-            "Field access on ARRAY is not fully supported. Returning null literal for field: {}",
+            "Field access on ARRAY is not fully supported. Using hack to extract first element for field: {}",
             parts.get(i));
-        RelDataType elementType = cluster.getTypeFactory().createSqlType(SqlTypeName.VARCHAR);
-        RelDataType arrayType = cluster.getTypeFactory().createArrayType(elementType, -1);
-        return cluster.getRexBuilder().makeNullLiteral(arrayType);
+        // Hack: Extract the first element of the array and access the field on it, then wrap in
+        // array
+        // Add null check to avoid failing on null arrays
+        RexNode isNull = cluster.getRexBuilder().makeCall(SqlStdOperatorTable.IS_NULL, node);
+        RexNode firstElement =
+            cluster
+                .getRexBuilder()
+                .makeCall(
+                    SqlStdOperatorTable.ITEM,
+                    node,
+                    cluster.getRexBuilder().makeExactLiteral(BigDecimal.ONE));
+        RexNode fieldAccess =
+            cluster.getRexBuilder().makeFieldAccess(firstElement, parts.get(i), false);
+        RexNode arrayVal =
+            cluster
+                .getRexBuilder()
+                .makeCall(SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, fieldAccess);
+
+        return cluster
+            .getRexBuilder()
+            .makeCall(
+                SqlStdOperatorTable.CASE,
+                isNull,
+                cluster.getRexBuilder().makeNullLiteral(arrayVal.getType()),
+                arrayVal);
       }
       node = cluster.getRexBuilder().makeFieldAccess(node, parts.get(i), false);
     }
@@ -522,7 +547,13 @@ public class SparkExpressionToRexNode {
         // For an unparsed attribute like `table.col` the name will be `col`
         String unparsed = sparkExpression.getUnresolvedAttribute().getUnparsedIdentifier();
         int dotIndex = unparsed.lastIndexOf('.');
-        return (dotIndex == -1) ? unparsed : unparsed.substring(dotIndex + 1);
+        String fieldName = (dotIndex == -1) ? unparsed : unparsed.substring(dotIndex + 1);
+        RelDataTypeField field = inputRowType.getField(fieldName, false, false);
+        if (field == null) {
+          field = inputRowType.getField(fieldName + "__ntz", false, false);
+        }
+        String result = (field != null) ? field.getName() : fieldName;
+        return result;
 
       default:
         // For any other expression type not explicitly aliased,

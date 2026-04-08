@@ -46,7 +46,6 @@ import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
@@ -126,10 +125,12 @@ public class SparkRelationToRelNode {
 
   private final RelOptCluster cluster;
   private final BeamSqlEnv beamSqlEnv;
+  private final Map<String, String> conf;
 
-  public SparkRelationToRelNode(BeamSqlEnv beamSqlEnv) {
+  public SparkRelationToRelNode(BeamSqlEnv beamSqlEnv, Map<String, String> conf) {
     this.beamSqlEnv = beamSqlEnv;
     this.cluster = beamSqlEnv.getRelBuilder().getCluster();
+    this.conf = conf;
   }
 
   // A map for common aggregate functions from Spark to Calcite.
@@ -1101,7 +1102,7 @@ public class SparkRelationToRelNode {
   private RelDataType arrowFieldToSqlType(Field field, JavaTypeFactory typeFactory) {
     ArrowType arrowType = field.getType();
     RelDataType type;
-    if (arrowType instanceof ArrowType.Timestamp) {
+    if (arrowType instanceof org.apache.arrow.vector.types.pojo.ArrowType.Timestamp) {
       type = typeFactory.createSqlType(SqlTypeName.TIMESTAMP);
     } else if (arrowType instanceof ArrowType.Null) {
       type = typeFactory.createSqlType(SqlTypeName.NULL);
@@ -1145,8 +1146,25 @@ public class SparkRelationToRelNode {
   private RelDataType arrowSchemaToRowType(
       org.apache.arrow.vector.types.pojo.Schema schema, JavaTypeFactory typeFactory) {
     final RelDataTypeFactory.Builder builder = typeFactory.builder();
-    for (Field field : schema.getFields()) {
-      builder.add(field.getName(), arrowFieldToSqlType(field, typeFactory));
+    java.util.Set<String> seenNames = new java.util.HashSet<>();
+    for (org.apache.arrow.vector.types.pojo.Field field : schema.getFields()) {
+      String name = field.getName();
+      ArrowType arrowType = field.getType();
+      if (arrowType instanceof org.apache.arrow.vector.types.pojo.ArrowType.Timestamp) {
+        org.apache.arrow.vector.types.pojo.ArrowType.Timestamp tsType =
+            (org.apache.arrow.vector.types.pojo.ArrowType.Timestamp) arrowType;
+
+        if (tsType.getTimezone() == null || tsType.getTimezone().isEmpty()) {
+          name = name + "__ntz";
+        }
+      }
+      int counter = 0;
+      String baseName = name;
+      while (seenNames.contains(name)) {
+        name = baseName + "_" + counter++;
+      }
+      seenNames.add(name);
+      builder.add(name, arrowFieldToSqlType(field, typeFactory));
     }
     return builder.build();
   }
@@ -1257,17 +1275,15 @@ public class SparkRelationToRelNode {
                   .fromMillisSinceEpoch(epochMillis),
               precision);
         } else if (javaValue instanceof java.time.LocalDateTime) {
-          long epochMillis =
-              ((java.time.LocalDateTime) javaValue)
-                  .toInstant(java.time.ZoneOffset.UTC)
-                  .toEpochMilli();
+          java.time.LocalDateTime ldt = (java.time.LocalDateTime) javaValue;
+          String ldtStr = ldt.toString().replace('T', ' ');
           int precision =
               relDataType.getPrecision() == RelDataType.PRECISION_NOT_SPECIFIED
-                  ? 3
+                  ? 6
                   : relDataType.getPrecision();
           return rexBuilder.makeTimestampLiteral(
-              org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimestampString
-                  .fromMillisSinceEpoch(epochMillis),
+              new org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimestampString(
+                  ldtStr),
               precision);
         }
         break;
@@ -1450,11 +1466,39 @@ public class SparkRelationToRelNode {
     }
   }
 
+  private boolean hasComplexTypes(RelDataType rowType) {
+    for (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField field :
+        rowType.getFieldList()) {
+      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName typeName =
+          field.getType().getSqlTypeName();
+      if (typeName
+              == org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName
+                  .ARRAY
+          || typeName
+              == org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName.MAP
+          || field.getType().isStruct()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private RelNode translateLocalRelation(LocalRelation localRelation) {
     if (!localRelation.hasData()) {
       throw new UnsupportedOperationException(
           "LocalRelation must have `data` field. "
               + "Parsing Spark SQL DDL or JSON type representation is not supported.");
+    }
+
+    String limitStr = conf.get("spark.sql.session.localRelationSizeLimit");
+    long limit = limitStr != null ? Long.parseLong(limitStr) : 64 * 1024 * 1024;
+    long size = localRelation.getData().size();
+    if (size > limit) {
+      throw new RuntimeException(
+          "[LOCAL_RELATION_SIZE_LIMIT_EXCEEDED] Local relation size exceeds limit: "
+              + size
+              + " > "
+              + limit);
     }
 
     try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
@@ -1467,14 +1511,43 @@ public class SparkRelationToRelNode {
         RelDataType rowType =
             arrowSchemaToRowType(root.getSchema(), (JavaTypeFactory) cluster.getTypeFactory());
 
-        Schema beamSchema = CalciteUtils.toSchema(rowType);
-        List<Row> rows = new ArrayList<>();
-        rows.addAll(arrowToBeamRows(root, beamSchema));
-        while (streamReader.loadNextBatch()) {
-          rows.addAll(arrowToBeamRows(root, beamSchema));
+        if (hasComplexTypes(rowType)) {
+          List<RelNode> projects = new ArrayList<>();
+          RelDataType emptyRowType =
+              cluster
+                  .getTypeFactory()
+                  .createStructType(Collections.emptyList(), Collections.emptyList());
+          org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalValues
+              dummyValues =
+                  org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical
+                      .LogicalValues.create(
+                      cluster, emptyRowType, ImmutableList.of(ImmutableList.of()));
+
+          addRowsAsProjects(projects, cluster.getRexBuilder(), root, rowType, dummyValues);
+          while (streamReader.loadNextBatch()) {
+            addRowsAsProjects(projects, cluster.getRexBuilder(), root, rowType, dummyValues);
+          }
+
+          if (projects.isEmpty()) {
+            return org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical
+                .LogicalValues.create(cluster, rowType, ImmutableList.of());
+          } else if (projects.size() == 1) {
+            return projects.get(0);
+          } else {
+            return LogicalUnion.create(projects, true);
+          }
+        } else {
+          ImmutableList.Builder<
+                  ImmutableList<
+                      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral>>
+              tuplesBuilder = ImmutableList.builder();
+          addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
+          while (streamReader.loadNextBatch()) {
+            addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
+          }
+          return org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalValues
+              .create(cluster, rowType, tuplesBuilder.build());
         }
-        return new org.apache.beam.sparkconnect.rel.SparkLocalRelation(
-            cluster, cluster.traitSet(), rows, rowType);
       } catch (IOException exc) {
         throw new RuntimeException("Failed to parse arrow data for LocalRelation", exc);
       }
@@ -1510,6 +1583,33 @@ public class SparkRelationToRelNode {
         values.add(convertArrowValueToBeam(map.get(field.getName()), field.getType()));
       }
       return Row.withSchema(structSchema).addValues(values).build();
+    }
+    if (type.getTypeName() == Schema.TypeName.ARRAY) {
+      Iterable<?> iterable = (Iterable<?>) val;
+      FieldType elementType = checkArgumentNotNull(type.getCollectionElementType());
+      List<@Nullable Object> convertedList = new ArrayList<>();
+      for (Object elem : iterable) {
+        convertedList.add(convertArrowValueToBeam(elem, elementType));
+      }
+      return convertedList;
+    }
+    if (type.getTypeName() == Schema.TypeName.LOGICAL_TYPE) {
+      Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
+      if (logicalType != null && "beam:logical_type:date:v1".equals(logicalType.getIdentifier())) {
+        if (val instanceof Integer) {
+          return java.time.LocalDate.ofEpochDay((Integer) val);
+        }
+      }
+    }
+    if (type.getTypeName() == Schema.TypeName.DATETIME) {
+      if (val instanceof Long) {
+        return new org.joda.time.Instant(((Long) val) / 1000);
+      }
+      if (val instanceof java.time.LocalDateTime) {
+        java.time.LocalDateTime ldt = (java.time.LocalDateTime) val;
+        return new org.joda.time.Instant(
+            ldt.atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli());
+      }
     }
     if (val instanceof org.apache.arrow.vector.util.Text) {
       return val.toString();

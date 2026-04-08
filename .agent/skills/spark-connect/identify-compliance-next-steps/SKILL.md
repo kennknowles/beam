@@ -10,7 +10,7 @@ Reference this skill when asked to plan out subsequent milestones or evaluate ho
 2. **Category Selection**: Choose a category with 0% or particularly low compliance, preferably one that covers core SQL/DataFrame functionality (like `test_parity_functions` or `test_parity_types`).
 3. **Poking the Tests**: Extract 1-3 typical tests for that category from `ignored_tests.txt`. Run them manually:
    ```bash
-   ./gradlew :sparkconnect:complianceTests -PnoIgnoreList -PtestTarget="/usr/local/google/home/klk/GitHub/apache/spark_clone/python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_specific_method"
+   ./gradlew :sparkconnect:complianceTests -PnoIgnoreList -PtestTarget="python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_specific_method"
    ```
 4. **Failure Analysis & Effort Estimation**: Examine the output in `server.log` to categorize the error:
    *   **Parsing / SQL Translation (`ParseException`)**: Low effort. Requires adding regex replacements to `ExecutePlanHandler.java` and `SparkRelationToRelNode.java`.

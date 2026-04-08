@@ -19,6 +19,7 @@ package org.apache.beam.sparkconnect.handler;
 
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sparkconnect.RelDataTypeToSparkDataType;
 import org.apache.beam.sparkconnect.SparkRelationToRelNode;
@@ -31,9 +32,11 @@ import org.apache.spark.connect.proto.DataType;
 public final class AnalyzePlanHandler {
 
   private final BeamSqlEnv beamSqlEnv;
+  private final Map<String, String> conf;
 
-  public AnalyzePlanHandler(BeamSqlEnv beamSqlEnv) {
+  public AnalyzePlanHandler(BeamSqlEnv beamSqlEnv, Map<String, String> conf) {
     this.beamSqlEnv = beamSqlEnv;
+    this.conf = conf;
   }
 
   public void handle(
@@ -104,7 +107,7 @@ public final class AnalyzePlanHandler {
    * <p>This operation takes a logical plan and returns its schema.
    */
   private AnalyzePlanResponse.Schema handleSchema(AnalyzePlanRequest.Schema schemaRequest) {
-    SparkRelationToRelNode translator = new SparkRelationToRelNode(beamSqlEnv);
+    SparkRelationToRelNode translator = new SparkRelationToRelNode(beamSqlEnv, conf);
     RelNode relNode = translator.translate(schemaRequest.getPlan().getRoot());
     RelDataType rowType = relNode.getRowType();
 

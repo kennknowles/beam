@@ -29,7 +29,6 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.TimeStampMicroTZVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -38,7 +37,6 @@ import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -52,21 +50,29 @@ public final class RowToArrowConverter {
   private RowToArrowConverter() {}
 
   /** Converts a Beam {@link org.apache.beam.sdk.schemas.Schema} to an Arrow {@link Schema}. */
-  public static Schema toArrowSchema(org.apache.beam.sdk.schemas.Schema beamSchema) {
+  public static Schema toArrowSchema(
+      org.apache.beam.sdk.schemas.Schema beamSchema, java.util.Set<String> nullFields) {
     List<Field> arrowFields = new ArrayList<>();
     for (org.apache.beam.sdk.schemas.Schema.Field beamField : beamSchema.getFields()) {
-      arrowFields.add(toBeamField(beamField));
+      arrowFields.add(toBeamField(beamField, nullFields));
     }
     return new Schema(arrowFields);
   }
 
+  public static Schema toArrowSchema(org.apache.beam.sdk.schemas.Schema beamSchema) {
+    return toArrowSchema(beamSchema, java.util.Collections.emptySet());
+  }
+
   @SuppressWarnings("nullness")
-  private static Field toBeamField(org.apache.beam.sdk.schemas.Schema.Field beamField) {
+  private static Field toBeamField(
+      org.apache.beam.sdk.schemas.Schema.Field beamField, java.util.Set<String> nullFields) {
     org.apache.beam.sdk.schemas.Schema.FieldType type = beamField.getType();
     ArrowType arrowType;
     List<Field> children = java.util.Collections.emptyList();
 
-    if (type.getTypeName() == TypeName.STRING) {
+    if (nullFields != null && nullFields.contains(beamField.getName())) {
+      arrowType = new ArrowType.Null();
+    } else if (type.getTypeName() == TypeName.STRING) {
       arrowType = new ArrowType.Utf8();
     } else if (type.getTypeName() == TypeName.INT32) {
       arrowType = new ArrowType.Int(32, true);
@@ -81,7 +87,16 @@ public final class RowToArrowConverter {
     } else if (type.getTypeName() == TypeName.BYTES) {
       arrowType = new ArrowType.Binary();
     } else if (type.getTypeName() == TypeName.DATETIME) {
-      arrowType = new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC");
+      String sparkType = type.getMetadataString("spark_type");
+      if ("timestamp_ntz".equals(sparkType)) {
+        arrowType =
+            new org.apache.arrow.vector.types.pojo.ArrowType.Timestamp(
+                org.apache.arrow.vector.types.TimeUnit.MICROSECOND, null);
+      } else {
+        arrowType =
+            new org.apache.arrow.vector.types.pojo.ArrowType.Timestamp(
+                org.apache.arrow.vector.types.TimeUnit.MICROSECOND, "UTC");
+      }
     } else if (type.getTypeName() == TypeName.LOGICAL_TYPE) {
       org.apache.beam.sdk.schemas.Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
       if (logicalType != null && "beam:logical_type:date:v1".equals(logicalType.getIdentifier())) {
@@ -97,7 +112,7 @@ public final class RowToArrowConverter {
       arrowType = new ArrowType.Struct();
       children = new java.util.ArrayList<>();
       for (org.apache.beam.sdk.schemas.Schema.Field field : schema.getFields()) {
-        children.add(toBeamField(field));
+        children.add(toBeamField(field, nullFields));
       }
     } else if (type.getTypeName() == TypeName.ARRAY) {
       org.apache.beam.sdk.schemas.Schema.FieldType componentType = type.getCollectionElementType();
@@ -119,14 +134,18 @@ public final class RowToArrowConverter {
           org.apache.beam.sdk.schemas.Schema.FieldType valueType = rowSchema.getField(1).getType();
 
           Field keyFieldNullable =
-              toBeamField(org.apache.beam.sdk.schemas.Schema.Field.of("key", keyType));
+              toBeamField(
+                  org.apache.beam.sdk.schemas.Schema.Field.of("key", keyType),
+                  java.util.Collections.emptySet());
           Field keyField =
               new Field(
                   keyFieldNullable.getName(),
                   new FieldType(false, keyFieldNullable.getType(), null),
                   keyFieldNullable.getChildren());
           Field valueField =
-              toBeamField(org.apache.beam.sdk.schemas.Schema.Field.of("value", valueType));
+              toBeamField(
+                  org.apache.beam.sdk.schemas.Schema.Field.of("value", valueType),
+                  java.util.Collections.emptySet());
           Field structField =
               new Field(
                   "entries",
@@ -136,13 +155,17 @@ public final class RowToArrowConverter {
           children = java.util.Collections.singletonList(structField);
         } else {
           Field elementField =
-              toBeamField(org.apache.beam.sdk.schemas.Schema.Field.of("item", componentType));
+              toBeamField(
+                  org.apache.beam.sdk.schemas.Schema.Field.of("item", componentType),
+                  java.util.Collections.emptySet());
           arrowType = new ArrowType.List();
           children = java.util.Collections.singletonList(elementField);
         }
       } else {
         Field elementField =
-            toBeamField(org.apache.beam.sdk.schemas.Schema.Field.of("item", componentType));
+            toBeamField(
+                org.apache.beam.sdk.schemas.Schema.Field.of("item", componentType),
+                java.util.Collections.emptySet());
         arrowType = new ArrowType.List();
         children = java.util.Collections.singletonList(elementField);
       }
@@ -153,14 +176,18 @@ public final class RowToArrowConverter {
         throw new NullPointerException("keyType or valueType is null");
       }
       Field keyFieldNullable =
-          toBeamField(org.apache.beam.sdk.schemas.Schema.Field.of("key", keyType));
+          toBeamField(
+              org.apache.beam.sdk.schemas.Schema.Field.of("key", keyType),
+              java.util.Collections.emptySet());
       Field keyField =
           new Field(
               keyFieldNullable.getName(),
               new FieldType(false, keyFieldNullable.getType(), null),
               keyFieldNullable.getChildren());
       Field valueField =
-          toBeamField(org.apache.beam.sdk.schemas.Schema.Field.of("value", valueType));
+          toBeamField(
+              org.apache.beam.sdk.schemas.Schema.Field.of("value", valueType),
+              java.util.Collections.emptySet());
       Field structField =
           new Field(
               "entries",
@@ -188,9 +215,30 @@ public final class RowToArrowConverter {
       for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
         Row row = rows.get(rowIndex);
         Object value = row.getValue(i);
+        System.out.println("Row " + rowIndex + " value: " + value);
+        if (value != null) {
+          System.out.println("Row " + rowIndex + " value class: " + value.getClass().getName());
+        }
         setVectorValue(vector, rowIndex, value, beamField.getType());
       }
       vector.setValueCount(rows.size());
+      if (vector instanceof MapVector) {
+        MapVector mapVector = (MapVector) vector;
+        StructVector structVector = (StructVector) mapVector.getDataVector();
+        for (int j = 0; j < structVector.getValueCount(); j++) {
+          structVector.setIndexDefined(j);
+        }
+        System.out.println(
+            "MapVector " + beamField.getName() + " value count: " + mapVector.getValueCount());
+        System.out.println("  Child StructVector value count: " + structVector.getValueCount());
+        System.out.println("  Child StructVector null count: " + structVector.getNullCount());
+        FieldVector keyVector = structVector.getChild("key");
+        System.out.println("  KeyVector value count: " + keyVector.getValueCount());
+        System.out.println("  KeyVector null count: " + keyVector.getNullCount());
+        for (int j = 0; j < keyVector.getValueCount(); j++) {
+          System.out.println("  KeyVector element " + j + " isNull: " + keyVector.isNull(j));
+        }
+      }
     }
   }
 
@@ -199,14 +247,21 @@ public final class RowToArrowConverter {
       int index,
       @Nullable Object value,
       org.apache.beam.sdk.schemas.Schema.FieldType type) {
-    System.out.println(
-        "setVectorValue: vector="
-            + vector.getClass().getName()
-            + ", type="
-            + type.getTypeName()
-            + ", value="
-            + value);
+
+    if (vector instanceof org.apache.arrow.vector.NullVector) {
+      return;
+    }
     if (value == null) {
+      if (vector instanceof MapVector) {
+        MapVector mapVector = (MapVector) vector;
+        System.out.println("Map row " + index + " is NULL");
+        mapVector.startNewValue(index);
+        mapVector.endValue(index, 0);
+      } else if (vector instanceof ListVector) {
+        ListVector listVector = (ListVector) vector;
+        listVector.startNewValue(index);
+        listVector.endValue(index, 0);
+      }
       vector.setNull(index);
       return;
     }
@@ -231,9 +286,16 @@ public final class RowToArrowConverter {
       ((BitVector) vector).setSafe(index, (Boolean) value ? 1 : 0);
     } else if (vector instanceof VarBinaryVector) {
       ((VarBinaryVector) vector).setSafe(index, (byte[]) value);
-    } else if (vector instanceof TimeStampMicroTZVector) {
+    } else if (vector instanceof org.apache.arrow.vector.TimeStampMicroTZVector) {
       org.joda.time.ReadableInstant dt = (org.joda.time.ReadableInstant) value;
-      ((TimeStampMicroTZVector) vector).setSafe(index, dt.getMillis() * 1000L);
+      ((org.apache.arrow.vector.TimeStampMicroTZVector) vector)
+          .setSafe(index, dt.getMillis() * 1000L);
+    } else if (vector instanceof org.apache.arrow.vector.TimeStampMicroVector) {
+
+      org.joda.time.ReadableInstant dt = (org.joda.time.ReadableInstant) value;
+
+      ((org.apache.arrow.vector.TimeStampMicroVector) vector)
+          .setSafe(index, dt.getMillis() * 1000L);
     } else if (vector instanceof DateDayVector) {
       if (value instanceof Integer) {
         ((DateDayVector) vector).setSafe(index, (Integer) value);
@@ -254,7 +316,7 @@ public final class RowToArrowConverter {
       }
 
       listVector.startNewValue(index);
-      int offset = listVector.getOffsetBuffer().getInt(index * 4);
+      int offset = listVector.getDataVector().getValueCount();
       for (int j = 0; j < list.size(); j++) {
         setVectorValue(listVector.getDataVector(), offset + j, list.get(j), elementType);
       }
@@ -263,9 +325,8 @@ public final class RowToArrowConverter {
       MapVector mapVector = (MapVector) vector;
 
       mapVector.startNewValue(index);
-      int offset = mapVector.getOffsetBuffer().getInt(index * 4);
-
       StructVector structVector = (StructVector) mapVector.getDataVector();
+      int offset = structVector.getValueCount();
       int size = 0;
 
       if (value instanceof Map) {
@@ -283,6 +344,19 @@ public final class RowToArrowConverter {
           FieldVector keyVector = structVector.getChild("key");
           FieldVector valueVector = structVector.getChild("value");
 
+          if (elementIndex >= structVector.getValueCapacity()) {
+            structVector.reAlloc();
+          }
+          structVector.setIndexDefined(elementIndex);
+          System.out.println(
+              "Map row "
+                  + index
+                  + " entry "
+                  + j
+                  + " elementIndex: "
+                  + elementIndex
+                  + " key: "
+                  + entry.getKey());
           setVectorValue(keyVector, elementIndex, entry.getKey(), keyType);
           setVectorValue(valueVector, elementIndex, entry.getValue(), valueType);
           j++;
@@ -312,10 +386,35 @@ public final class RowToArrowConverter {
           FieldVector keyVector = structVector.getChild("key");
           FieldVector valueVector = structVector.getChild("value");
 
+          if (elementIndex >= structVector.getValueCapacity()) {
+            structVector.reAlloc();
+          }
+          structVector.setIndexDefined(elementIndex);
+          System.out.println(
+              "Map row "
+                  + index
+                  + " entry "
+                  + j
+                  + " elementIndex: "
+                  + elementIndex
+                  + " key: "
+                  + entryRow.getValue("key"));
           setVectorValue(keyVector, elementIndex, entryRow.getValue("key"), keyType);
           setVectorValue(valueVector, elementIndex, entryRow.getValue("value"), valueType);
         }
       }
+      System.out.println(
+          "Map row "
+              + index
+              + " offset: "
+              + offset
+              + " size: "
+              + size
+              + " setting child value count to: "
+              + (offset + size));
+      structVector.setValueCount(offset + size);
+      structVector.getChild("key").setValueCount(offset + size);
+      structVector.getChild("value").setValueCount(offset + size);
       mapVector.endValue(index, size);
     } else if (vector instanceof StructVector) {
       StructVector structVector = (StructVector) vector;

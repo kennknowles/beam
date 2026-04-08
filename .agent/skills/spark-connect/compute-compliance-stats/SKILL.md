@@ -3,7 +3,7 @@
 **Purpose**: Summarize the current compliance rate of the Apache Beam Spark Connect translation layer by comparing the total number of PySpark connect tests against those that are supported vs. currently ignored, broken down by test categories.
 
 **How to Use**:
-When you need to check the current compliance stats, execute the predefined Gradle task from root of the `apache/beam-speak` repository:
+When you need to check the current compliance stats, execute the predefined Gradle task from the root of the repository:
 
 ```bash
 ./gradlew :sparkconnect:computeComplianceStats

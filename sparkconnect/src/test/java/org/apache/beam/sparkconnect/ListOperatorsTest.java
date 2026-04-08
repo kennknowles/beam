@@ -29,7 +29,8 @@ public class ListOperatorsTest {
   public void testList() throws Exception {
     try (PrintWriter pw =
         new PrintWriter(
-            "/usr/local/google/home/klk/GitHub/apache/beam-speak/sparkconnect/operators.txt")) {
+            "/usr/local/google/home/klk/GitHub/apache/beam-speak/sparkconnect/operators.txt",
+            "UTF-8")) {
       pw.println("--- SqlStdOperatorTable ---");
       listOperators(SqlStdOperatorTable.class, pw);
       pw.println("\n--- SqlLibraryOperators ---");

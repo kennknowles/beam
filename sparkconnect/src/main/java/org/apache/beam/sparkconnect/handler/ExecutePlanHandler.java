@@ -72,11 +72,15 @@ public class ExecutePlanHandler {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutePlanHandler.class);
   private final Map<String, List<ExecutePlanResponse>> operationToResponses;
   private final BeamSqlEnv beamSqlEnv;
+  private final Map<String, String> conf;
 
   public ExecutePlanHandler(
-      Map<String, List<ExecutePlanResponse>> operationToResponses, BeamSqlEnv beamSqlEnv) {
+      Map<String, List<ExecutePlanResponse>> operationToResponses,
+      BeamSqlEnv beamSqlEnv,
+      Map<String, String> conf) {
     this.operationToResponses = operationToResponses;
     this.beamSqlEnv = beamSqlEnv;
+    this.conf = conf;
   }
 
   public void handle(
@@ -266,20 +270,26 @@ public class ExecutePlanHandler {
   private void handleRootPlan(Relation root, ExecutePlanResponse.Builder responseBuilder)
       throws IOException {
 
-    SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(beamSqlEnv);
+    SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(beamSqlEnv, conf);
     RelNode relNode = sparkRelationToRelNode.translate(root);
 
     if (relNode instanceof SparkLocalRelation) {
       SparkLocalRelation localRel = (SparkLocalRelation) relNode;
       respondWithArrow(
-          localRel.getRows(), CalciteUtils.toSchema(localRel.deriveRowType()), responseBuilder);
+          localRel.getRows(),
+          CalciteUtils.toSchema(localRel.deriveRowType()),
+          java.util.Collections.emptySet(),
+          responseBuilder);
     } else if (relNode instanceof LogicalProject) {
       LogicalProject project = (LogicalProject) relNode;
       if (project.getInput() instanceof SparkLocalRelation
           && RexUtil.isIdentity(project.getProjects(), project.getInput().getRowType())) {
         SparkLocalRelation localRel = (SparkLocalRelation) project.getInput();
         respondWithArrow(
-            localRel.getRows(), CalciteUtils.toSchema(localRel.deriveRowType()), responseBuilder);
+            localRel.getRows(),
+            CalciteUtils.toSchema(localRel.deriveRowType()),
+            java.util.Collections.emptySet(),
+            responseBuilder);
       } else {
         executeCalcitePlanAndRespond(beamSqlEnv.convertToBeamRel(relNode), responseBuilder);
       }
@@ -297,16 +307,83 @@ public class ExecutePlanHandler {
         org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.toSchema(
             beamRelNode.getRowType());
 
-    respondWithArrow(outputRows, beamSchema, responseBuilder);
+    java.util.Set<String> nullFields = new java.util.HashSet<>();
+    for (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField field :
+        beamRelNode.getRowType().getFieldList()) {
+      if (field.getType().getSqlTypeName()
+          == org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName.NULL) {
+        nullFields.add(field.getName());
+      }
+    }
+
+    java.util.Set<Integer> ntzFieldIndices = new java.util.HashSet<>();
+    if (beamRelNode
+        instanceof org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Calc) {
+      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Calc calc =
+          (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Calc) beamRelNode;
+      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexProgram program =
+          calc.getProgram();
+      List<org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLocalRef> projects =
+          program.getProjectList();
+      for (int i = 0; i < projects.size(); i++) {
+        org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLocalRef ref =
+            projects.get(i);
+        org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode expr =
+            program.getExprList().get(ref.getIndex());
+        if (expr
+            instanceof org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef) {
+          org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef inputRef =
+              (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef) expr;
+          int inputIndex = inputRef.getIndex();
+          org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType
+              inputRowType = calc.getInput().getRowType();
+          String inputFieldName = inputRowType.getFieldNames().get(inputIndex);
+          if (inputFieldName.endsWith("__ntz")) {
+            ntzFieldIndices.add(i);
+          }
+        }
+      }
+    }
+
+    org.apache.beam.sdk.schemas.Schema.Builder schemaBuilder =
+        org.apache.beam.sdk.schemas.Schema.builder();
+    List<org.apache.beam.sdk.schemas.Schema.Field> fields = beamSchema.getFields();
+    for (int i = 0; i < fields.size(); i++) {
+      org.apache.beam.sdk.schemas.Schema.Field field = fields.get(i);
+      String fieldName = field.getName();
+      if (ntzFieldIndices.contains(i) || fieldName.endsWith("__ntz")) {
+        String cleanName =
+            fieldName.endsWith("__ntz")
+                ? fieldName.substring(0, fieldName.length() - 5)
+                : fieldName;
+        schemaBuilder.addField(
+            org.apache.beam.sdk.schemas.Schema.Field.of(
+                    cleanName, field.getType().withMetadata("spark_type", "timestamp_ntz"))
+                .withNullable(field.getType().getNullable()));
+      } else {
+        schemaBuilder.addField(field);
+      }
+    }
+    org.apache.beam.sdk.schemas.Schema newSchema = schemaBuilder.build();
+
+    List<Row> newRows = new java.util.ArrayList<>();
+    for (Row row : outputRows) {
+      newRows.add(Row.withSchema(newSchema).addValues(row.getValues()).build());
+    }
+    outputRows = newRows;
+    beamSchema = newSchema;
+
+    respondWithArrow(outputRows, beamSchema, nullFields, responseBuilder);
   }
 
   private void respondWithArrow(
       List<Row> outputRows,
       org.apache.beam.sdk.schemas.Schema beamSchema,
+      java.util.Set<String> nullFields,
       ExecutePlanResponse.Builder responseBuilder)
       throws IOException {
 
-    Schema arrowSchema = RowToArrowConverter.toArrowSchema(beamSchema);
+    Schema arrowSchema = RowToArrowConverter.toArrowSchema(beamSchema, nullFields);
 
     ExecutePlanResponse.ArrowBatch.Builder arrowBatchBuilder =
         ExecutePlanResponse.ArrowBatch.newBuilder();
@@ -355,7 +432,7 @@ public class ExecutePlanHandler {
     }
 
     // 1. Translate the input relation to a PCollection<Row>.
-    SparkRelationToRelNode translator = new SparkRelationToRelNode(beamSqlEnv);
+    SparkRelationToRelNode translator = new SparkRelationToRelNode(beamSqlEnv, conf);
     RelNode relNode = translator.translate(writeOperation.getInput());
     BeamRelNode beamRelNode = beamSqlEnv.convertToBeamRel(relNode);
 

@@ -156,7 +156,9 @@ def load_pytest_ignore_args(ignore_file=IGNORED_TESTS_FILE):
         with open(ignore_file, "r") as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith("#"):
+                if "#" in line:
+                    line = line.split("#")[0].strip()
+                if line:
                     args.append(f"--deselect={line}")
     return args
 
@@ -247,6 +249,16 @@ def do_update_ignore_list(args):
     ensure_venv()
     ensure_spark_clone()
     
+    # Read existing flakes to preserve them
+    existing_flakes = set()
+    if os.path.exists(IGNORED_TESTS_FILE):
+        with open(IGNORED_TESTS_FILE, "r") as f:
+            for line in f:
+                line = line.strip()
+                if "# flake" in line:
+                    test_id = line.split("#")[0].strip()
+                    existing_flakes.add(test_id)
+                    
     with BlockingServerManager() as server:
         print("Step 1: Running the full compliance test suite to determine failing tests...")
         
@@ -311,12 +323,105 @@ def do_update_ignore_list(args):
                 "# Format: <path_to_test>::<ClassName>::<test_method>\n"
             ]
             
+        # Combine failed_tests and existing_flakes
+        all_tests_to_write = set(failed_tests).union(existing_flakes)
+            
         with open(IGNORED_TESTS_FILE, "w") as f:
             f.writelines(header)
-            for test in sorted(list(failed_tests)):
-                f.write(f"{test}\n")
+            for test in sorted(list(all_tests_to_write)):
+                if test in existing_flakes:
+                    f.write(f"{test} # flake\n")
+                else:
+                    f.write(f"{test}\n")
                 
         print("Ignore list updated.")
+
+def do_update_flakes(args):
+    """Runs tests multiple times to detect flakes and update ignore list."""
+    ensure_venv()
+    ensure_spark_clone()
+    
+    num_runs = args.num_flake_runs
+    print(f"Running flake detection with {num_runs} runs...")
+    
+    all_failed_sets = []
+    
+    with BlockingServerManager() as server:
+        for i in range(num_runs):
+            print(f"\n--- Run {i+1}/{num_runs} ---")
+            failed_this_run = set()
+            
+            env = os.environ.copy()
+            env["SPARK_CONNECT_TESTING_REMOTE"] = "sc://localhost:12345"
+            env["SPARK_TESTING"] = "1"
+            env["SPARK_HOME"] = SPARK_DOWNLOAD_DIR
+            env["PYTHONPATH"] = os.path.join(SPARK_CLONE_DIR, "python") + (os.pathsep + env["PYTHONPATH"] if "PYTHONPATH" in env else "")
+            env["SPARK_SKIP_CONNECT_COMPAT_TESTS"] = "1"
+            
+            cmd = [
+                get_python_exec(), "-m", "pytest", "-n", "auto", "-q", "--tb=no",
+                f"--ignore={os.path.join(TEST_DIR, 'test_session.py')}",
+                "--timeout=10", "--durations=100"
+            ]
+            test_targets = args.test_targets if args.test_targets else TARGET_DIRS
+            cmd.extend(test_targets)
+            
+            process = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                text=True, cwd=SPARK_CLONE_DIR, env=env
+            )
+            
+            for line in process.stdout:
+                print(line, end="")
+                line_stripped = line.strip()
+                if line_stripped.startswith("FAILED ") or line_stripped.startswith("ERROR "):
+                    test_id = line_stripped.split(" ", 1)[1].split(" - ")[0]
+                    failed_this_run.add(test_id)
+                    
+            process.wait()
+            all_failed_sets.append(failed_this_run)
+            print(f"Run {i+1} completed with {len(failed_this_run)} failures.")
+            
+    all_ever_failed = set().union(*all_failed_sets)
+    
+    hard_failures = set()
+    flaky_tests = set()
+    
+    for test in all_ever_failed:
+        fail_count = sum(1 for s in all_failed_sets if test in s)
+        if fail_count == num_runs:
+            hard_failures.add(test)
+        else:
+            flaky_tests.add(test)
+            
+    print(f"\nFlake detection summary:")
+    print(f"Hard failures: {len(hard_failures)}")
+    print(f"Flaky tests: {len(flaky_tests)}")
+    
+    header = []
+    if os.path.exists(IGNORED_TESTS_FILE):
+        with open(IGNORED_TESTS_FILE, "r") as f:
+            for line in f:
+                if line.startswith("#"):
+                    header.append(line)
+                else:
+                    break
+    if not header:
+        header = [
+            "# Tests to ignore in the Spark Connect compliance test suite\n",
+            "# Format: <path_to_test>::<ClassName>::<test_method>\n"
+        ]
+        
+    all_tests_to_write = hard_failures.union(flaky_tests)
+    with open(IGNORED_TESTS_FILE, "w") as f:
+        f.writelines(header)
+        for test in sorted(list(all_tests_to_write)):
+            if test in flaky_tests:
+                f.write(f"{test} # flake\n")
+            else:
+                f.write(f"{test}\n")
+            
+    print("Ignore list updated with flake info.")
 
 def do_stats(args):
     """Computes test compliance test coverage."""
@@ -330,7 +435,9 @@ def do_stats(args):
     with open(IGNORED_TESTS_FILE, "r") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith("#"):
+            if "#" in line:
+                line = line.split("#")[0].strip()
+            if line:
                 total_ignored += 1
                 cat, subcat = extract_category(line)
                 ignored_counts[cat][subcat] += 1
@@ -416,6 +523,12 @@ def main():
     # update-ignore-list command
     parser_update = subparsers.add_parser("update-ignore-list", help="Update ignored_tests.txt based on failures")
     parser_update.set_defaults(func=do_update_ignore_list)
+
+    # update-flakes command
+    parser_flakes = subparsers.add_parser("update-flakes", help="Update ignore list with flaky test detection")
+    parser_flakes.add_argument("--num-flake-runs", type=int, default=3, help="Number of runs to detect flakes")
+    parser_flakes.add_argument("test_targets", nargs="*", help="Specific tests or directories to target")
+    parser_flakes.set_defaults(func=do_update_flakes)
 
     # stats command
     parser_stats = subparsers.add_parser("stats", help="Compute compliance stats")

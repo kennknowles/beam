@@ -26,3 +26,4 @@
 - Use T-shirt sizes (S, M, L, XL) for effort estimation to keep it high-level unless a more granular scale is requested.
 - Use the **AI Ease Scale** (High, Medium, Low) to help prioritize tasks that can be accelerated by AI.
 - Highlight core SQL compliance as the major bottleneck if it is still at low compliance, as it usually underpins all other functionalities.
+- **Reference Test Descriptions**: Always reference the descriptions of tests in `sparkconnect/compliance_tests_description.md` when producing or refining estimates to understand the specific functionality and gaps.

@@ -16,4 +16,5 @@ Reference this skill when asked to plan out subsequent milestones or evaluate ho
    *   **Parsing / SQL Translation (`ParseException`)**: Low effort. Requires adding regex replacements to `ExecutePlanHandler.java` and `SparkRelationToRelNode.java`.
    *   **Logical Planning (`CannotPlanException`)**: Medium effort. Usually involves addressing Calcite-specific quirks or missing mappings in `SparkExpressionToRexNode.java` or `CalciteUtils.java`.
    *   **Runtime Execution (`PipelineExecutionException` or Similar)**: High effort. Suggests core logic flaws in Beam SQL execution or unsupported PTransform nodes natively.
+   *   **Leverage Test Descriptions**: Consult `sparkconnect/compliance_tests_description.md` to understand the expected behavior and edge cases of the failing tests. This will help guide the development of new functionality or fixes.
 5. **Report Generation**: Synthesize your findings. Use an artifact or direct message to outline the failing stack trace, point out the source files needing work, and declare the expected effort.

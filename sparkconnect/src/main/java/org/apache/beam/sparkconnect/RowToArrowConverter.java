@@ -76,6 +76,10 @@ public final class RowToArrowConverter {
       arrowType = new ArrowType.Utf8();
     } else if (type.getTypeName() == TypeName.INT32) {
       arrowType = new ArrowType.Int(32, true);
+    } else if (type.getTypeName() == TypeName.INT16) {
+      arrowType = new ArrowType.Int(16, true);
+    } else if (type.getTypeName() == TypeName.BYTE) {
+      arrowType = new ArrowType.Int(8, true);
     } else if (type.getTypeName() == TypeName.INT64) {
       arrowType = new ArrowType.Int(64, true);
     } else if (type.getTypeName() == TypeName.FLOAT) {
@@ -101,6 +105,9 @@ public final class RowToArrowConverter {
       org.apache.beam.sdk.schemas.Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
       if (logicalType != null && "beam:logical_type:date:v1".equals(logicalType.getIdentifier())) {
         arrowType = new ArrowType.Date(DateUnit.DAY);
+      } else if (logicalType != null
+          && "beam:logical_type:nanos_duration:v1".equals(logicalType.getIdentifier())) {
+        arrowType = new ArrowType.Interval(org.apache.arrow.vector.types.IntervalUnit.DAY_TIME);
       } else {
         arrowType = new ArrowType.Utf8();
       }
@@ -276,6 +283,11 @@ public final class RowToArrowConverter {
       ((VarCharVector) vector).setSafe(index, strValue.getBytes(StandardCharsets.UTF_8));
     } else if (vector instanceof IntVector) {
       ((IntVector) vector).setSafe(index, ((Number) value).intValue());
+    } else if (vector instanceof org.apache.arrow.vector.SmallIntVector) {
+      ((org.apache.arrow.vector.SmallIntVector) vector)
+          .setSafe(index, ((Number) value).shortValue());
+    } else if (vector instanceof org.apache.arrow.vector.TinyIntVector) {
+      ((org.apache.arrow.vector.TinyIntVector) vector).setSafe(index, ((Number) value).byteValue());
     } else if (vector instanceof BigIntVector) {
       ((BigIntVector) vector).setSafe(index, ((Number) value).longValue());
     } else if (vector instanceof Float4Vector) {
@@ -307,6 +319,19 @@ public final class RowToArrowConverter {
         throw new RuntimeException(
             "Unsupported Object type for Date vector: " + value.getClass().getName());
       }
+    } else if (vector instanceof org.apache.arrow.vector.IntervalDayVector) {
+      org.apache.beam.sdk.values.Row durationRow = (org.apache.beam.sdk.values.Row) value;
+      Long secondsObj = durationRow.getInt64(0);
+      Integer nanosObj = durationRow.getInt32(1);
+
+      long seconds = secondsObj != null ? secondsObj : 0L;
+      int nanos = nanosObj != null ? nanosObj : 0;
+
+      long totalMillis = seconds * 1000L + nanos / 1000000L;
+      int days = (int) (totalMillis / (24L * 60 * 60 * 1000));
+      int millis = (int) (totalMillis % (24L * 60 * 60 * 1000));
+
+      ((org.apache.arrow.vector.IntervalDayVector) vector).setSafe(index, days, millis);
     } else if (vector instanceof ListVector) {
       ListVector listVector = (ListVector) vector;
       List<?> list = (List<?>) value;

@@ -81,6 +81,7 @@ public class ConfigHandler {
   }
 
   private void handleConfigGet(ConfigRequest.Get request, ConfigResponse.Builder responseBuilder) {
+    LOG.info("Handling Config GET for keys: {}", request.getKeysList());
     for (String key : request.getKeysList()) {
       KeyValue.Builder kvBuilder = KeyValue.newBuilder();
       kvBuilder.setKey(key);

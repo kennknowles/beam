@@ -320,20 +320,16 @@ python/pyspark/pandas/tests/connect/computation/test_parity_stats.py::StatsParit
 python/pyspark/pandas/tests/connect/computation/test_parity_stats.py::StatsParityTests::test_stats_on_non_numeric_columns_should_be_discarded_if_numeric_only_is_true
 python/pyspark/pandas/tests/connect/computation/test_parity_stats.py::StatsParityTests::test_sum
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::AsTypeParityTests::test_assert_remote_mode # flake
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::AsTypeParityTests::test_astype
+python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::AsTypeParityTests::test_astype # requires map construction support missing in Beam SQL
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::AsTypeParityTests::test_astype_eager_check
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::ReusedConnectTestCase::test_assert_remote_mode # flake
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_base.py::BaseParityTests::test_assert_remote_mode # flake
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_base.py::BaseParityTests::test_bool_ext_ops # flake
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_base.py::BaseParityTests::test_data_type_ops # flake
+
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_base.py::ReusedConnectTestCase::test_assert_remote_mode # flake
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_abs
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_add
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_and
+
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_assert_remote_mode # flake
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_astype
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_eq
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_floordiv
+
+
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_from_to_pandas
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_ge
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_gt

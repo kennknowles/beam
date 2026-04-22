@@ -74,6 +74,12 @@ public class RelDataTypeToSparkDataType {
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
         sparkTypeBuilder.setTimestampNtz(DataType.TimestampNTZ.newBuilder().build());
         break;
+      case INTERVAL_DAY_SECOND:
+        sparkTypeBuilder.setDayTimeInterval(DataType.DayTimeInterval.newBuilder().build());
+        break;
+      case INTERVAL_YEAR_MONTH:
+        sparkTypeBuilder.setYearMonthInterval(DataType.YearMonthInterval.newBuilder().build());
+        break;
       case BINARY:
       case VARBINARY:
         sparkTypeBuilder.setBinary(DataType.Binary.newBuilder().build());

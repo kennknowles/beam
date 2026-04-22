@@ -86,7 +86,25 @@ public class BeamValuesRel extends Values implements BeamRelNode {
           BeamValuesRel.class.getSimpleName(),
           pinput);
 
-      Schema schema = CalciteUtils.toSchema(getRowType());
+      Schema inferredSchema = CalciteUtils.toSchema(getRowType());
+      Schema.Builder schemaBuilder = Schema.builder();
+      for (int i = 0; i < inferredSchema.getFieldCount(); i++) {
+        Schema.Field field = inferredSchema.getField(i);
+        boolean hasNull = false;
+        for (ImmutableList<RexLiteral> tuple : tuples) {
+          if (tuple.get(i).getValue() == null) {
+            hasNull = true;
+            break;
+          }
+        }
+        if (hasNull && !field.getType().getNullable()) {
+          schemaBuilder.addField(field.getName(), field.getType().withNullable(true));
+        } else {
+          schemaBuilder.addField(field);
+        }
+      }
+      Schema schema = schemaBuilder.build();
+      System.out.println("Jetski: New Schema is " + schema);
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
       return pinput
           .getPipeline()
@@ -99,7 +117,18 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
   private Row tupleToRow(Schema schema, ImmutableList<RexLiteral> tuple) {
     return IntStream.range(0, tuple.size())
-        .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
+        .mapToObj(
+            i -> {
+              Object val = tuple.get(i).getValue();
+              System.out.println(
+                  "Jetski: Field "
+                      + i
+                      + " value is "
+                      + val
+                      + " type is "
+                      + (val != null ? val.getClass().getName() : "null"));
+              return autoCastField(schema.getField(i), val);
+            })
         .collect(toRow(schema));
   }
 

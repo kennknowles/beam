@@ -1001,21 +1001,19 @@ public class SparkRelationToRelNode {
 
   @SuppressWarnings("unused")
   private RelNode translateDrop(Drop dropProto) {
-    return unsupported("Drop");
-    //    RelNode input = translate(dropProto.getInput());
-    //    List<String> dropNames = dropProto.getColumnNamesList();
-    //    // TODO: Handle dropProto.getColumns() expressions
-    //
-    //    List<RexNode> projections = new ArrayList<>();
-    //    List<String> newFieldNames = new ArrayList<>();
-    //    for (RelDataTypeField field : input.getRowType().getFieldList()) {
-    //      if (!dropNames.contains(field.getName())) {
-    //        projections.add(cluster.getRexBuilder().makeInputRef(field.getType(),
-    // field.getIndex()));
-    //        newFieldNames.add(field.getName());
-    //      }
-    //    }
-    //    return LogicalProject.create(input, projections, newFieldNames);
+    RelNode input = translate(dropProto.getInput());
+    List<String> dropNames = dropProto.getColumnNamesList();
+    // TODO: Handle dropProto.getColumns() expressions
+
+    List<RexNode> projections = new ArrayList<>();
+    List<String> newFieldNames = new ArrayList<>();
+    for (RelDataTypeField field : input.getRowType().getFieldList()) {
+      if (!dropNames.contains(field.getName())) {
+        projections.add(cluster.getRexBuilder().makeInputRef(field.getType(), field.getIndex()));
+        newFieldNames.add(field.getName());
+      }
+    }
+    return LogicalProject.create(input, Collections.emptyList(), projections, newFieldNames);
   }
 
   private RelNode translateWithColumnsRenamed(WithColumnsRenamed renameProto) {
@@ -1101,6 +1099,7 @@ public class SparkRelationToRelNode {
 
   private RelDataType arrowFieldToSqlType(Field field, JavaTypeFactory typeFactory) {
     ArrowType arrowType = field.getType();
+    LOG.info("Arrow type for field {}: {}", field.getName(), arrowType);
     RelDataType type;
     if (arrowType instanceof org.apache.arrow.vector.types.pojo.ArrowType.Timestamp) {
       type = typeFactory.createSqlType(SqlTypeName.TIMESTAMP);
@@ -1129,18 +1128,37 @@ public class SparkRelationToRelNode {
         structBuilder.add(childField.getName(), arrowFieldToSqlType(childField, typeFactory));
       }
       type = structBuilder.build();
+    } else if (arrowType instanceof ArrowType.Interval) {
+      ArrowType.Interval intervalType = (ArrowType.Interval) arrowType;
+      if (intervalType.getUnit() == org.apache.arrow.vector.types.IntervalUnit.DAY_TIME) {
+        LOG.info("Mapping Arrow Interval(DAY_TIME) to SqlTypeName.INTERVAL_DAY_SECOND");
+        type = typeFactory.createSqlType(SqlTypeName.INTERVAL_DAY_SECOND);
+      } else {
+        LOG.info("Mapping Arrow Interval(non-DAY_TIME) to SqlTypeName.VARCHAR");
+        type = typeFactory.createSqlType(SqlTypeName.VARCHAR);
+      }
+    } else if (arrowType instanceof ArrowType.Duration) {
+      LOG.info("Mapping Arrow Duration to SqlTypeName.INTERVAL_DAY_SECOND");
+      type = typeFactory.createSqlType(SqlTypeName.INTERVAL_DAY_SECOND);
     } else {
       try {
         type = ArrowFieldTypeFactory.toType(arrowType, typeFactory);
         if (type.getSqlTypeName() == SqlTypeName.REAL) {
           type = typeFactory.createSqlType(SqlTypeName.FLOAT);
         }
-      } catch (IllegalArgumentException e) {
-        LOG.warn("Unsupported Arrow type: {}, falling back to VARCHAR", arrowType);
+      } catch (Exception e) {
+        LOG.warn("Unsupported Arrow type: {}, falling back to VARCHAR", arrowType, e);
         type = typeFactory.createSqlType(SqlTypeName.VARCHAR);
       }
     }
-    return typeFactory.createTypeWithNullability(type, field.isNullable());
+    boolean nullable = field.isNullable();
+    if ("__none__".equals(field.getName())
+        && type.getSqlTypeName()
+            == org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName
+                .BOOLEAN) {
+      nullable = false;
+    }
+    return typeFactory.createTypeWithNullability(type, nullable);
   }
 
   private RelDataType arrowSchemaToRowType(

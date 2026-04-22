@@ -26,6 +26,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
@@ -136,6 +137,7 @@ public class CalciteUtils {
           .put(TIME_WITH_LOCAL_TZ, SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
           .put(TIMESTAMP, SqlTypeName.TIMESTAMP)
           .put(TIMESTAMP_WITH_LOCAL_TZ, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          .put(FieldType.logicalType(new NanosDuration()), SqlTypeName.INTERVAL_DAY_SECOND)
           .build();
 
   private static final ImmutableMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
@@ -161,6 +163,7 @@ public class CalciteUtils {
           .put(SqlTypeName.TIMESTAMP, TIMESTAMP)
           .put(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TZ)
           .put(SqlTypeName.NULL, VARCHAR)
+          .put(SqlTypeName.INTERVAL_DAY_SECOND, FieldType.logicalType(new NanosDuration()))
           .build();
 
   // Since there are multiple Calcite type that correspond to a single Beam type, this is the

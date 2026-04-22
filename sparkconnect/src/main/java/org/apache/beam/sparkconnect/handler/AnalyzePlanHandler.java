@@ -28,9 +28,12 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDat
 import org.apache.spark.connect.proto.AnalyzePlanRequest;
 import org.apache.spark.connect.proto.AnalyzePlanResponse;
 import org.apache.spark.connect.proto.DataType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class AnalyzePlanHandler {
 
+  private static final Logger LOG = LoggerFactory.getLogger(AnalyzePlanHandler.class);
   private final BeamSqlEnv beamSqlEnv;
   private final Map<String, String> conf;
 
@@ -41,6 +44,7 @@ public final class AnalyzePlanHandler {
 
   public void handle(
       AnalyzePlanRequest request, StreamObserver<AnalyzePlanResponse> responseObserver) {
+    LOG.info("analyzePlan request: {}", request.getAnalyzeCase());
     try {
       AnalyzePlanResponse.Builder responseBuilder = AnalyzePlanResponse.newBuilder();
       responseBuilder.setSessionId(request.getSessionId());
@@ -97,6 +101,7 @@ public final class AnalyzePlanHandler {
       responseObserver.onNext(responseBuilder.build());
       responseObserver.onCompleted();
     } catch (Exception e) {
+      LOG.error("Error handling analyzePlan", e);
       responseObserver.onError(e);
     }
   }
@@ -111,9 +116,24 @@ public final class AnalyzePlanHandler {
     RelNode relNode = translator.translate(schemaRequest.getPlan().getRoot());
     RelDataType rowType = relNode.getRowType();
 
-    // You will need a converter from Calcite's RelDataType to Spark Connect's DataType proto.
-    // This is the inverse of the SparkDataTypeToRelDataType you created earlier.
-    DataType sparkDataType = new RelDataTypeToSparkDataType().relDataTypeToSparkDataType(rowType);
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory.Builder
+        builder = relNode.getCluster().getTypeFactory().builder();
+    for (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField field :
+        rowType.getFieldList()) {
+      String name = field.getName();
+      RelDataType type = field.getType();
+      if ("__none__".equals(name)
+          && type.getSqlTypeName()
+              == org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName
+                  .BOOLEAN) {
+        type = relNode.getCluster().getTypeFactory().createTypeWithNullability(type, false);
+      }
+      builder.add(name, type);
+    }
+    RelDataType newRowType = builder.build();
+
+    DataType sparkDataType =
+        new RelDataTypeToSparkDataType().relDataTypeToSparkDataType(newRowType);
 
     return AnalyzePlanResponse.Schema.newBuilder().setSchema(sparkDataType).build();
   }

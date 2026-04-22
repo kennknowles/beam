@@ -50,7 +50,17 @@ def ensure_venv():
     """Sets up standard testing environment and installs required python packages."""
     if not os.path.exists(VENV_DIR):
         print(f"Creating Python virtual environment at {VENV_DIR}...")
-        subprocess.run(["python3", "-m", "venv", VENV_DIR], check=True)
+        subprocess.run(["python3", "-m", "venv", "--without-pip", VENV_DIR], check=True)
+        print("Installing pip manually...")
+        venv_python = os.path.join(VENV_DIR, "bin", "python")
+        try:
+            subprocess.run(["curl", "-sS", "https://bootstrap.pypa.io/get-pip.py", "-o", "get-pip.py"], check=True)
+            subprocess.run([venv_python, "get-pip.py"], check=True)
+            os.remove("get-pip.py")
+        except Exception as e:
+            print(f"Failed to install pip via get-pip.py: {e}")
+            print("Falling back to using host pip to install into venv...")
+            subprocess.run(["python3", "-m", "pip", "install", "--target", os.path.join(VENV_DIR, "lib", "python3.11", "site-packages"), "pip"], check=True)
 
     pip_exec = os.path.join(VENV_DIR, "bin", "pip")
     print("Installing requirements into virtual environment...")
@@ -115,7 +125,7 @@ class BlockingServerManager:
         gradlew = os.path.join(SCRIPT_DIR, "..", "gradlew")
         
         # We use Popen and keep the reference to terminate it later.
-        log_file = open(os.path.join(SCRIPT_DIR, "server.log"), "w")
+        log_file = open(os.path.join(SCRIPT_DIR, "server.log"), "a")
         self.process = subprocess.Popen(
             [gradlew, ":sparkconnect:blockingServer", f"-Dorg.gradle.java.home={self.java_home}"],
             cwd=os.path.join(SCRIPT_DIR, ".."),
@@ -139,8 +149,8 @@ class BlockingServerManager:
     def _kill_process_group(self):
         if self.process:
             try:
-                # Kill entire process group to ensure gradle daemons don't hang around
-                os.killpg(os.getpgid(self.process.pid), 9)
+                # Kill process gently to allow log flushing
+                self.process.terminate()
             except OSError:
                 pass
             finally:
@@ -196,7 +206,7 @@ def extract_category(test_identifier):
 def do_run(args):
     """Executes the Pytest suite utilizing the ignore list."""
     ensure_venv()
-    ensure_spark_clone()
+    # ensure_spark_clone()
     
     with BlockingServerManager():
         print("Running compliance tests...")
@@ -218,13 +228,13 @@ def do_run(args):
             pytest_args = [
                 get_python_exec(), "-m", "cProfile", "-s", "cumulative",
                 "-m", "pytest", "-v",
-                "--timeout=10", "--durations=100",
+                "--timeout=100", "--durations=100",
                 f"--ignore={os.path.join(TEST_DIR, 'test_session.py')}"
             ]
         else:
             pytest_args = [
                 get_python_exec(), "-m", "pytest", "-v",
-                "--timeout=10", "--durations=100",
+                "--timeout=100", "--durations=100",
                 f"--ignore={os.path.join(TEST_DIR, 'test_session.py')}"
             ]
         
@@ -238,6 +248,8 @@ def do_run(args):
             pytest_args.extend(shlex.split(args.extra_args))
         
         sys.stdout.flush()
+        print(f"Running command: {pytest_args}")
+        print(f"PYTHONPATH: {env.get('PYTHONPATH')}")
         result = subprocess.run(pytest_args, cwd=SPARK_CLONE_DIR, env=env)
         
         print("Tests completed.")

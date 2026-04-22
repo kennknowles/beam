@@ -5,6 +5,9 @@
 **How to Use**:
 Reference this skill when asked to plan out subsequent milestones or evaluate how hard it is to increase compliance in a specific area.
 
+**General Principle**:
+- **Rely only on the most recent test run** for information about the status. Seeing errors in past test runs does not mean it will still fail. Ignore previous traces when analyzing current status.
+
 **Process Execution**:
 1. **Data Gathering**: Run `./gradlew :sparkconnect:computeComplianceStats` from the root of the repository to view the current landscape of compliance deficits across categories.
 2. **Category Selection**: Choose a category with 0% or particularly low compliance, preferably one that covers core SQL/DataFrame functionality (like `test_parity_functions` or `test_parity_types`).
@@ -12,6 +15,7 @@ Reference this skill when asked to plan out subsequent milestones or evaluate ho
    ```bash
    ./gradlew :sparkconnect:complianceTests -PnoIgnoreList -PtestTarget="python/pyspark/sql/tests/connect/test_parity_functions.py::FunctionsParityTests::test_specific_method"
    ```
+   *Note: The server is run via `./gradlew :sparkconnect:blockingServer`. The `complianceTests` task starts it automatically, but you can run it manually for debugging purposes.*
 4. **Failure Analysis & Effort Estimation**: Examine the output in `server.log` to categorize the error:
    *   **Parsing / SQL Translation (`ParseException`)**: Low effort. Requires adding regex replacements to `ExecutePlanHandler.java` and `SparkRelationToRelNode.java`.
    *   **Logical Planning (`CannotPlanException`)**: Medium effort. Usually involves addressing Calcite-specific quirks or missing mappings in `SparkExpressionToRexNode.java` or `CalciteUtils.java`.

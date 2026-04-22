@@ -94,6 +94,7 @@ public class SparkExpressionToRexNode {
           .put("^", SqlStdOperatorTable.BITXOR)
           .put("bitwiseXOR", SqlStdOperatorTable.BITXOR)
           .put("between", SqlStdOperatorTable.BETWEEN)
+          .put("concat", SqlStdOperatorTable.CONCAT)
           .build();
 
   public RexNode translate(Expression expr) {
@@ -116,6 +117,8 @@ public class SparkExpressionToRexNode {
         return translateExpressionString(expr.getExpressionString());
       case ALIAS:
         return translate(expr.getAlias().getExpr());
+      case UNRESOLVED_EXTRACT_VALUE:
+        return translateUnresolvedExtractValue(expr.getUnresolvedExtractValue());
       default:
         throw new UnsupportedOperationException(
             "Spark Expression type not supported: " + expr.getExprTypeCase());
@@ -163,6 +166,18 @@ public class SparkExpressionToRexNode {
       RexNode nullNode = builder.makeNullLiteral(a.getType());
       RexNode modNode = builder.makeCall(SqlStdOperatorTable.MOD, a, b);
       return builder.makeCall(SqlStdOperatorTable.CASE, isZero, nullNode, modNode);
+    }
+
+    if (funcName.equalsIgnoreCase("when")) {
+      if (operands.size() == 2) {
+        RexNode condition = operands.get(0);
+        RexNode value = operands.get(1);
+        RexBuilder builder = cluster.getRexBuilder();
+        return builder.makeCall(
+            SqlStdOperatorTable.CASE, condition, value, builder.makeNullLiteral(value.getType()));
+      } else {
+        return cluster.getRexBuilder().makeCall(SqlStdOperatorTable.CASE, operands);
+      }
     }
 
     // Special handling for TRIM, LTRIM, RTRIM which have different signatures in Calcite
@@ -240,9 +255,55 @@ public class SparkExpressionToRexNode {
       }
     }
 
+    if (funcName.equalsIgnoreCase("concat")) {
+      RexNode concatCall = cluster.getRexBuilder().makeCall(SqlStdOperatorTable.CONCAT, operands);
+      return cluster
+          .getRexBuilder()
+          .makeCast(
+              cluster
+                  .getTypeFactory()
+                  .createSqlType(
+                      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName
+                          .VARBINARY),
+              concatCall);
+    }
+
+    if (funcName.equalsIgnoreCase("isnan") && operands.size() == 1) {
+      RexNode operand = operands.get(0);
+      SqlTypeName typeName = operand.getType().getSqlTypeName();
+      if (typeName == SqlTypeName.FLOAT || typeName == SqlTypeName.DOUBLE) {
+        return cluster.getRexBuilder().makeCall(SqlStdOperatorTable.NOT_EQUALS, operand, operand);
+      } else {
+        return cluster.getRexBuilder().makeLiteral(false);
+      }
+    }
+
+    if (funcName.equalsIgnoreCase("+") && operands.size() == 2) {
+      RexNode left = operands.get(0);
+      RexNode right = operands.get(1);
+      if ((left.getType().getSqlTypeName() == SqlTypeName.VARBINARY
+              || left.getType().getSqlTypeName() == SqlTypeName.BINARY)
+          && (right.getType().getSqlTypeName() == SqlTypeName.VARBINARY
+              || right.getType().getSqlTypeName() == SqlTypeName.BINARY)) {
+        return cluster.getRexBuilder().makeCall(SqlStdOperatorTable.CONCAT, operands);
+      }
+    }
+
+    if (funcName.equalsIgnoreCase("map")) {
+      return cluster.getRexBuilder().makeCall(SqlStdOperatorTable.MAP_VALUE_CONSTRUCTOR, operands);
+    }
+
     // First, check our map for common operators like '=='
     if (OPERATOR_MAP.containsKey(funcName)) {
-      return cluster.getRexBuilder().makeCall(OPERATOR_MAP.get(funcName), operands);
+      SqlOperator op = OPERATOR_MAP.get(funcName);
+      RexNode call = cluster.getRexBuilder().makeCall(op, operands);
+      if (op.equals(SqlStdOperatorTable.IS_NULL) || op.equals(SqlStdOperatorTable.IS_NOT_NULL)) {
+        return cluster
+            .getRexBuilder()
+            .makeCast(
+                cluster.getTypeFactory().createTypeWithNullability(call.getType(), false), call);
+      }
+      return call;
     }
 
     // If not in the map, use Calcite's operator table lookup
@@ -270,6 +331,17 @@ public class SparkExpressionToRexNode {
     if (operators.isEmpty()) {
       if (funcName.equalsIgnoreCase("show_string")) {
         return cluster.getRexBuilder().makeLiteral("show_string");
+      }
+      if (funcName.equalsIgnoreCase("monotonically_increasing_id")) {
+        return cluster
+            .getRexBuilder()
+            .makeExactLiteral(
+                java.math.BigDecimal.ZERO,
+                cluster
+                    .getTypeFactory()
+                    .createSqlType(
+                        org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
+                            .SqlTypeName.BIGINT));
       }
       throw new UnsupportedOperationException("Function not found in Calcite: " + funcName);
     }
@@ -434,6 +506,12 @@ public class SparkExpressionToRexNode {
             org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimestampString
                 .fromMillisSinceEpoch(millis),
             typeFactory.createSqlType(SqlTypeName.TIMESTAMP).getPrecision());
+      case BINARY:
+        return rexBuilder.makeLiteral(
+            new org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.ByteString(
+                literal.getBinary().toByteArray()),
+            typeFactory.createSqlType(SqlTypeName.VARBINARY),
+            false);
       default:
         throw new UnsupportedOperationException(
             "Literal type not supported: " + literal.getLiteralTypeCase());
@@ -444,9 +522,10 @@ public class SparkExpressionToRexNode {
     String name = attr.getUnparsedIdentifier();
     List<String> parts = Splitter.on('.').splitToList(name);
 
-    RelDataTypeField field = inputRowType.getField(parts.get(0), false, false);
+    String fieldName = parts.get(0).replace("`", "");
+    RelDataTypeField field = inputRowType.getField(fieldName, false, false);
     if (field == null) {
-      field = inputRowType.getField(parts.get(0) + "__ntz", false, false);
+      field = inputRowType.getField(fieldName + "__ntz", false, false);
     }
     if (field == null) {
       throw new IllegalArgumentException(
@@ -516,7 +595,38 @@ public class SparkExpressionToRexNode {
       throw new UnsupportedOperationException(
           "Casting to type_str is not supported in this translator.");
     }
-    return cluster.getRexBuilder().makeCast(targetType, operand);
+    if (targetType.getSqlTypeName()
+            == org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName
+                .BOOLEAN
+        && (operand.getType().getSqlTypeName()
+                == org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName
+                    .BINARY
+            || operand.getType().getSqlTypeName()
+                == org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName
+                    .VARBINARY)) {
+      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode emptyBinary =
+          cluster
+              .getRexBuilder()
+              .makeBinaryLiteral(
+                  new org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util
+                      .ByteString(new byte[0]));
+      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode call =
+          cluster
+              .getRexBuilder()
+              .makeCall(
+                  org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun
+                      .SqlStdOperatorTable.NOT_EQUALS,
+                  operand,
+                  emptyBinary);
+      return cluster
+          .getRexBuilder()
+          .makeCast(
+              cluster.getTypeFactory().createTypeWithNullability(call.getType(), false), call);
+    }
+    RexNode call = cluster.getRexBuilder().makeCast(targetType, operand);
+    return cluster
+        .getRexBuilder()
+        .makeCast(cluster.getTypeFactory().createTypeWithNullability(call.getType(), false), call);
   }
 
   /**
@@ -548,6 +658,7 @@ public class SparkExpressionToRexNode {
         String unparsed = sparkExpression.getUnresolvedAttribute().getUnparsedIdentifier();
         int dotIndex = unparsed.lastIndexOf('.');
         String fieldName = (dotIndex == -1) ? unparsed : unparsed.substring(dotIndex + 1);
+        fieldName = fieldName.replace("`", "");
         RelDataTypeField field = inputRowType.getField(fieldName, false, false);
         if (field == null) {
           field = inputRowType.getField(fieldName + "__ntz", false, false);
@@ -561,5 +672,23 @@ public class SparkExpressionToRexNode {
         // name).
         return null;
     }
+  }
+
+  private RexNode translateUnresolvedExtractValue(Expression.UnresolvedExtractValue extract) {
+    RexNode childNode = translate(extract.getChild());
+    Expression extraction = extract.getExtraction();
+    if (extraction.hasLiteral() && extraction.getLiteral().hasString()) {
+      String fieldName = extraction.getLiteral().getString();
+      if (childNode.getType().isStruct()) {
+        return cluster.getRexBuilder().makeFieldAccess(childNode, fieldName, false);
+      }
+    }
+    return cluster
+        .getRexBuilder()
+        .makeCall(
+            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+                .ITEM,
+            childNode,
+            translate(extraction));
   }
 }

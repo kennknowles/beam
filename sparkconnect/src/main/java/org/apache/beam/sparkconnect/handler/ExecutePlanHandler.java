@@ -60,6 +60,7 @@ import org.apache.commons.csv.QuoteMode;
 import org.apache.spark.connect.proto.Command;
 import org.apache.spark.connect.proto.ExecutePlanRequest;
 import org.apache.spark.connect.proto.ExecutePlanResponse;
+import org.apache.spark.connect.proto.MlCommandResult;
 import org.apache.spark.connect.proto.Relation;
 import org.apache.spark.connect.proto.SqlCommand;
 import org.apache.spark.connect.proto.WriteOperation;
@@ -85,7 +86,7 @@ public class ExecutePlanHandler {
 
   public void handle(
       ExecutePlanRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
-    LOG.debug("executePlan request:\n{}", ProtoUtils.debugString(request));
+    LOG.info("executePlan request:\n{}", ProtoUtils.debugString(request));
 
     ExecutePlanResponse.Builder responseBuilder =
         ExecutePlanResponse.newBuilder()
@@ -165,6 +166,7 @@ public class ExecutePlanHandler {
         // PySpark attempts to clean up the ML cache after test execution.
         // We just ignore this command as we don't have ML cache.
         LOG.debug("Ignoring ML_COMMAND");
+        responseBuilder.setMlCommandResult(MlCommandResult.newBuilder().build());
         break;
 
       default:
@@ -270,8 +272,10 @@ public class ExecutePlanHandler {
   private void handleRootPlan(Relation root, ExecutePlanResponse.Builder responseBuilder)
       throws IOException {
 
+    LOG.info("Handling root plan");
     SparkRelationToRelNode sparkRelationToRelNode = new SparkRelationToRelNode(beamSqlEnv, conf);
     RelNode relNode = sparkRelationToRelNode.translate(root);
+    LOG.info("Translated relation to RelNode: {}", relNode);
 
     if (relNode instanceof SparkLocalRelation) {
       SparkLocalRelation localRel = (SparkLocalRelation) relNode;
@@ -301,11 +305,22 @@ public class ExecutePlanHandler {
   private void executeCalcitePlanAndRespond(
       BeamRelNode beamRelNode, ExecutePlanResponse.Builder responseBuilder) throws IOException {
 
+    LOG.info("Executing Calcite plan");
     List<Row> outputRows = BeamEnumerableConverter.toRowList(beamRelNode);
+    LOG.info("Execution complete, output rows: {}", outputRows.size());
 
-    org.apache.beam.sdk.schemas.Schema beamSchema =
-        org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.toSchema(
-            beamRelNode.getRowType());
+    LOG.info("Calcite row type: {}", beamRelNode.getRowType());
+
+    org.apache.beam.sdk.schemas.Schema beamSchema;
+    if (!outputRows.isEmpty()) {
+      beamSchema = outputRows.get(0).getSchema();
+    } else {
+      beamSchema =
+          org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.toSchema(
+              beamRelNode.getRowType());
+    }
+
+    LOG.info("Beam schema: {}", beamSchema);
 
     java.util.Set<String> nullFields = new java.util.HashSet<>();
     for (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField field :
@@ -360,6 +375,9 @@ public class ExecutePlanHandler {
             org.apache.beam.sdk.schemas.Schema.Field.of(
                     cleanName, field.getType().withMetadata("spark_type", "timestamp_ntz"))
                 .withNullable(field.getType().getNullable()));
+      } else if (fieldName.equals("__none__")
+          && field.getType().getTypeName() == org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN) {
+        schemaBuilder.addField(field.withNullable(false));
       } else {
         schemaBuilder.addField(field);
       }

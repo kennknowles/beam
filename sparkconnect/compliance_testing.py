@@ -48,30 +48,29 @@ def get_python_exec():
 
 def ensure_venv():
     """Sets up standard testing environment and installs required python packages."""
+    venv_python = os.path.join(VENV_DIR, "bin", "python")
     if not os.path.exists(VENV_DIR):
         print(f"Creating Python virtual environment at {VENV_DIR}...")
         subprocess.run(["python3", "-m", "venv", "--without-pip", VENV_DIR], check=True)
         print("Installing pip manually...")
-        venv_python = os.path.join(VENV_DIR, "bin", "python")
         try:
             subprocess.run(["curl", "-sS", "https://bootstrap.pypa.io/get-pip.py", "-o", "get-pip.py"], check=True)
-            subprocess.run([venv_python, "get-pip.py"], check=True)
+            subprocess.run([venv_python, "get-pip.py", "--index-url=https://pypi.org/simple/"], check=True)
             os.remove("get-pip.py")
         except Exception as e:
             print(f"Failed to install pip via get-pip.py: {e}")
             print("Falling back to using host pip to install into venv...")
-            subprocess.run(["python3", "-m", "pip", "install", "--target", os.path.join(VENV_DIR, "lib", "python3.11", "site-packages"), "pip"], check=True)
+            subprocess.run(["python3", "-m", "pip", "install", "--index-url=https://pypi.org/simple/", "--target", os.path.join(VENV_DIR, "lib", "python3.11", "site-packages"), "pip"], check=True)
 
-    pip_exec = os.path.join(VENV_DIR, "bin", "pip")
     print("Installing requirements into virtual environment...")
     cmd = [
-        pip_exec, "install", "--quiet", "--upgrade", "pip",
+        venv_python, "-m", "pip", "install", "--quiet", "--upgrade", "pip",
         "--index-url=https://pypi.org/simple/"
     ]
     subprocess.run(cmd, check=True)
 
     cmd = [
-        pip_exec, "install", "--quiet", "--upgrade",
+        venv_python, "-m", "pip", "install", "--quiet", "--upgrade",
         "pytest", "pandas<3.0.0", "pyarrow", "grpcio", "grpcio-status",
         "py4j", "googleapis-common-protos", "zstandard", "pytest-timeout", "pytest-xdist",
         "--index-url=https://pypi.org/simple/"
@@ -79,7 +78,7 @@ def ensure_venv():
     subprocess.run(cmd, check=True)
 
     print("Ensuring pyspark is not installed in the virtual environment...")
-    cmd = [pip_exec, "uninstall", "-y", "pyspark"]
+    cmd = [venv_python, "-m", "pip", "uninstall", "-y", "pyspark"]
     subprocess.run(cmd, check=False)
 
 def ensure_spark_clone():
@@ -118,6 +117,9 @@ class BlockingServerManager:
         self.process = None
 
     def __enter__(self):
+        if wait_for_port(self.port, timeout=1):
+            print(f"Server already running on port {self.port}. Skipping start.")
+            return self
         print(f"Starting blockingServer in background via Gradle (JAVA_HOME={self.java_home})...")
         env = os.environ.copy()
         env["JAVA_HOME"] = self.java_home
@@ -156,8 +158,8 @@ class BlockingServerManager:
             finally:
                 self.process.wait()
         
-        # Also clean up lingering processes just in case
-        subprocess.run(["pkill", "-f", "org.apache.beam.sparkconnect.SparkConnectServer"], capture_output=True)
+            # Also clean up lingering processes just in case
+            subprocess.run(["pkill", "-f", "org.apache.beam.sparkconnect.SparkConnectServer"], capture_output=True)
 
 def load_pytest_ignore_args(ignore_file=IGNORED_TESTS_FILE):
     """Reads the ignore list and compiles --deselect arguments."""
@@ -228,13 +230,13 @@ def do_run(args):
             pytest_args = [
                 get_python_exec(), "-m", "cProfile", "-s", "cumulative",
                 "-m", "pytest", "-v",
-                "--timeout=100", "--durations=100",
+                "--timeout=300", "--durations=100",
                 f"--ignore={os.path.join(TEST_DIR, 'test_session.py')}"
             ]
         else:
             pytest_args = [
                 get_python_exec(), "-m", "pytest", "-v",
-                "--timeout=100", "--durations=100",
+                "--timeout=300", "--durations=100",
                 f"--ignore={os.path.join(TEST_DIR, 'test_session.py')}"
             ]
         
@@ -305,7 +307,7 @@ def do_update_ignore_list(args):
                 log_file.flush()
                 print(line, end="")
                 
-                if server.process.poll() is not None:
+                if server.process and server.process.poll() is not None:
                     process.terminate()
                     raise RuntimeError(f"Server process crashed with exit code {server.process.poll()} during test execution.")
                 

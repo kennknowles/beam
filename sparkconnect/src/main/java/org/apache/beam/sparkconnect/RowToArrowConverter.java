@@ -106,6 +106,9 @@ public final class RowToArrowConverter {
       if (logicalType != null && "beam:logical_type:date:v1".equals(logicalType.getIdentifier())) {
         arrowType = new ArrowType.Date(DateUnit.DAY);
       } else if (logicalType != null
+          && "beam:logical_type:time:v1".equals(logicalType.getIdentifier())) {
+        arrowType = new ArrowType.Time(org.apache.arrow.vector.types.TimeUnit.NANOSECOND, 64);
+      } else if (logicalType != null
           && "beam:logical_type:nanos_duration:v1".equals(logicalType.getIdentifier())) {
         arrowType = new ArrowType.Interval(org.apache.arrow.vector.types.IntervalUnit.DAY_TIME);
       } else {
@@ -319,6 +322,17 @@ public final class RowToArrowConverter {
         throw new RuntimeException(
             "Unsupported Object type for Date vector: " + value.getClass().getName());
       }
+    } else if (vector instanceof org.apache.arrow.vector.TimeNanoVector) {
+      long nanos;
+      if (value instanceof Long) {
+        nanos = (Long) value;
+      } else if (value instanceof java.time.LocalTime) {
+        nanos = ((java.time.LocalTime) value).toNanoOfDay();
+      } else {
+        throw new RuntimeException(
+            "Unsupported Object type for TimeNano vector: " + value.getClass().getName());
+      }
+      ((org.apache.arrow.vector.TimeNanoVector) vector).setSafe(index, nanos);
     } else if (vector instanceof org.apache.arrow.vector.IntervalDayVector) {
       org.apache.beam.sdk.values.Row durationRow = (org.apache.beam.sdk.values.Row) value;
       Long secondsObj = durationRow.getInt64(0);

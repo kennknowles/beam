@@ -52,6 +52,7 @@ import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sparkconnect.rel.LogicalMapPartitions;
 import org.apache.beam.sparkconnect.rel.LogicalShowString;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.arrow.ArrowFieldTypeFactory;
@@ -100,6 +101,7 @@ import org.apache.spark.connect.proto.Project;
 import org.apache.spark.connect.proto.Range;
 import org.apache.spark.connect.proto.Read;
 import org.apache.spark.connect.proto.Relation;
+import org.apache.spark.connect.proto.Repartition;
 import org.apache.spark.connect.proto.SQL;
 import org.apache.spark.connect.proto.SetOperation;
 import org.apache.spark.connect.proto.ShowString;
@@ -144,6 +146,7 @@ public class SparkRelationToRelNode {
           .build();
 
   public RelNode translate(Relation sparkRelation) {
+    LOG.error("Jetski: translate rel type case: {}", sparkRelation.getRelTypeCase().name());
     switch (sparkRelation.getRelTypeCase()) {
       case READ:
         return translateRead(sparkRelation.getRead());
@@ -183,6 +186,13 @@ public class SparkRelationToRelNode {
         return translateToDf(sparkRelation.getToDf());
       case SHOW_STRING:
         return translateShowString(sparkRelation.getShowString());
+      case MAP_PARTITIONS:
+        return translateMapPartitions(sparkRelation.getMapPartitions());
+      case REPARTITION:
+        return translateRepartition(sparkRelation.getRepartition());
+      case CATALOG:
+        return translateCatalog(sparkRelation.getCatalog());
+
       default:
         return unsupported(sparkRelation.getRelTypeCase().name());
     }
@@ -190,6 +200,33 @@ public class SparkRelationToRelNode {
 
   private RelNode unsupported(String typeName) {
     throw new UnsupportedOperationException("Spark Relation type not supported yet: " + typeName);
+  }
+
+  private RelNode translateRepartition(Repartition repartitionProto) {
+    LOG.error("Jetski: translateRepartition called");
+    return translate(repartitionProto.getInput());
+  }
+
+  private RelNode translateCatalog(org.apache.spark.connect.proto.Catalog catalogProto) {
+    switch (catalogProto.getCatTypeCase()) {
+      case DROP_TEMP_VIEW:
+        return translateDropTempView(catalogProto.getDropTempView());
+      case CACHE_TABLE:
+        return translateCacheTable(catalogProto.getCacheTable());
+      default:
+        throw new UnsupportedOperationException(
+            "Catalog type not supported yet: " + catalogProto.getCatTypeCase().name());
+    }
+  }
+
+  private RelNode translateDropTempView(org.apache.spark.connect.proto.DropTempView dropTempView) {
+    LOG.info("Dropping temp view: " + dropTempView.getViewName());
+    return LogicalValues.createOneRow(cluster);
+  }
+
+  private RelNode translateCacheTable(org.apache.spark.connect.proto.CacheTable cacheTable) {
+    LOG.info("Caching table: " + cacheTable.getTableName());
+    return LogicalValues.createOneRow(cluster);
   }
 
   private RelNode translateShowString(ShowString showStringProto) {
@@ -201,6 +238,26 @@ public class SparkRelationToRelNode {
         showStringProto.getNumRows(),
         showStringProto.getTruncate(),
         showStringProto.getVertical());
+  }
+
+  private RelNode translateMapPartitions(
+      org.apache.spark.connect.proto.MapPartitions mapPartitions) {
+    RelNode input = translate(mapPartitions.getInput());
+    org.apache.spark.connect.proto.CommonInlineUserDefinedFunction func = mapPartitions.getFunc();
+
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType rowType;
+    if (func.hasPythonUdf()) {
+      org.apache.spark.connect.proto.DataType sparkType = func.getPythonUdf().getOutputType();
+      SparkDataTypeToRelDataType converter =
+          new SparkDataTypeToRelDataType(cluster.getTypeFactory());
+      rowType = converter.sparkDataTypeToRelDataType(sparkType);
+    } else {
+      throw new UnsupportedOperationException(
+          "Only Python UDFs are supported in MapPartitions for now.");
+    }
+
+    return new LogicalMapPartitions(
+        cluster, cluster.traitSetOf(Convention.NONE), input, func, rowType);
   }
 
   private RelNode translateProject(Project projectProto) {
@@ -277,8 +334,10 @@ public class SparkRelationToRelNode {
     } else if (joinProto.getJoinType() == Join.JoinType.JOIN_TYPE_CROSS) {
       condition = cluster.getRexBuilder().makeLiteral(true);
     } else {
-      throw new IllegalArgumentException(
-          "Join must have a condition, using_columns, or be a CROSS join");
+      LOG.warn(
+          "Join has no condition or using columns, defaulting to TRUE condition. JoinType: {}",
+          joinProto.getJoinType());
+      condition = cluster.getRexBuilder().makeLiteral(true);
     }
 
     return LogicalJoin.create(
@@ -833,6 +892,27 @@ public class SparkRelationToRelNode {
                   .map(idx -> finalAggInput.getRowType().getFieldList().get(idx).getType())
                   .collect(Collectors.toList()));
 
+      if (aliasName == null) {
+        if (aggFunction.getKind() == SqlKind.COUNT) {
+          if (argList.isEmpty()) {
+            aliasName = "count(1)";
+          } else {
+            List<String> argNames = new ArrayList<>();
+            for (int idx : argList) {
+              argNames.add(finalAggInput.getRowType().getFieldList().get(idx).getName());
+            }
+            aliasName = "count(" + String.join(", ", argNames) + ")";
+          }
+        } else {
+          List<String> argNames = new ArrayList<>();
+          for (int idx : argList) {
+            argNames.add(finalAggInput.getRowType().getFieldList().get(idx).getName());
+          }
+          aliasName =
+              func.getFunctionName().toLowerCase() + "(" + String.join(", ", argNames) + ")";
+        }
+      }
+
       aggCalls.add(
           AggregateCall.create(
               aggFunction,
@@ -951,6 +1031,7 @@ public class SparkRelationToRelNode {
     // Standardize Spark literal constructors to Calcite syntax
     sql = sql.replaceAll("(?i)\\bDATE\\s*\\(\\s*'([^']*)'\\s*\\)", "DATE '$1'");
     sql = sql.replaceAll("(?i)\\bTIMESTAMP\\s*\\(\\s*'([^']*)'\\s*\\)", "TIMESTAMP '$1'");
+    sql = sql.replaceAll("(?i)\\bTIME\\s*\\(\\s*'([^']*)'\\s*\\)", "TIME '$1'");
 
     // Handle RANGE(N) table generating function by converting it to a VALUES clause for Calcite
     java.util.regex.Pattern rangePattern =
@@ -1002,8 +1083,19 @@ public class SparkRelationToRelNode {
   @SuppressWarnings("unused")
   private RelNode translateDrop(Drop dropProto) {
     RelNode input = translate(dropProto.getInput());
-    List<String> dropNames = dropProto.getColumnNamesList();
-    // TODO: Handle dropProto.getColumns() expressions
+    List<String> dropNames = new ArrayList<>(dropProto.getColumnNamesList());
+
+    if (dropProto.getColumnsCount() > 0) {
+      SparkExpressionToRexNode expressionToRexNode =
+          new SparkExpressionToRexNode(cluster, input.getRowType(), beamSqlEnv.getOperatorTable());
+      for (Expression expr : dropProto.getColumnsList()) {
+        RexNode rexNode = expressionToRexNode.translate(expr);
+        if (rexNode instanceof RexInputRef) {
+          int index = ((RexInputRef) rexNode).getIndex();
+          dropNames.add(input.getRowType().getFieldList().get(index).getName());
+        }
+      }
+    }
 
     List<RexNode> projections = new ArrayList<>();
     List<String> newFieldNames = new ArrayList<>();
@@ -1503,9 +1595,19 @@ public class SparkRelationToRelNode {
 
   private RelNode translateLocalRelation(LocalRelation localRelation) {
     if (!localRelation.hasData()) {
-      throw new UnsupportedOperationException(
-          "LocalRelation must have `data` field. "
-              + "Parsing Spark SQL DDL or JSON type representation is not supported.");
+      if (localRelation.hasSchema()) {
+        org.apache.spark.sql.types.DataType sparkType =
+            org.apache.spark.sql.types.DataType$.MODULE$.fromDDL(localRelation.getSchema());
+        org.apache.spark.connect.proto.DataType protoType =
+            org.apache.spark.sql.connect.common.DataTypeProtoConverter$.MODULE$.toConnectProtoType(
+                sparkType, false);
+        RelDataType rowType =
+            new SparkDataTypeToRelDataType(cluster.getTypeFactory())
+                .sparkDataTypeToRelDataType(protoType);
+        return org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalValues
+            .create(cluster, rowType, ImmutableList.of());
+      }
+      throw new UnsupportedOperationException("LocalRelation must have `data` or `schema` field. ");
     }
 
     String limitStr = conf.get("spark.sql.session.localRelationSizeLimit");

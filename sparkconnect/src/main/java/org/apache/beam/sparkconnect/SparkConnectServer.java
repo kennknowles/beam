@@ -26,6 +26,7 @@ public class SparkConnectServer {
   private static final Logger LOG = LoggerFactory.getLogger(SparkConnectServer.class);
 
   public static void main(String[] argv) throws Exception {
+    System.out.println("Runtime Classpath: " + System.getProperty("java.class.path"));
     LOG.info("Starting SparkConnectServer");
 
     // start the service following gRPC guide

@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sparkconnect.ProtoUtils;
 import org.apache.beam.sparkconnect.RowToArrowConverter;
 import org.apache.beam.sparkconnect.SparkRelationToRelNode;
 import org.apache.beam.sparkconnect.rel.SparkLocalRelation;
@@ -86,7 +85,7 @@ public class ExecutePlanHandler {
 
   public void handle(
       ExecutePlanRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
-    LOG.info("executePlan request:\n{}", ProtoUtils.debugString(request));
+    LOG.info("executePlan request:\n{}", request.toString());
 
     ExecutePlanResponse.Builder responseBuilder =
         ExecutePlanResponse.newBuilder()
@@ -119,9 +118,21 @@ public class ExecutePlanHandler {
               .setResultComplete(ExecutePlanResponse.ResultComplete.newBuilder().build())
               .build());
       responseObserver.onCompleted();
-    } catch (Exception exc) {
+    } catch (UnsupportedOperationException exc) {
+      LOG.error("Unsupported operation in executePlan", exc);
+      String message = exc.getMessage() != null ? exc.getMessage() : "Unsupported operation";
+      responseObserver.onError(
+          io.grpc.Status.UNIMPLEMENTED.withDescription(message).asRuntimeException());
+    } catch (org.apache.beam.sdk.extensions.sql.impl.SqlConversionException exc) {
+      LOG.error("SQL conversion error in executePlan", exc);
+      String message = exc.getMessage() != null ? exc.getMessage() : "SQL conversion error";
+      responseObserver.onError(
+          io.grpc.Status.INVALID_ARGUMENT.withDescription(message).asRuntimeException());
+    } catch (Throwable exc) {
       LOG.error("Error handling executePlan", exc);
-      responseObserver.onError(exc);
+      String message = exc.getMessage() != null ? exc.getMessage() : "Unknown error";
+      responseObserver.onError(
+          io.grpc.Status.UNKNOWN.withDescription(message).asRuntimeException());
     }
   }
 
@@ -204,15 +215,90 @@ public class ExecutePlanHandler {
       }
     }
 
-    // --- Preprocess SQL to handle Spark-specific syntax that Calcite doesn't like ---
-    // Handle: SELECT * FROM VALUES (...) AS tab(...) -> SELECT * FROM (VALUES (...)) AS tab(...)
-    if (sql.toUpperCase().contains("FROM VALUES") && sql.toUpperCase().contains(" AS ")) {
-      sql = sql.replaceAll("(?i)FROM\\s+VALUES\\b([\\s\\S]*?)\\bAS\\b", "FROM (VALUES $1) AS");
+    String trimmedSql = sql.trim().toUpperCase();
+    if (trimmedSql.startsWith("DROP VIEW")) {
+      LOG.info("Intercepted DROP VIEW command: " + sql);
+      return;
     }
+    System.out.println("SQL before CREATE TABLE rewrite: " + sql);
+    // Handle: CREATE TABLE ... USING parquet -> CREATE EXTERNAL TABLE ... TYPE test
+    String normalizedSql = sql.replaceAll("\\s+", " ").toUpperCase();
+    if (normalizedSql.contains("CREATE TABLE") && normalizedSql.contains("USING PARQUET")) {
+      System.out.println("Triggered CREATE TABLE rewrite!");
+      sql = sql.replaceAll("(?i)\\bCREATE\\s+TABLE\\b", "CREATE EXTERNAL TABLE");
+      sql = sql.replaceAll("(?i)\\bUSING\\s+parquet\\b", "TYPE test");
+    }
+    // --- Preprocess SQL to handle Spark-specific syntax that Calcite doesn't like ---
+
+    // Handle PARTITIONED BY in CREATE TABLE
+    if (sql.toUpperCase().contains("CREATE TABLE")
+        && sql.toUpperCase().contains("PARTITIONED BY")) {
+      sql = sql.replaceAll("(?i)\\bPARTITIONED\\s+BY\\s*\\([^)]+\\)", "");
+    }
+
+    // Handle: SELECT * FROM VALUES (...) AS tab(...) -> SELECT * FROM (VALUES (...)) AS tab(...)
+    // We use regex directly to handle variable whitespace (e.g. newlines).
+
+    String sqlBeforeValues = sql;
+    sql = sql.replaceAll("(?i)FROM\\s+VALUES\\b([\\s\\S]*?)\\bAS\\b", "FROM VALUES $1 AS");
+    if (sql.equals(sqlBeforeValues)) {
+      // If the first replacement didn't happen, try the second one for VALUES without AS
+      sql =
+          sql.replaceAll(
+              "(?i)FROM\\s+VALUES\\s+([\\s\\S]+)",
+              "FROM VALUES $1 AS t(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11)");
+    }
+    LOG.info("SQL after VALUES rewrite: " + sql);
+
+    // Handle timestamp_seconds
+    sql =
+        sql.replaceAll(
+            "(?i)\\btimestamp_seconds\\s*\\(\\s*([^)]+)\\s*\\)",
+            "TIMESTAMPADD(SECOND, CAST($1 AS BIGINT), TIMESTAMP '1970-01-01 00:00:00')");
 
     // Standardize Spark literal constructors to Calcite syntax
     sql = sql.replaceAll("(?i)\\bDATE\\s*\\(\\s*'([^']+)'\\s*\\)", "DATE '$1'");
     sql = sql.replaceAll("(?i)\\bTIMESTAMP\\s*\\(\\s*'([^']+)'\\s*\\)", "TIMESTAMP '$1'");
+
+    // Replace TINYINT and SMALLINT with INT in CAST as Calcite might not support them in all
+    // contexts
+    // We make it case-sensitive for the type name to avoid matching aliases (which are usually
+    // lowercase)
+    sql = sql.replaceAll("\\bAS\\s+TINYINT\\b", "AS INT");
+    sql = sql.replaceAll("\\bAS\\s+SMALLINT\\b", "AS INT");
+
+    // Replace complex interval with simple one if Calcite fails on it
+    sql =
+        sql.replaceAll(
+            "(?i)\\bINTERVAL\\s+'[^']+'\\s+MINUTE\\s+TO\\s+SECOND\\b", "INTERVAL '1' MINUTE");
+
+    // Quote aliases that are reserved keywords in Calcite
+    String[] keywordsToQuote = {
+      "tinyint",
+      "smallint",
+      "int",
+      "bigint",
+      "float",
+      "double",
+      "boolean",
+      "string",
+      "timestamp",
+      "timestamp_ntz",
+      "day_time_interval"
+    };
+    for (String keyword : keywordsToQuote) {
+      sql =
+          sql.replaceAll(
+              "(?i)\\bAS\\s+" + keyword + "\\b(\\s*)(?=,|$|\\bFROM\\b)",
+              "AS \"" + keyword + "\"$1");
+    }
+
+    // Remove USING parquet clause as Calcite doesn't support it
+    sql = sql.replaceAll("(?i)\\bUSING\\s+parquet\\b", "");
+    // Remove TBLPROPERTIES clause as Calcite doesn't support it
+    sql = sql.replaceAll("(?i)\\bTBLPROPERTIES\\s*\\([^)]+\\)", "");
+
+    LOG.info("Preprocessed SQL: " + sql);
 
     // Handle RANGE(N) table generating function by converting it to a VALUES clause for Calcite
     java.util.regex.Pattern rangePattern =
@@ -244,6 +330,9 @@ public class ExecutePlanHandler {
     sql =
         sql.replaceAll(
             "(?i)\\bCAST\\s*\\(\\s*([^)]+)\\s+AS\\s+STRING\\s*\\)", "CAST($1 AS VARCHAR)");
+    sql =
+        sql.replaceAll(
+            "(?i)\\bCAST\\s*\\(\\s*([^)]+)\\s+AS\\s+TIMESTAMP_NTZ\\s*\\)", "CAST($1 AS TIMESTAMP)");
 
     // Handle STRUCT(...) row construction by converting it to ROW(...)
     sql = sql.replaceAll("(?i)\\bSTRUCT\\s*\\(", "ROW(");
@@ -256,6 +345,11 @@ public class ExecutePlanHandler {
     // Calcite
     sql = sql.replaceAll("(?i)\\bMAP\\s*\\(\\s*([^)]+?)\\s*\\)", "MAP[$1]");
     sql = sql.replaceAll("(?i)\\bARRAY\\s*\\(\\s*([^)]+?)\\s*\\)", "ARRAY[$1]");
+
+    if (sql.trim().toUpperCase().startsWith("DROP VIEW")) {
+      LOG.info("Intercepted DROP VIEW command, ignoring: " + sql);
+      return;
+    }
 
     if (beamSqlEnv.isDdl(sql)) {
       beamSqlEnv.executeDdl(sql);

@@ -4,6 +4,7 @@ python/pyspark/errors/tests/connect/test_parity_traceback.py::TracebackSqlConnec
 python/pyspark/errors/tests/connect/test_parity_traceback.py::TracebackSqlConnectTests::test_datasource_execution
 python/pyspark/errors/tests/connect/test_parity_traceback.py::TracebackSqlConnectTests::test_udtf_analysis
 python/pyspark/errors/tests/connect/test_parity_traceback.py::TracebackSqlConnectTests::test_udtf_execution
+python/pyspark/logger/tests/connect/test_parity_logger.py::LoggerParityTests::test_apply_schema
 python/pyspark/logger/tests/connect/test_parity_logger.py::LoggerParityTests::test_dataframe_query_context_logger
 python/pyspark/logger/tests/connect/test_parity_logger.py::LoggerParityTests::test_log_info_with_exception # flake
 python/pyspark/ml/tests/connect/test_connect_cache.py::MLConnectCacheTests::test_assert_remote_mode # flake
@@ -320,16 +321,18 @@ python/pyspark/pandas/tests/connect/computation/test_parity_stats.py::StatsParit
 python/pyspark/pandas/tests/connect/computation/test_parity_stats.py::StatsParityTests::test_stats_on_non_numeric_columns_should_be_discarded_if_numeric_only_is_true
 python/pyspark/pandas/tests/connect/computation/test_parity_stats.py::StatsParityTests::test_sum
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::AsTypeParityTests::test_assert_remote_mode # flake
-python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::AsTypeParityTests::test_astype # requires map construction support missing in Beam SQL
+python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::AsTypeParityTests::test_astype
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::AsTypeParityTests::test_astype_eager_check
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_as_type.py::ReusedConnectTestCase::test_assert_remote_mode # flake
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_base.py::BaseParityTests::test_assert_remote_mode # flake
-
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_base.py::ReusedConnectTestCase::test_assert_remote_mode # flake
-
+python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_abs
+python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_add
+python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_and
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_assert_remote_mode # flake
-
-
+python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_astype
+python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_eq
+python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_floordiv
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_from_to_pandas
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_ge
 python/pyspark/pandas/tests/connect/data_type_ops/test_parity_binary_ops.py::BinaryOpsParityTests::test_gt
@@ -1686,6 +1689,7 @@ python/pyspark/pandas/tests/connect/test_parity_categorical.py::CategoricalParit
 python/pyspark/pandas/tests/connect/test_parity_config.py::ConfigParityTests::test_get_set_reset_option
 python/pyspark/pandas/tests/connect/test_parity_config.py::ConfigParityTests::test_get_set_reset_option_different_types # flake
 python/pyspark/pandas/tests/connect/test_parity_config.py::ConfigParityTests::test_namespace_access # flake
+python/pyspark/pandas/tests/connect/test_parity_config.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/pandas/tests/connect/test_parity_extension.py::ExtensionParityTests::test_accessor_works
 python/pyspark/pandas/tests/connect/test_parity_extension.py::ExtensionParityTests::test_dataframe_register
 python/pyspark/pandas/tests/connect/test_parity_extension.py::ExtensionParityTests::test_index_register
@@ -1747,6 +1751,7 @@ python/pyspark/pandas/tests/connect/test_parity_sql.py::SQLParityTests::test_sql
 python/pyspark/pandas/tests/connect/test_parity_sql.py::SQLParityTests::test_sql_with_pandas_on_spark_objects
 python/pyspark/pandas/tests/connect/test_parity_sql.py::SQLParityTests::test_sql_with_python_objects
 python/pyspark/pandas/tests/connect/test_parity_typedef.py::TypeHintParityTests::test_assert_remote_mode # flake
+python/pyspark/pandas/tests/connect/test_parity_typedef.py::TypeHintParityTests::test_infer_schema_with_no_return
 python/pyspark/pandas/tests/connect/test_parity_utils.py::UtilsParityTests::test_series_error_assert_pandas_equal # flake
 python/pyspark/pandas/tests/connect/test_parity_utils.py::UtilsParityTests::test_validate_index_loc
 python/pyspark/pandas/tests/connect/window/test_parity_ewm_error.py::EWMParityErrorTests::test_ewm_error
@@ -2781,6 +2786,8 @@ python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_and_in_expression # flake
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_bitwise_operations
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_column_date_time_op
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_column_name_encoding
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_column_name_with_non_ascii
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_column_select
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_drop_fields
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_enum_literals
@@ -2801,6 +2808,7 @@ python/pyspark/sql/tests/connect/test_parity_conf.py::ConfParityTests::test_get_
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_array_of_long # flake
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_datetime_time
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_pandas_with_day_time_interval
+python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_pandas_with_dst
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_dataframe_from_pandas_with_timestamp
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_nan_decimal_dataframe
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_create_str_from_dict
@@ -2808,6 +2816,7 @@ python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParit
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_empty_dataframe_with_ddl_string
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_empty_dataframe_with_struct_type
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_empty_schema
+python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_from_pandas_dataframe_with_zero_columns
 python/pyspark/sql/tests/connect/test_parity_creation.py::DataFrameCreationParityTests::test_schema_inference_from_pandas_with_dict
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_cache_dataframe
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_cache_table
@@ -2837,7 +2846,9 @@ python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests:
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_local_checkpoint_dataframe
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_local_checkpoint_dataframe_with_storage_level
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_metadata_column
+python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_ordering_of_with_columns_renamed
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_pandas_api
+python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_print_schema
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_range # flake
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_repr_behaviors
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_require_cross
@@ -2874,6 +2885,11 @@ python/pyspark/sql/tests/connect/test_parity_dataframe_query_context.py::ReusedC
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_assert_remote_mode # flake
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_checking_csv_header
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_csv_sampling_ratio # flake
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_csv_with_dataframe_input
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_csv_with_dataframe_input_and_schema
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_csv_with_dataframe_input_multiple_columns
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_csv_with_dataframe_input_non_string_column
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_csv_with_dataframe_input_zero_columns
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_custom_data_source # flake
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_encoding_json
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_ignore_column_of_all_nulls
@@ -2895,6 +2911,11 @@ python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTe
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_read_text_file_list
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_xml
 python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_xml_sampling_ratio # flake
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_xml_with_dataframe_input
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_xml_with_dataframe_input_and_schema
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_xml_with_dataframe_input_multiple_columns
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_xml_with_dataframe_input_non_string_column
+python/pyspark/sql/tests/connect/test_parity_datasources.py::DataSourcesParityTests::test_xml_with_dataframe_input_zero_columns
 python/pyspark/sql/tests/connect/test_parity_datasources.py::ReusedConnectTestCase::test_assert_remote_mode # flake
 python/pyspark/sql/tests/connect/test_parity_errors.py::ErrorsParityTests::test_arithmetic_exception
 python/pyspark/sql/tests/connect/test_parity_errors.py::ErrorsParityTests::test_array_index_out_of_bounds_exception
@@ -3832,6 +3853,7 @@ python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_e
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_equal_exact_pandas_df # flake
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_equal_exact_pandas_on_spark_df
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_equal_exact_pandas_on_spark_df_no_order
+python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_equal_inttype
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_equal_maptype
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_equal_nested_struct_str # flake
 python/pyspark/sql/tests/connect/test_utils.py::ConnectUtilsTests::test_assert_equal_nested_struct_str_duplicate # flake

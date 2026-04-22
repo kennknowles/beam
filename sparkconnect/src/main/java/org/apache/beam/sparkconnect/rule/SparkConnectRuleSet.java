@@ -30,10 +30,7 @@ public class SparkConnectRuleSet implements RuleSet {
 
   @Override
   public Iterator<RelOptRule> iterator() {
-    return ImmutableList.<RelOptRule>of(
-            BeamShowStringRule.INSTANCE
-            // Add other custom rules here in the future
-            )
+    return ImmutableList.<RelOptRule>of(BeamShowStringRule.INSTANCE, BeamMapPartitionsRule.INSTANCE)
         .iterator();
   }
 }

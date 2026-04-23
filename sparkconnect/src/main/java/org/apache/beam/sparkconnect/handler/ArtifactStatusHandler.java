@@ -15,25 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sparkconnect;
+package org.apache.beam.sparkconnect.handler;
 
-import io.grpc.ServerBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.grpc.stub.StreamObserver;
+import org.apache.spark.connect.proto.ArtifactStatusesRequest;
+import org.apache.spark.connect.proto.ArtifactStatusesResponse;
 
-public class SparkConnectServer {
-
-  private static final Logger LOG = LoggerFactory.getLogger(SparkConnectServer.class);
-
-  public static void main(String[] argv) throws Exception {
-    LOG.info("Starting SparkConnectServer");
-
-    // start the service following gRPC guide
-    ServerBuilder.forPort(12345)
-        .maxInboundMessageSize(128 * 1024 * 1024)
-        .addService(new SparkConnectService())
-        .build()
-        .start()
-        .awaitTermination();
+public class ArtifactStatusHandler {
+  public void handle(
+      ArtifactStatusesRequest request, StreamObserver<ArtifactStatusesResponse> responseObserver) {
+    throw new UnsupportedOperationException("ArtifactStatus not supported yet.");
   }
 }

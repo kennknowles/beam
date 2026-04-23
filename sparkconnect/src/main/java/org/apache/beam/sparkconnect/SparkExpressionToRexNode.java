@@ -127,6 +127,7 @@ public class SparkExpressionToRexNode {
         return translateCommonInlineUserDefinedFunction(expr.getCommonInlineUserDefinedFunction());
       case UPDATE_FIELDS:
         return translateUpdateFields(expr.getUpdateFields());
+
       default:
         throw new UnsupportedOperationException(
             "Spark Expression type not supported: " + expr.getExprTypeCase());

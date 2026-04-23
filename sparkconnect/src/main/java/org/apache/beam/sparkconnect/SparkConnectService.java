@@ -223,7 +223,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public StreamObserver<AddArtifactsRequest> addArtifacts(
       StreamObserver<AddArtifactsResponse> responseObserver) {
     LOG.debug("addArtifact request");
-    return super.addArtifacts(responseObserver);
+    return new org.apache.beam.sparkconnect.handler.AddArtifactsHandler().handle(responseObserver);
   }
 
   /**
@@ -237,7 +237,8 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void artifactStatus(
       ArtifactStatusesRequest request, StreamObserver<ArtifactStatusesResponse> responseObserver) {
     LOG.debug("artifactStatus request:\n{}", ProtoUtils.debugString(request));
-    super.artifactStatus(request, responseObserver);
+    new org.apache.beam.sparkconnect.handler.ArtifactStatusHandler()
+        .handle(request, responseObserver);
   }
 
   /** Interrupts running executions. */
@@ -338,7 +339,8 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void releaseSession(
       ReleaseSessionRequest request, StreamObserver<ReleaseSessionResponse> responseObserver) {
     LOG.debug("releaseSession request:\n{}", request.toString());
-    super.releaseSession(request, responseObserver);
+    new org.apache.beam.sparkconnect.handler.ReleaseSessionHandler()
+        .handle(request, responseObserver);
   }
 
   /**
@@ -353,6 +355,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       FetchErrorDetailsRequest request,
       StreamObserver<FetchErrorDetailsResponse> responseObserver) {
     LOG.debug("fetchErrorDetails request:\n{}", ProtoUtils.debugString(request));
-    super.fetchErrorDetails(request, responseObserver);
+    new org.apache.beam.sparkconnect.handler.FetchErrorDetailsHandler()
+        .handle(request, responseObserver);
   }
 }

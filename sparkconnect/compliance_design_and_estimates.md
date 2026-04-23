@@ -3,12 +3,12 @@
 This document provides light design work and effort estimates for achieving full compliance across all categories and subcategories of Spark Connect tests, based on the updated ignore list (April 2026).
 
 ## Overall Compliance Status
-- **Total Connect Tests**: 5112
-- **Supported Tests**: 1566
-- **Ignored Tests**: 3546
-- **Compliance Rate**: **30.63%**
+- **Total Connect Tests**: 5182
+- **Supported Tests**: 1264
+- **Ignored Tests**: 3918
+- **Compliance Rate**: **24.39%**
 
-*Note: The compliance rate dropped slightly to 30.63% after running the test suite and updating the ignore list, likely due to discovery of new failures.*
+*Note: The compliance rate dropped to 24.39% after running the test suite and updating the ignore list, indicating that more tests are now failing or more tests were added.*
 
 ## Effort Scale
 We use T-shirt sizes for relative effort estimation:
@@ -34,49 +34,44 @@ We estimate how easy it might be for AI-assisted development to quickly achieve 
 - **Implementation Method**: Fix traceback extraction for custom data sources and UDTFs to include expected user code.
 - **Effort**: S/M
 - **AI Ease**: High
-- **Refinement**: Confirmed that failures are related to traceback extraction for custom data sources and UDTFs.
 
 ### 1.2 logger
-- **Compliance**: 81.82% (9/11)
+- **Compliance**: 63.64% (7/11)
 - **Scope**: Verifies logging behavior.
 - **Criticality**: High for production monitoring.
 - **Implementation Method**: Add query context to logs and investigate flaky test for log info with exception.
 - **Effort**: S
 - **AI Ease**: High
-- **Refinement**: Confirmed that failures are related to query context in logs and a flaky test for log info with exception.
 
 ### 1.3 ml
-- **Compliance**: 47.13% (115/244)
+- **Compliance**: 22.48% (49/218)
 - **Scope**: Covers Machine Learning algorithms and utilities in Spark Connect.
 - **Criticality**: High for ML workloads.
 - **Implementation Method**: Implement missing translations for specific algorithm parameters and core utilities like model caching and offloading.
 - **Effort**: L
 - **AI Ease**: Medium
-- **Refinement**: Identified that missing functionality covers both specific ML algorithms (ALS, KMeans, etc.) and core utilities like model caching and offloading.
 
 ### 1.4 pandas (Base & Subcategories)
-- **Compliance**: Varies wildly. Base is 45.52%.
+- **Compliance**: Varies wildly. Base is 31.72%.
 - **Key Subcategories with Gaps**:
-  - `computation`: 28.37% (101 ignored) - **Effort: L, AI Ease: Medium**
-  - `data_type_ops`: 10.26% (420 ignored) - **Effort: L, AI Ease: Medium**
-  - `series`: 14.57% (217 ignored) - **Effort: L, AI Ease: Medium**
+  - `computation`: 0.00% (144 ignored / 144 total) - **Effort: L/XL, AI Ease: Medium**
+  - `data_type_ops`: 0.43% (467 ignored / 469 total) - **Effort: XL, AI Ease: Medium**
+  - `series`: 14.12% (219 ignored / 255 total) - **Effort: L, AI Ease: Medium**
 - **Criticality**: High for Data Science workloads.
-- **Implementation Method**: Systematically address missing methods in the Pandas API on Spark translation layer, covering core operations like `GroupBy.agg()`, `GroupBy.apply()`, binary operations, and combinations.
+- **Implementation Method**: Systematically address missing methods in the Pandas API on Spark translation layer.
 - **Effort**: XL
 - **AI Ease**: Medium
-- **Refinement**: Confirmed that failures are widespread across core operations (GroupBy, binary ops, combinations). The scale (1500+ ignored tests) confirms that this is a massive gap.
 
 ### 1.5 sql (Base)
-- **Compliance**: 14.99% (254/1695)
+- **Compliance**: 32.61% (571/1751)
 - **Scope**: Core DataFrame API, columns, functions, plans.
 - **Criticality**: CRITICAL. The foundation for all work.
 - **Implementation Method**: Massive gap. Requires deep Calcite translation work and handling of complex types and edge cases in Arrow integration.
 - **Effort**: XL
 - **AI Ease**: Low
-- **Refinement**: Confirmed that failures are extensive across Arrow integration, covering edge cases like duplicate field names in structs and timezone handling.
 
 ### 1.6 sql/streaming
-- **Compliance**: 22.22% (14/63)
+- **Compliance**: 20.63% (13/63)
 - **Scope**: Structured Streaming.
 - **Criticality**: High for streaming workloads.
 - **Implementation Method**: Implement missing streaming plan translations.
@@ -92,7 +87,7 @@ To FULLY enable different styles of workload, we need to implement collections o
 ### Style 1: Core Batch Analytics & BI
 - **Features**: Core DataFrame API, SQL functions, Parquet I/O.
 - **Categories**: `sql` (Base), `sql/parquet`.
-- **Combined Effort**: **XL** (Dominated by core `sql` gaps at 14.99%).
+- **Combined Effort**: **XL** (Dominated by core `sql` gaps at 32.61%).
 - **AI Feasibility**: Low.
 
 ### Style 2: Streaming Data Pipelines
@@ -106,8 +101,6 @@ To FULLY enable different styles of workload, we need to implement collections o
 - **Categories**: `pandas` (Base), `ml`, `sql` (Base).
 - **Combined Effort**: **XL** (While Pandas and ML might have Medium AI ease, they rely on Core SQL which is XL/Low).
 
-*Conclusion*: The drop in compliance across all categories reinforces that Core `sql` is the primary blocker and requires manual, deep architectural work (Low AI Ease), while Pandas and ML gaps might be more approachable for AI assistance once the core is solid.
-
 ---
 
 ## 3. Detailed Subcategory Analysis
@@ -116,44 +109,40 @@ This section provides a complete view of compliance by breaking down the major c
 
 ### 3.1 Pandas Subcategories
 
-Pandas API on Spark is a large surface area. Here is the full breakdown of its subcategories:
-
-- **data_type_ops**: **10.04%** (421 ignored / 468 total)
+- **data_type_ops**: **0.43%** (467 ignored / 469 total)
   - *Effort*: **XL** | *AI Ease*: **Medium**
-- **series**: **16.14%** (213 ignored / 254 total)
+- **series**: **14.12%** (219 ignored / 255 total)
   - *Effort*: **L** | *AI Ease*: **Medium**
-- **frame**: **28.30%** (76 ignored / 106 total)
-  - *Effort*: **M/L** | *AI Ease*: **Medium**
-- **computation**: **26.95%** (103 ignored / 141 total)
+- **frame**: **3.70%** (104 ignored / 108 total)
   - *Effort*: **L** | *AI Ease*: **Medium**
-- **indexes**: **36.16%** (173 ignored / 271 total)
+- **computation**: **0.00%** (144 ignored / 144 total)
+  - *Effort*: **XL** | *AI Ease*: **Medium**
+- **indexes**: **25.46%** (202 ignored / 271 total)
   - *Effort*: **L** | *AI Ease*: **Medium**
-- **window**: **38.75%** (49 ignored / 80 total)
+- **window**: **37.50%** (50 ignored / 80 total)
   - *Effort*: **M** | *AI Ease*: **Medium**
-- **io**: **40.98%** (36 ignored / 61 total)
+- **io**: **36.07%** (39 ignored / 61 total)
   - *Effort*: **M** | *AI Ease*: **Medium**
-- **diff_frames_ops**: **37.91%** (113 ignored / 182 total)
+- **diff_frames_ops**: **0.00%** (182 ignored / 182 total)
+  - *Effort*: **L** | *AI Ease*: **Medium**
+- **groupby**: **30.94%** (96 ignored / 139 total)
   - *Effort*: **M** | *AI Ease*: **Medium**
-- **groupby**: **42.65%** (78 ignored / 136 total)
-  - *Effort*: **M** | *AI Ease*: **Medium**
-- **reshape**: **54.55%** (10 ignored / 22 total)
+- **reshape**: **45.45%** (12 ignored / 22 total)
   - *Effort*: **S/M** | *AI Ease*: **Medium**
-- **resample**: **61.11%** (7 ignored / 18 total)
+- **resample**: **55.56%** (8 ignored / 18 total)
   - *Effort*: **S** | *AI Ease*: **Medium**
-- **plot**: **88.57%** (8 ignored / 70 total)
+- **plot**: **87.14%** (9 ignored / 70 total)
   - *Effort*: **S** | *AI Ease*: **High**
 
 ### 3.2 SQL Subcategories
-
-The core SQL category also has significant subcategories:
 
 - **pandas/streaming**: **20.21%** (75 ignored / 94 total)
   - *Effort*: **M/L** | *AI Ease*: **Low**
 - **pandas**: **20.96%** (215 ignored / 272 total)
   - *Effort*: **L** | *AI Ease*: **Medium**
-- **arrow**: **22.32%** (557 ignored / 717 total)
+- **arrow**: **19.28%** (582 ignored / 721 total)
   - *Effort*: **XL** | *AI Ease*: **Low**
-- **streaming**: **17.46%** (52 ignored / 63 total)
+- **streaming**: **20.63%** (50 ignored / 63 total)
   - *Effort*: **L** | *AI Ease*: **Low**
 - **client**: **91.55%** (6 ignored / 71 total)
   - *Effort*: **S** | *AI Ease*: **High**

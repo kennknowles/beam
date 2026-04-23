@@ -490,7 +490,8 @@ public class SparkRelationToRelNodeTest {
     assertEquals(1, rows.size());
   }
 
-  @Ignore("Fails with CannotPlanException: Missing conversion is LogicalShowString[convention: NONE -> BEAM_LOGICAL]")
+  @Ignore(
+      "Fails with CannotPlanException: Missing conversion is LogicalShowString[convention: NONE -> BEAM_LOGICAL]")
   @Test
   public void testShowString() {
     org.apache.spark.connect.proto.LocalRelation localRel =

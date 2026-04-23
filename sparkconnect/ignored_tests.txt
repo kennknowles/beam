@@ -7,7 +7,6 @@ python/pyspark/errors/tests/connect/test_parity_traceback.py::TracebackSqlConnec
 python/pyspark/logger/tests/connect/test_parity_logger.py::LoggerParityTests::test_apply_schema
 python/pyspark/logger/tests/connect/test_parity_logger.py::LoggerParityTests::test_dataframe_query_context_logger
 python/pyspark/logger/tests/connect/test_parity_logger.py::LoggerParityTests::test_log_info_with_exception # flake
-python/pyspark/logger/tests/connect/test_parity_logger.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/ml/tests/connect/test_connect_cache.py::MLConnectCacheTests::test_assert_remote_mode # flake
 python/pyspark/ml/tests/connect/test_connect_cache.py::MLConnectCacheTests::test_cleanup_ml_cache
 python/pyspark/ml/tests/connect/test_connect_cache.py::MLConnectCacheTests::test_delete_model
@@ -1317,7 +1316,6 @@ python/pyspark/pandas/tests/connect/indexes/test_parity_level.py::LevelParityTes
 python/pyspark/pandas/tests/connect/indexes/test_parity_level.py::LevelParityTests::test_multiindex_nlevel
 python/pyspark/pandas/tests/connect/indexes/test_parity_level.py::LevelParityTests::test_multiindex_swaplevel
 python/pyspark/pandas/tests/connect/indexes/test_parity_map.py::IndexesMapParityTests::test_map
-python/pyspark/pandas/tests/connect/indexes/test_parity_missing.py::MissingParityTests::test_assert_remote_mode
 python/pyspark/pandas/tests/connect/indexes/test_parity_missing.py::MissingParityTests::test_missing
 python/pyspark/pandas/tests/connect/indexes/test_parity_missing.py::MissingParityTests::test_multi_index_not_supported
 python/pyspark/pandas/tests/connect/indexes/test_parity_missing.py::ReusedConnectTestCase::test_assert_remote_mode # flake
@@ -1395,7 +1393,6 @@ python/pyspark/pandas/tests/connect/io/test_parity_dataframe_conversion.py::Data
 python/pyspark/pandas/tests/connect/io/test_parity_dataframe_conversion.py::DataFrameConversionParityTests::test_to_json_with_path
 python/pyspark/pandas/tests/connect/io/test_parity_dataframe_conversion.py::DataFrameConversionParityTests::test_to_latex # flake
 python/pyspark/pandas/tests/connect/io/test_parity_dataframe_conversion.py::DataFrameConversionParityTests::test_to_records
-python/pyspark/pandas/tests/connect/io/test_parity_dataframe_spark_io.py::DataFrameSparkIOParityTests::test_assert_remote_mode
 python/pyspark/pandas/tests/connect/io/test_parity_dataframe_spark_io.py::DataFrameSparkIOParityTests::test_orc_write
 python/pyspark/pandas/tests/connect/io/test_parity_dataframe_spark_io.py::DataFrameSparkIOParityTests::test_parquet_read
 python/pyspark/pandas/tests/connect/io/test_parity_dataframe_spark_io.py::DataFrameSparkIOParityTests::test_parquet_read_with_pandas_metadata
@@ -1424,7 +1421,6 @@ python/pyspark/pandas/tests/connect/resample/test_parity_error.py::ResampleParit
 python/pyspark/pandas/tests/connect/resample/test_parity_frame.py::ResampleParityFrameTests::test_dataframe_resample
 python/pyspark/pandas/tests/connect/resample/test_parity_missing.py::ResampleParityMissingTests::test_missing
 python/pyspark/pandas/tests/connect/resample/test_parity_missing.py::ReusedConnectTestCase::test_assert_remote_mode # flake
-python/pyspark/pandas/tests/connect/resample/test_parity_on.py::ResampleParityOnTests::test_assert_remote_mode
 python/pyspark/pandas/tests/connect/resample/test_parity_on.py::ResampleParityOnTests::test_resample_on
 python/pyspark/pandas/tests/connect/resample/test_parity_series.py::ResampleParitySeriesTests::test_series_resample
 python/pyspark/pandas/tests/connect/resample/test_parity_timezone.py::ResampleParityTimezoneTests::test_series_resample_with_timezone
@@ -1477,7 +1473,6 @@ python/pyspark/pandas/tests/connect/series/test_parity_cumulative.py::SeriesPari
 python/pyspark/pandas/tests/connect/series/test_parity_datetime.py::ReusedConnectTestCase::test_assert_remote_mode # flake
 python/pyspark/pandas/tests/connect/series/test_parity_datetime.py::SeriesDateTimeParityTests::test_arithmetic_op_exceptions
 python/pyspark/pandas/tests/connect/series/test_parity_datetime.py::SeriesDateTimeParityTests::test_ceil
-python/pyspark/pandas/tests/connect/series/test_parity_datetime.py::SeriesDateTimeParityTests::test_date
 python/pyspark/pandas/tests/connect/series/test_parity_datetime.py::SeriesDateTimeParityTests::test_date_subtraction
 python/pyspark/pandas/tests/connect/series/test_parity_datetime.py::SeriesDateTimeParityTests::test_day
 python/pyspark/pandas/tests/connect/series/test_parity_datetime.py::SeriesDateTimeParityTests::test_dayofweek
@@ -1755,7 +1750,6 @@ python/pyspark/pandas/tests/connect/test_parity_sql.py::SQLParityTests::test_sql
 python/pyspark/pandas/tests/connect/test_parity_sql.py::SQLParityTests::test_sql_with_pandas_on_spark_objects
 python/pyspark/pandas/tests/connect/test_parity_sql.py::SQLParityTests::test_sql_with_python_objects
 python/pyspark/pandas/tests/connect/test_parity_typedef.py::TypeHintParityTests::test_assert_remote_mode # flake
-python/pyspark/pandas/tests/connect/test_parity_utils.py::UtilsParityTests::test_lazy_property
 python/pyspark/pandas/tests/connect/test_parity_utils.py::UtilsParityTests::test_series_error_assert_pandas_equal # flake
 python/pyspark/pandas/tests/connect/test_parity_utils.py::UtilsParityTests::test_validate_index_loc
 python/pyspark/pandas/tests/connect/window/test_parity_ewm_error.py::EWMParityErrorTests::test_ewm_error

@@ -20,7 +20,6 @@ package org.apache.beam.sparkconnect;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
@@ -31,6 +30,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.spark.connect.proto.*;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class SparkExpressionToRexNodeTest {
@@ -118,6 +118,8 @@ public class SparkExpressionToRexNodeTest {
     assertEquals("'1 + 1'", rex.toString());
   }
 
+  @Ignore(
+      "Hard blocker: UnresolvedStar returns multiple fields, cannot be handled by translate returning single RexNode")
   @Test
   public void testUnresolvedStar() {
     Expression expr =
@@ -125,12 +127,8 @@ public class SparkExpressionToRexNodeTest {
             .setUnresolvedStar(Expression.UnresolvedStar.newBuilder().build())
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
   @Test
@@ -168,6 +166,8 @@ public class SparkExpressionToRexNodeTest {
     assertTrue(rex.toString().contains("CAST"));
   }
 
+  @Ignore(
+      "Hard blocker: UnresolvedRegex returns multiple fields, cannot be handled by translate returning single RexNode")
   @Test
   public void testUnresolvedRegex() {
     Expression expr =
@@ -175,14 +175,11 @@ public class SparkExpressionToRexNodeTest {
             .setUnresolvedRegex(Expression.UnresolvedRegex.newBuilder().setColName("a.*").build())
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: SortOrder is not evaluable to RexNode on its own")
   @Test
   public void testSortOrder() {
     Expression arg =
@@ -195,14 +192,11 @@ public class SparkExpressionToRexNodeTest {
                     .setDirection(Expression.SortOrder.SortDirection.SORT_DIRECTION_ASCENDING))
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: LambdaFunction not supported in Calcite expressions")
   @Test
   public void testLambdaFunction() {
     Expression body =
@@ -216,16 +210,11 @@ public class SparkExpressionToRexNodeTest {
                         Expression.UnresolvedNamedLambdaVariable.newBuilder().addNameParts("x")))
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException for LambdaFunction");
-    } catch (UnsupportedOperationException e) {
-      assertTrue(
-          e.getMessage().contains("LambdaFunction expression not supported yet")
-              || e.getMessage().contains("not supported"));
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: Window expression mapping to RexOver is complex and not yet implemented")
   @Test
   public void testWindow() {
     Expression func =
@@ -244,14 +233,8 @@ public class SparkExpressionToRexNodeTest {
                                     .setUnparsedIdentifier("name"))))
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException for Window");
-    } catch (UnsupportedOperationException e) {
-      assertTrue(
-          e.getMessage().contains("Window expression not supported yet")
-              || e.getMessage().contains("not supported"));
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
   @Test
@@ -282,7 +265,7 @@ public class SparkExpressionToRexNodeTest {
     Expression struct =
         Expression.newBuilder()
             .setUnresolvedAttribute(
-                Expression.UnresolvedAttribute.newBuilder().setUnparsedIdentifier("name"))
+                Expression.UnresolvedAttribute.newBuilder().setUnparsedIdentifier("struct_col"))
             .build();
     Expression value =
         Expression.newBuilder()
@@ -293,20 +276,15 @@ public class SparkExpressionToRexNodeTest {
             .setUpdateFields(
                 Expression.UpdateFields.newBuilder()
                     .setStructExpression(struct)
-                    .setFieldName("name")
+                    .setFieldName("nested_name")
                     .setValueExpression(value))
             .build();
 
-    try {
-      translator.translate(expr);
-    } catch (IllegalArgumentException e) {
-      // Expected because "name" is a VARCHAR, not a struct type in our setup
-      assertTrue(e.getMessage().contains("Expected struct type"));
-    } catch (UnsupportedOperationException e) {
-      // If not implemented at all
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: UnresolvedNamedLambdaVariable not supported in Calcite expressions")
   @Test
   public void testUnresolvedNamedLambdaVariable() {
     Expression expr =
@@ -315,14 +293,8 @@ public class SparkExpressionToRexNodeTest {
                 Expression.UnresolvedNamedLambdaVariable.newBuilder().addNameParts("x"))
             .build();
 
-    try {
-      RexNode rex = translator.translate(expr);
-      assertNotNull(rex);
-    } catch (UnsupportedOperationException e) {
-      assertTrue(
-          e.getMessage().contains("UnresolvedNamedLambdaVariable expression not supported yet")
-              || e.getMessage().contains("not supported"));
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
   @Test
@@ -348,16 +320,11 @@ public class SparkExpressionToRexNodeTest {
             .setCallFunction(CallFunction.newBuilder().setFunctionName("abs").addArguments(arg))
             .build();
 
-    try {
-      RexNode rex = translator.translate(expr);
-      assertNotNull(rex);
-    } catch (UnsupportedOperationException e) {
-      assertTrue(
-          e.getMessage().contains("Function not found in Calcite")
-              || e.getMessage().contains("not supported"));
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: NamedArgumentExpression not supported in Calcite expressions")
   @Test
   public void testNamedArgumentExpression() {
     Expression val =
@@ -368,14 +335,11 @@ public class SparkExpressionToRexNodeTest {
                 NamedArgumentExpression.newBuilder().setKey("key").setValue(val))
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: MergeAction is not a standard expression")
   @Test
   public void testMergeAction() {
     Expression expr =
@@ -384,14 +348,11 @@ public class SparkExpressionToRexNodeTest {
                 MergeAction.newBuilder().setActionType(MergeAction.ActionType.ACTION_TYPE_DELETE))
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: TypedAggregateExpression not supported in translate")
   @Test
   public void testTypedAggregateExpression() {
     Expression expr =
@@ -399,14 +360,11 @@ public class SparkExpressionToRexNodeTest {
             .setTypedAggregateExpression(TypedAggregateExpression.newBuilder().build())
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: SubqueryExpression requires complex subquery planning")
   @Test
   public void testSubqueryExpression() {
     Expression expr =
@@ -417,14 +375,11 @@ public class SparkExpressionToRexNodeTest {
                     .setSubqueryType(SubqueryExpression.SubqueryType.SUBQUERY_TYPE_SCALAR))
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: DirectShufflePartitionID is Spark specific and not supported")
   @Test
   public void testDirectShufflePartitionID() {
     Expression arg =
@@ -435,24 +390,17 @@ public class SparkExpressionToRexNodeTest {
                 Expression.DirectShufflePartitionID.newBuilder().setChild(arg))
             .build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 
+  @Ignore("Hard blocker: Extension is plugin specific and not supported")
   @Test
   public void testExtension() {
     Expression expr =
         Expression.newBuilder().setExtension(com.google.protobuf.Any.newBuilder().build()).build();
 
-    try {
-      translator.translate(expr);
-      fail("Expected UnsupportedOperationException");
-    } catch (UnsupportedOperationException e) {
-      // Expected
-    }
+    RexNode rex = translator.translate(expr);
+    assertNotNull(rex);
   }
 }

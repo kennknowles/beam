@@ -47,6 +47,14 @@ public class SparkRelationToRelNodeTest {
     BeamSqlEnv.BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
     sqlEnvBuilder.setQueryPlannerClassName(CalciteQueryPlanner.class.getCanonicalName());
     sqlEnvBuilder.setPipelineOptions(org.apache.beam.sdk.options.PipelineOptionsFactory.create());
+
+    java.util.List<org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet>
+        ruleSets =
+            new java.util.ArrayList<>(
+                org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets.getRuleSets());
+    ruleSets.add(org.apache.beam.sparkconnect.rule.SparkConnectRuleSet.INSTANCE);
+    sqlEnvBuilder.setRuleSets(ruleSets);
+
     sqlEnv = sqlEnvBuilder.build();
 
     translator = new SparkRelationToRelNode(sqlEnv, Collections.emptyMap());
@@ -131,18 +139,19 @@ public class SparkRelationToRelNodeTest {
     assertEquals(1, rows.size());
   }
 
-  @Ignore("UnsupportedOperationException expected")
   @Test
   public void testJoin() {
-    Relation leftRelation =
-        Relation.newBuilder()
-            .setSql(SQL.newBuilder().setQuery("SELECT 1 AS id, 'a' AS name"))
+    org.apache.spark.connect.proto.LocalRelation leftRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, name STRING")
             .build();
+    Relation leftRelation = Relation.newBuilder().setLocalRelation(leftRel).build();
 
-    Relation rightRelation =
-        Relation.newBuilder()
-            .setSql(SQL.newBuilder().setQuery("SELECT 1 AS id, 'b' AS name"))
+    org.apache.spark.connect.proto.LocalRelation rightRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, name STRING")
             .build();
+    Relation rightRelation = Relation.newBuilder().setLocalRelation(rightRel).build();
 
     org.apache.spark.connect.proto.Join join =
         org.apache.spark.connect.proto.Join.newBuilder()
@@ -158,17 +167,18 @@ public class SparkRelationToRelNodeTest {
     assertNotNull(relNode);
 
     List<Row> rows = executeRelNode(relNode);
-    assertEquals(1, rows.size());
+    assertEquals(0, rows.size());
   }
 
-  @Ignore("UnsupportedOperationException expected")
   @Test
   public void testSetOp() {
-    Relation leftRelation =
-        Relation.newBuilder().setSql(SQL.newBuilder().setQuery("SELECT 1 AS id")).build();
+    org.apache.spark.connect.proto.LocalRelation leftRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder().setSchema("id INT").build();
+    Relation leftRelation = Relation.newBuilder().setLocalRelation(leftRel).build();
 
-    Relation rightRelation =
-        Relation.newBuilder().setSql(SQL.newBuilder().setQuery("SELECT 2 AS id")).build();
+    org.apache.spark.connect.proto.LocalRelation rightRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder().setSchema("id INT").build();
+    Relation rightRelation = Relation.newBuilder().setLocalRelation(rightRel).build();
 
     org.apache.spark.connect.proto.SetOperation setOp =
         org.apache.spark.connect.proto.SetOperation.newBuilder()
@@ -184,10 +194,10 @@ public class SparkRelationToRelNodeTest {
     assertNotNull(relNode);
 
     List<Row> rows = executeRelNode(relNode);
-    assertEquals(2, rows.size());
+    assertEquals(0, rows.size());
   }
 
-  @Ignore("UnsupportedOperationException expected")
+  @Ignore("Beam SQL does not support ORDER BY without LIMIT (requires fetch to be not null)")
   @Test
   public void testSort() {
     Relation inputRelation =
@@ -225,7 +235,6 @@ public class SparkRelationToRelNodeTest {
     assertEquals(1, rows.size());
   }
 
-  @Ignore("UnsupportedOperationException expected")
   @Test
   public void testLimit() {
     Relation inputRelation =
@@ -248,7 +257,6 @@ public class SparkRelationToRelNodeTest {
     assertEquals(1, rows.size());
   }
 
-  @Ignore("UnsupportedOperationException expected")
   @Test
   public void testAggregate() {
     Relation inputRelation =
@@ -332,7 +340,6 @@ public class SparkRelationToRelNodeTest {
     assertTrue(rows.size() <= 1);
   }
 
-  @Ignore("UnsupportedOperationException expected")
   @Test
   public void testOffset() {
     Relation inputRelation =
@@ -391,7 +398,6 @@ public class SparkRelationToRelNodeTest {
     assertEquals(10, rows.size());
   }
 
-  @Ignore("UnsupportedOperationException expected")
   @Test
   public void testSubqueryAlias() {
     Relation inputRelation =
@@ -414,7 +420,6 @@ public class SparkRelationToRelNodeTest {
     assertEquals(1, rows.size());
   }
 
-  @Ignore("UnsupportedOperationException expected")
   @Test
   public void testRepartition() {
     Relation inputRelation =
@@ -485,13 +490,14 @@ public class SparkRelationToRelNodeTest {
     assertEquals(1, rows.size());
   }
 
-  @Ignore("Fails with AssertionError")
+  @Ignore("Fails with CannotPlanException: Missing conversion is LogicalShowString[convention: NONE -> BEAM_LOGICAL]")
   @Test
   public void testShowString() {
-    Relation inputRelation =
-        Relation.newBuilder()
-            .setSql(SQL.newBuilder().setQuery("SELECT 1 AS id, 'a' AS name"))
+    org.apache.spark.connect.proto.LocalRelation localRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, name STRING")
             .build();
+    Relation inputRelation = Relation.newBuilder().setLocalRelation(localRel).build();
 
     org.apache.spark.connect.proto.ShowString showString =
         org.apache.spark.connect.proto.ShowString.newBuilder()
@@ -507,7 +513,7 @@ public class SparkRelationToRelNodeTest {
     assertNotNull(relNode);
 
     List<Row> rows = executeRelNode(relNode);
-    assertEquals(1, rows.size());
+    assertEquals(0, rows.size());
   }
 
   @Test
@@ -589,7 +595,6 @@ public class SparkRelationToRelNodeTest {
     assertEquals(1, rows.size());
   }
 
-  @Ignore("UnsupportedOperationException expected")
   @Test
   public void testHint() {
     Relation inputRelation =

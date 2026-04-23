@@ -174,6 +174,10 @@ public class SparkRelationToRelNode {
         return translateRange(sparkRelation.getRange());
       case SQL:
         return translateSql(sparkRelation.getSql());
+      case SUBQUERY_ALIAS:
+        return translate(sparkRelation.getSubqueryAlias().getInput());
+      case HINT:
+        return translate(sparkRelation.getHint().getInput());
       case TAIL:
         return translateTail(sparkRelation.getTail());
       case DROP:
@@ -328,9 +332,11 @@ public class SparkRelationToRelNode {
         equiConditions.add(
             cluster.getRexBuilder().makeCall(SqlStdOperatorTable.EQUALS, leftRef, rightRef));
       }
-      // this might not be right - we should probably just build a RexNode matching the syntax and
-      // save the join analysis for later
-      condition = cluster.getRexBuilder().makeCall(SqlStdOperatorTable.AND, equiConditions);
+      if (equiConditions.size() == 1) {
+        condition = equiConditions.get(0);
+      } else {
+        condition = cluster.getRexBuilder().makeCall(SqlStdOperatorTable.AND, equiConditions);
+      }
     } else if (joinProto.getJoinType() == Join.JoinType.JOIN_TYPE_CROSS) {
       condition = cluster.getRexBuilder().makeLiteral(true);
     } else {
@@ -747,7 +753,8 @@ public class SparkRelationToRelNode {
     RelNode input = translate(offsetProto.getInput());
     RexNode offset =
         cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(offsetProto.getOffset()));
-    return LogicalSort.create(input, RelCollations.EMPTY, offset, null);
+    RexNode fetch = cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(Integer.MAX_VALUE));
+    return LogicalSort.create(input, RelCollations.EMPTY, offset, fetch);
   }
 
   @SuppressWarnings("unused")

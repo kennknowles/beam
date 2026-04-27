@@ -18,34 +18,34 @@
 package org.apache.beam.sparkconnect.rule;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
-import org.apache.beam.sparkconnect.beamrel.BeamShowString;
-import org.apache.beam.sparkconnect.rel.LogicalShowString;
+import org.apache.beam.sparkconnect.beamrel.BeamHtmlString;
+import org.apache.beam.sparkconnect.rel.LogicalHtmlString;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.Convention;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.convert.ConverterRule;
 
-public class BeamShowStringRule extends ConverterRule {
-  public static final BeamShowStringRule INSTANCE = new BeamShowStringRule();
+public class BeamHtmlStringRule extends ConverterRule {
+  public static final BeamHtmlStringRule INSTANCE = new BeamHtmlStringRule();
 
-  private BeamShowStringRule() {
+  private BeamHtmlStringRule() {
     super(
-        LogicalShowString.class,
+        LogicalHtmlString.class,
         Convention.NONE,
         BeamLogicalConvention.INSTANCE,
-        "BeamShowStringRule");
+        "BeamHtmlStringRule");
   }
 
   @Override
   public RelNode convert(RelNode rel) {
-    LogicalShowString showString = (LogicalShowString) rel;
-    RelNode input = showString.getInput();
+    LogicalHtmlString htmlString = (LogicalHtmlString) rel;
+    RelNode input = htmlString.getInput();
 
-    return new BeamShowString(
-        showString.getCluster(),
-        showString.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+    return new BeamHtmlString(
+        htmlString.getCluster(),
+        htmlString.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule.convert(
             input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        showString.numRows,
-        showString.truncate);
+        htmlString.numRows,
+        htmlString.truncate);
   }
 }

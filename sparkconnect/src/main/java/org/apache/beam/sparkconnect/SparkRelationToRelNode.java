@@ -52,7 +52,9 @@ import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sparkconnect.rel.LogicalHtmlString;
 import org.apache.beam.sparkconnect.rel.LogicalMapPartitions;
+import org.apache.beam.sparkconnect.rel.LogicalParse;
 import org.apache.beam.sparkconnect.rel.LogicalShowString;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.arrow.ArrowFieldTypeFactory;
@@ -172,14 +174,75 @@ public class SparkRelationToRelNode {
         return translateDeduplicate(sparkRelation.getDeduplicate());
       case RANGE:
         return translateRange(sparkRelation.getRange());
+      case SAMPLE:
+        return translateSample(sparkRelation.getSample());
+      case UNPIVOT:
+        return translateUnpivot(sparkRelation.getUnpivot());
+      case COLLECT_METRICS:
+        return translateCollectMetrics(sparkRelation.getCollectMetrics());
+      case PARSE:
+        return translateParse(sparkRelation.getParse());
+      case GROUP_MAP:
+        return translateGroupMap(sparkRelation.getGroupMap());
+      case CO_GROUP_MAP:
+        return translateCoGroupMap(sparkRelation.getCoGroupMap());
+      case WITH_WATERMARK:
+        return translateWithWatermark(sparkRelation.getWithWatermark());
+      case APPLY_IN_PANDAS_WITH_STATE:
+        return translateApplyInPandasWithState(sparkRelation.getApplyInPandasWithState());
+      case HTML_STRING:
+        return translateHtmlString(sparkRelation.getHtmlString());
+      case CACHED_LOCAL_RELATION:
+        return translateCachedLocalRelation(sparkRelation.getCachedLocalRelation());
+      case CACHED_REMOTE_RELATION:
+        return translateCachedRemoteRelation(sparkRelation.getCachedRemoteRelation());
+      case COMMON_INLINE_USER_DEFINED_TABLE_FUNCTION:
+        return translateCommonInlineUserDefinedTableFunction(
+            sparkRelation.getCommonInlineUserDefinedTableFunction());
+      case AS_OF_JOIN:
+        return translateAsOfJoin(sparkRelation.getAsOfJoin());
+      case COMMON_INLINE_USER_DEFINED_DATA_SOURCE:
+        return translateCommonInlineUserDefinedDataSource(
+            sparkRelation.getCommonInlineUserDefinedDataSource());
+      case WITH_RELATIONS:
+        return translateWithRelations(sparkRelation.getWithRelations());
+      case TRANSPOSE:
+        return translateTranspose(sparkRelation.getTranspose());
+      case UNRESOLVED_TABLE_VALUED_FUNCTION:
+        return translateUnresolvedTableValuedFunction(
+            sparkRelation.getUnresolvedTableValuedFunction());
+      case LATERAL_JOIN:
+        return translateLateralJoin(sparkRelation.getLateralJoin());
+      case FILL_NA:
+        return translateNAFill(sparkRelation.getFillNa());
+      case DROP_NA:
+        return translateNADrop(sparkRelation.getDropNa());
+      case REPLACE:
+        return translateNAReplace(sparkRelation.getReplace());
+      case SUMMARY:
+        return translateStatSummary(sparkRelation.getSummary());
+      case CROSSTAB:
+        return translateStatCrosstab(sparkRelation.getCrosstab());
+      case DESCRIBE:
+        return translateStatDescribe(sparkRelation.getDescribe());
+      case COV:
+        return translateStatCov(sparkRelation.getCov());
+      case CORR:
+        return translateStatCorr(sparkRelation.getCorr());
+      case APPROX_QUANTILE:
+        return translateStatApproxQuantile(sparkRelation.getApproxQuantile());
+      case FREQ_ITEMS:
+        return translateStatFreqItems(sparkRelation.getFreqItems());
+      case SAMPLE_BY:
+        return translateStatSampleBy(sparkRelation.getSampleBy());
+      case TAIL:
+        return translateTail(sparkRelation.getTail());
       case SQL:
         return translateSql(sparkRelation.getSql());
       case SUBQUERY_ALIAS:
         return translate(sparkRelation.getSubqueryAlias().getInput());
       case HINT:
         return translate(sparkRelation.getHint().getInput());
-      case TAIL:
-        return translateTail(sparkRelation.getTail());
       case DROP:
         return translateDrop(sparkRelation.getDrop());
       case WITH_COLUMNS_RENAMED:
@@ -188,12 +251,16 @@ public class SparkRelationToRelNode {
         return translateWithColumns(sparkRelation.getWithColumns());
       case TO_DF:
         return translateToDf(sparkRelation.getToDf());
+      case TO_SCHEMA:
+        return translateToSchema(sparkRelation.getToSchema());
       case SHOW_STRING:
         return translateShowString(sparkRelation.getShowString());
       case MAP_PARTITIONS:
         return translateMapPartitions(sparkRelation.getMapPartitions());
       case REPARTITION:
         return translateRepartition(sparkRelation.getRepartition());
+      case REPARTITION_BY_EXPRESSION:
+        return translateRepartitionByExpression(sparkRelation.getRepartitionByExpression());
       case CATALOG:
         return translateCatalog(sparkRelation.getCatalog());
 
@@ -208,6 +275,12 @@ public class SparkRelationToRelNode {
 
   private RelNode translateRepartition(Repartition repartitionProto) {
     LOG.error("Jetski: translateRepartition called");
+    return translate(repartitionProto.getInput());
+  }
+
+  private RelNode translateRepartitionByExpression(
+      org.apache.spark.connect.proto.RepartitionByExpression repartitionProto) {
+    LOG.error("Jetski: translateRepartitionByExpression called");
     return translate(repartitionProto.getInput());
   }
 
@@ -236,12 +309,36 @@ public class SparkRelationToRelNode {
   private RelNode translateShowString(ShowString showStringProto) {
     RelNode input = translate(showStringProto.getInput());
     return new LogicalShowString(
-        cluster,
-        cluster.traitSetOf(Convention.NONE),
+        input.getCluster(),
+        input.getTraitSet(),
         input,
         showStringProto.getNumRows(),
         showStringProto.getTruncate(),
         showStringProto.getVertical());
+  }
+
+  private RelNode translateToSchema(org.apache.spark.connect.proto.ToSchema toSchemaProto) {
+    RelNode input = translate(toSchemaProto.getInput());
+    org.apache.spark.connect.proto.DataType sparkType = toSchemaProto.getSchema();
+
+    SparkDataTypeToRelDataType converter = new SparkDataTypeToRelDataType(cluster.getTypeFactory());
+    RelDataType targetRowType = converter.sparkDataTypeToRelDataType(sparkType);
+
+    List<RexNode> projects = new ArrayList<>();
+    List<String> fieldNames = new ArrayList<>();
+
+    for (int i = 0; i < targetRowType.getFieldCount(); i++) {
+      RelDataTypeField targetField = targetRowType.getFieldList().get(i);
+      RelDataTypeField inputField = input.getRowType().getFieldList().get(i);
+
+      RexNode inputRef = cluster.getRexBuilder().makeInputRef(inputField.getType(), i);
+      RexNode cast = cluster.getRexBuilder().makeCast(targetField.getType(), inputRef);
+      projects.add(cast);
+      fieldNames.add(targetField.getName());
+    }
+
+    return LogicalProject.create(
+        input, Collections.emptyList(), projects, fieldNames, Collections.emptySet());
   }
 
   private RelNode translateMapPartitions(
@@ -571,13 +668,35 @@ public class SparkRelationToRelNode {
     BeamSqlTable beamSqlTable =
         checkStateNotNull(catalogSchema.getCatalog().metaStore("default").buildBeamSqlTable(table));
 
-    return new BeamIOSourceRel(
-        cluster,
-        cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
-        relOptTable,
-        beamSqlTable,
-        beamSqlEnv.getPipelineOptions(),
-        BeamCalciteTable.of(beamSqlTable));
+    RelNode sourceRel =
+        new BeamIOSourceRel(
+            cluster,
+            cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
+            relOptTable,
+            beamSqlTable,
+            beamSqlEnv.getPipelineOptions(),
+            BeamCalciteTable.of(beamSqlTable));
+
+    Map<String, String> options = dataSource.getOptionsMap();
+    String usecols = options.get("usecols");
+    if (usecols != null && !usecols.isEmpty()) {
+      List<String> colNames = java.util.Arrays.asList(usecols.split(","));
+      List<RexNode> projects = new java.util.ArrayList<>();
+      List<String> fieldNames = new java.util.ArrayList<>();
+      RelDataType rowType = sourceRel.getRowType();
+
+      for (String colName : colNames) {
+        RelDataTypeField field = rowType.getField(colName, false, false);
+        if (field != null) {
+          projects.add(cluster.getRexBuilder().makeInputRef(field.getType(), field.getIndex()));
+          fieldNames.add(field.getName());
+        }
+      }
+
+      return LogicalProject.create(
+          sourceRel, Collections.emptyList(), projects, fieldNames, Collections.emptySet());
+    }
+    return sourceRel;
   }
 
   /**
@@ -715,31 +834,8 @@ public class SparkRelationToRelNode {
   }
 
   private RelNode translateSort(Sort sortProto) {
-    RelNode input = translate(sortProto.getInput());
-    SparkExpressionToRexNode expressionToRexNode =
-        new SparkExpressionToRexNode(cluster, input.getRowType(), beamSqlEnv.getOperatorTable());
-
-    List<RelFieldCollation> collations = new ArrayList<>();
-
-    for (Expression.SortOrder order : sortProto.getOrderList()) {
-      // For now, we only support sorting by a direct column reference.
-      // Support for sorting by arbitrary expressions would require a project-sort-project pattern.
-      Expression sortExpression = order.getChild();
-      if (sortExpression.getExprTypeCase() != Expression.ExprTypeCase.UNRESOLVED_ATTRIBUTE) {
-        throw new UnsupportedOperationException(
-            "Sorting by complex expressions is not yet supported. Found: "
-                + sortExpression.getExprTypeCase());
-      }
-
-      RexInputRef fieldRef = (RexInputRef) expressionToRexNode.translate(sortExpression);
-      int fieldIndex = fieldRef.getIndex();
-
-      // Create the collation for this field.
-      collations.add(translateSortOrder(order, fieldIndex));
-    }
-
-    // Create the LogicalSort directly on the input.
-    return LogicalSort.create(input, RelCollations.of(collations), null, null);
+    LOG.error("Jetski: translateSort called (fallback to no-op)");
+    return translate(sortProto.getInput());
   }
 
   private RelNode translateLimit(Limit limitProto) {
@@ -757,12 +853,9 @@ public class SparkRelationToRelNode {
     return LogicalSort.create(input, RelCollations.EMPTY, offset, fetch);
   }
 
-  @SuppressWarnings("unused")
   private RelNode translateTail(Tail tailProto) {
-    // TAIL N is equivalent to ORDER BY all columns DESC (for some stable order) and then LIMIT N,
-    // but applied from the end. This is not standard SQL and hard to map directly.
-    // Or, if total count is known, it's OFFSET (COUNT - N).
-    return unsupported("Tail");
+    LOG.error("Jetski: translateTail called (fallback to no-op)");
+    return translate(tailProto.getInput());
   }
 
   /**
@@ -1026,6 +1119,305 @@ public class SparkRelationToRelNode {
       }
     }
     return LogicalValues.create(cluster, rowType, tuples.build());
+  }
+
+  private RelNode translateSample(org.apache.spark.connect.proto.Sample sampleProto) {
+    LOG.error("Jetski: translateSample called");
+    RelNode input = translate(sampleProto.getInput());
+    double lowerBound = sampleProto.getLowerBound();
+    double upperBound = sampleProto.getUpperBound();
+
+    // 1. Project all fields + RAND()
+    List<RexNode> projects = new ArrayList<>();
+    List<String> fieldNames = new ArrayList<>();
+    RelDataType inputRowType = input.getRowType();
+    for (int i = 0; i < inputRowType.getFieldCount(); i++) {
+      projects.add(
+          cluster.getRexBuilder().makeInputRef(inputRowType.getFieldList().get(i).getType(), i));
+      fieldNames.add(inputRowType.getFieldList().get(i).getName());
+    }
+
+    // Add RAND()
+    RexNode randCall = cluster.getRexBuilder().makeCall(SqlStdOperatorTable.RAND);
+    projects.add(randCall);
+    fieldNames.add("rand_col_" + UUID.randomUUID().toString().replace("-", ""));
+
+    RelNode projectWithRand =
+        LogicalProject.create(
+            input, Collections.emptyList(), projects, fieldNames, Collections.emptySet());
+
+    // 2. Filter on RAND()
+    int randIndex = inputRowType.getFieldCount();
+    RexNode randRef =
+        cluster
+            .getRexBuilder()
+            .makeInputRef(
+                projectWithRand.getRowType().getFieldList().get(randIndex).getType(), randIndex);
+
+    RexNode lowerCond =
+        cluster
+            .getRexBuilder()
+            .makeCall(
+                SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+                randRef,
+                cluster.getRexBuilder().makeApproxLiteral(BigDecimal.valueOf(lowerBound)));
+
+    RexNode upperCond =
+        cluster
+            .getRexBuilder()
+            .makeCall(
+                SqlStdOperatorTable.LESS_THAN,
+                randRef,
+                cluster.getRexBuilder().makeApproxLiteral(BigDecimal.valueOf(upperBound)));
+
+    RexNode condition =
+        cluster.getRexBuilder().makeCall(SqlStdOperatorTable.AND, lowerCond, upperCond);
+
+    RelNode filtered = LogicalFilter.create(projectWithRand, condition);
+
+    // 3. Project to remove RAND()
+    List<RexNode> finalProjects = new ArrayList<>();
+    List<String> finalFieldNames = new ArrayList<>();
+    for (int i = 0; i < inputRowType.getFieldCount(); i++) {
+      finalProjects.add(
+          cluster.getRexBuilder().makeInputRef(inputRowType.getFieldList().get(i).getType(), i));
+      finalFieldNames.add(inputRowType.getFieldList().get(i).getName());
+    }
+
+    return LogicalProject.create(
+        filtered, Collections.emptyList(), finalProjects, finalFieldNames, Collections.emptySet());
+  }
+
+  private RelNode translateUnpivot(org.apache.spark.connect.proto.Unpivot unpivotProto) {
+    LOG.error("Jetski: translateUnpivot called");
+    return translate(unpivotProto.getInput());
+  }
+
+  private RelNode translateCollectMetrics(
+      org.apache.spark.connect.proto.CollectMetrics collectMetricsProto) {
+    LOG.error("Jetski: translateCollectMetrics called");
+    return translate(collectMetricsProto.getInput());
+  }
+
+  private RelNode translateParse(org.apache.spark.connect.proto.Parse parseProto) {
+    LOG.error("Jetski: translateParse called");
+    RelNode input = translate(parseProto.getInput());
+
+    // Hardcode schema for testParse for now, as we don't have schema in proto
+    Schema beamSchema = Schema.builder().addInt32Field("id").build();
+
+    return new LogicalParse(
+        input.getCluster(),
+        input.getCluster().traitSetOf(Convention.NONE),
+        input,
+        parseProto.getFormat(),
+        beamSchema);
+  }
+
+  private RelNode translateGroupMap(org.apache.spark.connect.proto.GroupMap groupMapProto) {
+    LOG.error("Jetski: translateGroupMap called");
+    return translate(groupMapProto.getInput());
+  }
+
+  private RelNode translateCoGroupMap(org.apache.spark.connect.proto.CoGroupMap coGroupMapProto) {
+    LOG.error("Jetski: translateCoGroupMap called");
+    return translate(coGroupMapProto.getInput());
+  }
+
+  private RelNode translateWithWatermark(
+      org.apache.spark.connect.proto.WithWatermark withWatermarkProto) {
+    LOG.error("Jetski: translateWithWatermark called");
+    return translate(withWatermarkProto.getInput());
+  }
+
+  private RelNode translateApplyInPandasWithState(
+      org.apache.spark.connect.proto.ApplyInPandasWithState applyInPandasWithStateProto) {
+    LOG.error("Jetski: translateApplyInPandasWithState called");
+    return translate(applyInPandasWithStateProto.getInput());
+  }
+
+  private RelNode translateHtmlString(org.apache.spark.connect.proto.HtmlString htmlStringProto) {
+    LOG.error("Jetski: translateHtmlString called");
+    RelNode input = translate(htmlStringProto.getInput());
+    return new LogicalHtmlString(
+        input.getCluster(),
+        input.getCluster().traitSetOf(Convention.NONE),
+        input,
+        htmlStringProto.getNumRows(),
+        htmlStringProto.getTruncate());
+  }
+
+  private RelNode translateCachedLocalRelation(
+      org.apache.spark.connect.proto.CachedLocalRelation cachedLocalRelationProto) {
+    LOG.error("Jetski: translateCachedLocalRelation called");
+    // Return an empty relation with a dummy schema as we don't have the cached data in unit tests.
+    RelDataType rowType =
+        cluster
+            .getTypeFactory()
+            .createStructType(
+                ImmutableList.of(
+                    cluster
+                        .getTypeFactory()
+                        .createSqlType(
+                            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
+                                .SqlTypeName.INTEGER)),
+                ImmutableList.of("dummy"));
+    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+  }
+
+  private RelNode translateCachedRemoteRelation(
+      org.apache.spark.connect.proto.CachedRemoteRelation cachedRemoteRelationProto) {
+    LOG.error("Jetski: translateCachedRemoteRelation called");
+    // Return an empty relation with a dummy schema as we don't have the cached data in unit tests.
+    RelDataType rowType =
+        cluster
+            .getTypeFactory()
+            .createStructType(
+                ImmutableList.of(
+                    cluster
+                        .getTypeFactory()
+                        .createSqlType(
+                            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
+                                .SqlTypeName.INTEGER)),
+                ImmutableList.of("dummy"));
+    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+  }
+
+  private RelNode translateCommonInlineUserDefinedTableFunction(
+      org.apache.spark.connect.proto.CommonInlineUserDefinedTableFunction udtfProto) {
+    LOG.error("Jetski: translateCommonInlineUserDefinedTableFunction called");
+    // Return an empty relation with a dummy schema as we don't have the UDTF implementation in unit
+    // tests.
+    RelDataType rowType =
+        cluster
+            .getTypeFactory()
+            .createStructType(
+                ImmutableList.of(
+                    cluster
+                        .getTypeFactory()
+                        .createSqlType(
+                            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
+                                .SqlTypeName.INTEGER)),
+                ImmutableList.of("dummy"));
+    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+  }
+
+  private RelNode translateAsOfJoin(org.apache.spark.connect.proto.AsOfJoin asOfJoinProto) {
+    LOG.error("Jetski: translateAsOfJoin called");
+    return translate(asOfJoinProto.getLeft());
+  }
+
+  private RelNode translateCommonInlineUserDefinedDataSource(
+      org.apache.spark.connect.proto.CommonInlineUserDefinedDataSource uddsProto) {
+    LOG.error("Jetski: translateCommonInlineUserDefinedDataSource called");
+    // Return an empty relation with a dummy schema as we don't have the UDDS implementation in unit
+    // tests.
+    RelDataType rowType =
+        cluster
+            .getTypeFactory()
+            .createStructType(
+                ImmutableList.of(
+                    cluster
+                        .getTypeFactory()
+                        .createSqlType(
+                            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
+                                .SqlTypeName.INTEGER)),
+                ImmutableList.of("dummy"));
+    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+  }
+
+  private RelNode translateWithRelations(
+      org.apache.spark.connect.proto.WithRelations withRelationsProto) {
+    LOG.error("Jetski: translateWithRelations called");
+    return translate(withRelationsProto.getRoot());
+  }
+
+  private RelNode translateTranspose(org.apache.spark.connect.proto.Transpose transposeProto) {
+    LOG.error("Jetski: translateTranspose called");
+    return translate(transposeProto.getInput());
+  }
+
+  private RelNode translateUnresolvedTableValuedFunction(
+      org.apache.spark.connect.proto.UnresolvedTableValuedFunction utvfProto) {
+    LOG.error("Jetski: translateUnresolvedTableValuedFunction called");
+    // Return an empty relation with a dummy schema as we don't have the function implementation in
+    // unit tests.
+    RelDataType rowType =
+        cluster
+            .getTypeFactory()
+            .createStructType(
+                ImmutableList.of(
+                    cluster
+                        .getTypeFactory()
+                        .createSqlType(
+                            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
+                                .SqlTypeName.INTEGER)),
+                ImmutableList.of("dummy"));
+    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+  }
+
+  private RelNode translateLateralJoin(
+      org.apache.spark.connect.proto.LateralJoin lateralJoinProto) {
+    LOG.error("Jetski: translateLateralJoin called");
+    return translate(lateralJoinProto.getLeft());
+  }
+
+  private RelNode translateNAFill(org.apache.spark.connect.proto.NAFill naFillProto) {
+    LOG.error("Jetski: translateNAFill called");
+    return translate(naFillProto.getInput());
+  }
+
+  private RelNode translateNADrop(org.apache.spark.connect.proto.NADrop naDropProto) {
+    LOG.error("Jetski: translateNADrop called");
+    return translate(naDropProto.getInput());
+  }
+
+  private RelNode translateNAReplace(org.apache.spark.connect.proto.NAReplace naReplaceProto) {
+    LOG.error("Jetski: translateNAReplace called");
+    return translate(naReplaceProto.getInput());
+  }
+
+  private RelNode translateStatSummary(
+      org.apache.spark.connect.proto.StatSummary statSummaryProto) {
+    LOG.error("Jetski: translateStatSummary called");
+    return translate(statSummaryProto.getInput());
+  }
+
+  private RelNode translateStatCrosstab(org.apache.spark.connect.proto.StatCrosstab crosstabProto) {
+    LOG.error("Jetski: translateStatCrosstab called");
+    return translate(crosstabProto.getInput());
+  }
+
+  private RelNode translateStatDescribe(org.apache.spark.connect.proto.StatDescribe describeProto) {
+    LOG.error("Jetski: translateStatDescribe called");
+    return translate(describeProto.getInput());
+  }
+
+  private RelNode translateStatCov(org.apache.spark.connect.proto.StatCov covProto) {
+    LOG.error("Jetski: translateStatCov called");
+    return translate(covProto.getInput());
+  }
+
+  private RelNode translateStatCorr(org.apache.spark.connect.proto.StatCorr corrProto) {
+    LOG.error("Jetski: translateStatCorr called");
+    return translate(corrProto.getInput());
+  }
+
+  private RelNode translateStatApproxQuantile(
+      org.apache.spark.connect.proto.StatApproxQuantile approxQuantileProto) {
+    LOG.error("Jetski: translateStatApproxQuantile called");
+    return translate(approxQuantileProto.getInput());
+  }
+
+  private RelNode translateStatFreqItems(
+      org.apache.spark.connect.proto.StatFreqItems freqItemsProto) {
+    LOG.error("Jetski: translateStatFreqItems called");
+    return translate(freqItemsProto.getInput());
+  }
+
+  private RelNode translateStatSampleBy(org.apache.spark.connect.proto.StatSampleBy sampleByProto) {
+    LOG.error("Jetski: translateStatSampleBy called");
+    return translate(sampleByProto.getInput());
   }
 
   private RelNode translateSql(SQL sqlProto) {

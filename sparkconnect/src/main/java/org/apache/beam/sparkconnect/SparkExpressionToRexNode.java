@@ -272,6 +272,12 @@ public class SparkExpressionToRexNode {
       return result;
     }
 
+    if (funcName.equalsIgnoreCase("array_contains") && operands.size() == 2) {
+      RexNode array = operands.get(0);
+      RexNode value = operands.get(1);
+      return cluster.getRexBuilder().makeCall(SqlStdOperatorTable.MEMBER_OF, value, array);
+    }
+
     if (funcName.equalsIgnoreCase("try_mod") && operands.size() == 2) {
       RexNode a = operands.get(0);
       RexNode b = operands.get(1);
@@ -295,6 +301,16 @@ public class SparkExpressionToRexNode {
       } else {
         return cluster.getRexBuilder().makeCall(SqlStdOperatorTable.CASE, operands);
       }
+    }
+
+    if (funcName.equalsIgnoreCase("between") && operands.size() == 3) {
+      RexNode a = operands.get(0);
+      RexNode b = operands.get(1);
+      RexNode c = operands.get(2);
+      RexBuilder builder = cluster.getRexBuilder();
+      RexNode gte = builder.makeCall(SqlStdOperatorTable.GREATER_THAN_OR_EQUAL, a, b);
+      RexNode lte = builder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, a, c);
+      return builder.makeCall(SqlStdOperatorTable.AND, gte, lte);
     }
 
     // Special handling for TRIM, LTRIM, RTRIM which have different signatures in Calcite
@@ -635,6 +651,15 @@ public class SparkExpressionToRexNode {
             org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimeString
                 .fromMillisOfDay((int) timeMillis),
             typeFactory.createSqlType(SqlTypeName.TIME).getPrecision());
+
+      case ARRAY:
+        Expression.Literal.Array array = literal.getArray();
+        List<RexNode> elements =
+            array.getElementsList().stream()
+                .map(this::translateLiteral)
+                .collect(Collectors.toList());
+        return rexBuilder.makeCall(SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, elements);
+
       default:
         throw new UnsupportedOperationException(
             "Literal type not supported: " + literal.getLiteralTypeCase());

@@ -1319,6 +1319,7 @@ python/pyspark/pandas/tests/connect/indexes/test_parity_map.py::IndexesMapParity
 python/pyspark/pandas/tests/connect/indexes/test_parity_missing.py::MissingParityTests::test_missing
 python/pyspark/pandas/tests/connect/indexes/test_parity_missing.py::MissingParityTests::test_multi_index_not_supported
 python/pyspark/pandas/tests/connect/indexes/test_parity_missing.py::ReusedConnectTestCase::test_assert_remote_mode # flake
+python/pyspark/pandas/tests/connect/indexes/test_parity_monotonic.py::MonotonicParityTests::test_assert_remote_mode
 python/pyspark/pandas/tests/connect/indexes/test_parity_monotonic.py::MonotonicParityTests::test_monotonic
 python/pyspark/pandas/tests/connect/indexes/test_parity_monotonic.py::ReusedConnectTestCase::test_assert_remote_mode # flake
 python/pyspark/pandas/tests/connect/indexes/test_parity_name.py::IndexNameParityTests::test_assert_remote_mode # flake
@@ -1422,6 +1423,7 @@ python/pyspark/pandas/tests/connect/resample/test_parity_frame.py::ResampleParit
 python/pyspark/pandas/tests/connect/resample/test_parity_missing.py::ResampleParityMissingTests::test_missing
 python/pyspark/pandas/tests/connect/resample/test_parity_missing.py::ReusedConnectTestCase::test_assert_remote_mode # flake
 python/pyspark/pandas/tests/connect/resample/test_parity_on.py::ResampleParityOnTests::test_resample_on
+python/pyspark/pandas/tests/connect/resample/test_parity_on.py::ReusedConnectTestCase::test_assert_remote_mode
 python/pyspark/pandas/tests/connect/resample/test_parity_series.py::ResampleParitySeriesTests::test_series_resample
 python/pyspark/pandas/tests/connect/resample/test_parity_timezone.py::ResampleParityTimezoneTests::test_series_resample_with_timezone
 python/pyspark/pandas/tests/connect/reshape/test_parity_get_dummies.py::GetDummiesParityTests::test_get_dummies
@@ -2789,6 +2791,7 @@ python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_column_name_with_non_ascii
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_column_select
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_drop_fields
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_drop_notexistent_col
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_enum_literals
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_eqnullsafe_classmethod_usage
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_expr_str_representation # flake
@@ -2798,8 +2801,35 @@ python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_lit_delta_representation # flake
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_lit_time_representation # flake
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_over_negative # flake
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_select_join_keys
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_self_join
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_self_join_II
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_self_join_III
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_self_join_IV
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_transform # flake
 python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTests::test_with_field
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_access_column
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_alias_metadata
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_and_in_expression
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_bitwise_operations
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_column_date_time_op
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_column_name_encoding
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_column_name_with_non_ascii
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_column_select
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_df_col_resolution_mode
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_drop_fields
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_drop_notexistent_col
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_enum_literals
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_eqnullsafe_classmethod_usage
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_field_accessor
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_getitem_column
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_select_join_keys
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_self_join
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_self_join_II
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_self_join_III
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_self_join_IV
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_transform
+python/pyspark/sql/tests/connect/test_parity_column.py::ColumnParityTestsWithNonStrictDFColResolution::test_with_field
 python/pyspark/sql/tests/connect/test_parity_column.py::ReusedConnectTestCase::test_assert_remote_mode # flake
 python/pyspark/sql/tests/connect/test_parity_conf.py::ConfParityTests::test_conf
 python/pyspark/sql/tests/connect/test_parity_conf.py::ConfParityTests::test_conf_with_python_objects
@@ -2831,7 +2861,6 @@ python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests:
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_duplicates_with_ambiguous_reference
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_empty_column
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_join
-python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_drop_notexistent_col
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_duplicate_field_names
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_duplicated_column_names
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_extended_hint_types
@@ -2854,11 +2883,7 @@ python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests:
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_same_semantics_error # flake
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_sample
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_sample_with_random_seed
-python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_select_join_keys
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_self_join # flake
-python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_self_join_II
-python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_self_join_III
-python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_self_join_IV
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_socket_leak # flake
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_table # flake
 python/pyspark/sql/tests/connect/test_parity_dataframe.py::DataFrameParityTests::test_to

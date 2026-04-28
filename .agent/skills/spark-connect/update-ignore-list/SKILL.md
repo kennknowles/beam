@@ -21,6 +21,7 @@ python/pyspark/sql/tests/connect/test_parity_flake.py::FlakyTests::test_unstable
 
 - **Comments**: Any text following a `#` symbol is treated as a comment and ignored.
 - **Flake Tag**: Tests marked with ` # flake` are identified as flaky tests. These are preserved during updates even if they pass in a single run.
+- **Alphabetical Order**: The file is maintained in precise alphabetical order by the automated script to ensure consistency and ease of comparison.
 
 ## How to Use / Update
 

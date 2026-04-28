@@ -149,6 +149,14 @@ tasks.register<Exec>("updateIgnoreList") {
   commandLine("./compliance_testing.py", "update-ignore-list")
 }
 
+tasks.register<Exec>("updateFlakes") {
+  group = "Verification"
+  description = "Update ignore list with flaky test detection"
+  dependsOn(tasks.named("compileJava"))
+  workingDir = projectDir
+  commandLine("./compliance_testing.py", "update-flakes")
+}
+
 // Disable dependency analysis task as it fails on unused declared artifacts (spotbugs, immutables)
 tasks.named("analyzeClassesDependencies") {
   enabled = false

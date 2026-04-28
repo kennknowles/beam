@@ -19,10 +19,10 @@ package org.apache.beam.sparkconnect;
 
 import io.grpc.stub.StreamObserver;
 import java.sql.Timestamp;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
@@ -65,31 +65,38 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkConnectService.class);
 
-  private final Map<String, String> conf = new HashMap<>();
+  private final ConcurrentHashMap<String, Session> sessions = new ConcurrentHashMap<>();
 
-  // HACK: map OperationId to the fake response(s) for it
-  private final Map<String, List<ExecutePlanResponse>> operationToExecutePlanResponse =
-      new HashMap<>();
+  private Session getOrCreateSession(String sessionId) {
+    return sessions.computeIfAbsent(sessionId, k -> new Session());
+  }
 
-  // HACK: map relation ID (or string representation) to its storage level
-  private final Map<String, org.apache.spark.connect.proto.StorageLevel> relationStorageLevels =
-      new HashMap<>();
+  private static class Session {
+    final Map<String, String> conf = new ConcurrentHashMap<>();
+    final Map<String, List<ExecutePlanResponse>> operationToExecutePlanResponse =
+        new ConcurrentHashMap<>();
+    final Map<String, org.apache.spark.connect.proto.StorageLevel> relationStorageLevels =
+        new ConcurrentHashMap<>();
+    final BeamSqlEnv beamSqlEnv;
 
-  SparkConnectService() {
-    conf.put("spark.sql.timestampType", "TIMESTAMP_LTZ");
-    conf.put("spark.sql.session.timeZone", "UTC");
-    conf.put("spark.sql.session.localRelationCacheThreshold", "" + (64 * 1024 * 1024));
-    conf.put("spark.sql.session.localRelationSizeLimit", "" + (64 * 1024 * 1024));
-    conf.put("spark.sql.session.localRelationChunkSizeRows", "10000");
-    conf.put("spark.sql.session.localRelationChunkSizeBytes", "" + (16 * 1024 * 1024));
-    conf.put("spark.sql.session.localRelationBatchOfChunksSizeBytes", "" + (128 * 1024 * 1024));
-    conf.put("spark.sql.execution.pandas.convertToArrowArraySafely", "false");
-    conf.put("spark.sql.execution.pandas.inferPandasDictAsMap", "false");
-    conf.put("spark.sql.pyspark.inferNestedDictAsStruct.enabled", "false");
-    conf.put("spark.sql.pyspark.legacy.inferArrayTypeFromFirstElement.enabled", "false");
-    conf.put("spark.sql.pyspark.legacy.inferMapTypeFromFirstPair.enabled", "false");
-    conf.put("spark.sql.execution.arrow.useLargeVarTypes", "false");
-    conf.put("spark.python.sql.dataFrameDebugging.enabled", "true");
+    Session() {
+      conf.put("spark.sql.timestampType", "TIMESTAMP_LTZ");
+      conf.put("spark.sql.session.timeZone", "UTC");
+      conf.put("spark.sql.session.localRelationCacheThreshold", "" + (64 * 1024 * 1024));
+      conf.put("spark.sql.session.localRelationSizeLimit", "" + (64 * 1024 * 1024));
+      conf.put("spark.sql.session.localRelationChunkSizeRows", "10000");
+      conf.put("spark.sql.session.localRelationChunkSizeBytes", "" + (16 * 1024 * 1024));
+      conf.put("spark.sql.session.localRelationBatchOfChunksSizeBytes", "" + (128 * 1024 * 1024));
+      conf.put("spark.sql.execution.pandas.convertToArrowArraySafely", "false");
+      conf.put("spark.sql.execution.pandas.inferPandasDictAsMap", "false");
+      conf.put("spark.sql.pyspark.inferNestedDictAsStruct.enabled", "false");
+      conf.put("spark.sql.pyspark.legacy.inferArrayTypeFromFirstElement.enabled", "false");
+      conf.put("spark.sql.pyspark.legacy.inferMapTypeFromFirstPair.enabled", "false");
+      conf.put("spark.sql.execution.arrow.useLargeVarTypes", "false");
+      conf.put("spark.python.sql.dataFrameDebugging.enabled", "true");
+
+      beamSqlEnv = getBeamSqlEnv();
+    }
   }
 
   public static class SparkFunctions {
@@ -117,16 +124,18 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       ExecutePlanRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
     LOG.debug("executePlan request:\n{}", request.toString());
 
-    new ExecutePlanHandler(operationToExecutePlanResponse, getBeamSqlEnv(), conf)
+    Session session = getOrCreateSession(request.getSessionId());
+    new ExecutePlanHandler(session.operationToExecutePlanResponse, session.beamSqlEnv, session.conf)
         .handle(request, responseObserver);
   }
 
   private void sendResponses(
+      Map<String, List<ExecutePlanResponse>> operationToResponses,
       String operationId,
       ExecutePlanResponse.Builder responseBuilder,
       StreamObserver<ExecutePlanResponse> responseObserver,
       @Nullable String lastResponseId) {
-    List<ExecutePlanResponse> responses = operationToExecutePlanResponse.get(operationId);
+    List<ExecutePlanResponse> responses = operationToResponses.get(operationId);
 
     if (responses == null) {
       throw new IllegalArgumentException("operation not found: " + operationId);
@@ -204,7 +213,8 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       AnalyzePlanRequest request, StreamObserver<AnalyzePlanResponse> responseObserver) {
     LOG.debug("analyzePlan request:\n{}", request.toString());
 
-    new AnalyzePlanHandler(getBeamSqlEnv(), conf, relationStorageLevels)
+    Session session = getOrCreateSession(request.getSessionId());
+    new AnalyzePlanHandler(session.beamSqlEnv, session.conf, session.relationStorageLevels)
         .handle(request, responseObserver);
   }
 
@@ -212,7 +222,8 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   @Override
   public void config(ConfigRequest request, StreamObserver<ConfigResponse> responseObserver) {
     LOG.debug("config request:\n{}", request.toString());
-    new ConfigHandler(conf).handle(request, responseObserver);
+    Session session = getOrCreateSession(request.getSessionId());
+    new ConfigHandler(session.conf).handle(request, responseObserver);
   }
 
   /**
@@ -248,6 +259,8 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       StreamObserver<org.apache.spark.connect.proto.InterruptResponse> responseObserver) {
     LOG.debug("interrupt request:\n{}", ProtoUtils.debugString(request));
 
+    Session session = getOrCreateSession(request.getSessionId());
+
     InterruptResponse.Builder responseBuilder = InterruptResponse.newBuilder();
     responseBuilder
         .setSessionId(request.getSessionId())
@@ -259,8 +272,8 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
       case INTERRUPT_TYPE_ALL:
         // TODO
         // For now we pretend every operation that has been started has been interrupted
-        responseBuilder.addAllInterruptedIds(operationToExecutePlanResponse.keySet());
-        operationToExecutePlanResponse.clear();
+        responseBuilder.addAllInterruptedIds(session.operationToExecutePlanResponse.keySet());
+        session.operationToExecutePlanResponse.clear();
         break;
       case INTERRUPT_TYPE_TAG:
         // TODO
@@ -270,7 +283,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
         // TODO
         // For now we pretend it was interrupted, and clear the response from the map
         responseBuilder.addInterruptedIds(request.getOperationId());
-        operationToExecutePlanResponse.remove(request.getOperationId());
+        session.operationToExecutePlanResponse.remove(request.getOperationId());
         break;
       case UNRECOGNIZED:
       default:
@@ -291,6 +304,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void reattachExecute(
       ReattachExecuteRequest request, StreamObserver<ExecutePlanResponse> responseObserver) {
     LOG.debug("reattachExecute request:\n{}", request.toString());
+    Session session = getOrCreateSession(request.getSessionId());
     ExecutePlanResponse.Builder responseBuilder =
         ExecutePlanResponse.newBuilder()
             .setResponseId(UUID.randomUUID().toString())
@@ -299,7 +313,11 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
             .setServerSideSessionId(request.getSessionId());
 
     sendResponses(
-        request.getOperationId(), responseBuilder, responseObserver, request.getLastResponseId());
+        session.operationToExecutePlanResponse,
+        request.getOperationId(),
+        responseBuilder,
+        responseObserver,
+        request.getLastResponseId());
   }
 
   /**
@@ -316,6 +334,9 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void releaseExecute(
       ReleaseExecuteRequest request, StreamObserver<ReleaseExecuteResponse> responseObserver) {
     LOG.debug("releaseExecute request:\n{}", request.toString());
+    Session session = getOrCreateSession(request.getSessionId());
+    session.operationToExecutePlanResponse.remove(request.getOperationId());
+
     responseObserver.onNext(
         ReleaseExecuteResponse.newBuilder()
             .setSessionId(request.getSessionId())
@@ -339,6 +360,7 @@ public class SparkConnectService extends SparkConnectServiceGrpc.SparkConnectSer
   public void releaseSession(
       ReleaseSessionRequest request, StreamObserver<ReleaseSessionResponse> responseObserver) {
     LOG.debug("releaseSession request:\n{}", request.toString());
+    sessions.remove(request.getSessionId());
     new org.apache.beam.sparkconnect.handler.ReleaseSessionHandler()
         .handle(request, responseObserver);
   }

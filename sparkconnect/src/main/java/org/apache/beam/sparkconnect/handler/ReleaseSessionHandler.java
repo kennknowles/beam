@@ -24,6 +24,8 @@ import org.apache.spark.connect.proto.ReleaseSessionResponse;
 public class ReleaseSessionHandler {
   public void handle(
       ReleaseSessionRequest request, StreamObserver<ReleaseSessionResponse> responseObserver) {
-    throw new UnsupportedOperationException("ReleaseSession not supported yet.");
+    ReleaseSessionResponse response = ReleaseSessionResponse.newBuilder().build();
+    responseObserver.onNext(response);
+    responseObserver.onCompleted();
   }
 }

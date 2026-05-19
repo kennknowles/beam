@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -52,10 +53,12 @@ import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sparkconnect.rel.LogicalHtmlString;
+import org.apache.beam.sparkconnect.beamrel.BeamHtmlString;
+import org.apache.beam.sparkconnect.beamrel.BeamMlFeature;
+import org.apache.beam.sparkconnect.beamrel.BeamMlPredict;
+import org.apache.beam.sparkconnect.beamrel.BeamShowString;
 import org.apache.beam.sparkconnect.rel.LogicalMapPartitions;
 import org.apache.beam.sparkconnect.rel.LogicalParse;
-import org.apache.beam.sparkconnect.rel.LogicalShowString;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.arrow.ArrowFieldTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.java.JavaTypeFactory;
@@ -63,6 +66,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSch
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.Convention;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelFieldCollation;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
@@ -76,7 +80,6 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.Log
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalUnion;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField;
@@ -94,10 +97,14 @@ import org.apache.spark.connect.proto.Aggregate;
 import org.apache.spark.connect.proto.Deduplicate;
 import org.apache.spark.connect.proto.Drop;
 import org.apache.spark.connect.proto.Expression;
+import org.apache.spark.connect.proto.Fetch;
 import org.apache.spark.connect.proto.Filter;
 import org.apache.spark.connect.proto.Join;
 import org.apache.spark.connect.proto.Limit;
 import org.apache.spark.connect.proto.LocalRelation;
+import org.apache.spark.connect.proto.MlCommand;
+import org.apache.spark.connect.proto.MlParams;
+import org.apache.spark.connect.proto.MlRelation;
 import org.apache.spark.connect.proto.Offset;
 import org.apache.spark.connect.proto.Project;
 import org.apache.spark.connect.proto.Range;
@@ -263,6 +270,8 @@ public class SparkRelationToRelNode {
         return translateRepartitionByExpression(sparkRelation.getRepartitionByExpression());
       case CATALOG:
         return translateCatalog(sparkRelation.getCatalog());
+      case EXTENSION:
+        return translateExtension(sparkRelation.getExtension());
 
       default:
         return unsupported(sparkRelation.getRelTypeCase().name());
@@ -298,23 +307,36 @@ public class SparkRelationToRelNode {
 
   private RelNode translateDropTempView(org.apache.spark.connect.proto.DropTempView dropTempView) {
     LOG.info("Dropping temp view: " + dropTempView.getViewName());
-    return LogicalValues.createOneRow(cluster);
+    return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+        cluster,
+        cluster.getTypeFactory().createStructType(Collections.emptyList(), Collections.emptyList()),
+        ImmutableList.of(ImmutableList.of()),
+        cluster.traitSetOf(
+            org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
   }
 
   private RelNode translateCacheTable(org.apache.spark.connect.proto.CacheTable cacheTable) {
     LOG.info("Caching table: " + cacheTable.getTableName());
-    return LogicalValues.createOneRow(cluster);
+    return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+        cluster,
+        cluster.getTypeFactory().createStructType(Collections.emptyList(), Collections.emptyList()),
+        ImmutableList.of(ImmutableList.of()),
+        cluster.traitSetOf(
+            org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
   }
 
   private RelNode translateShowString(ShowString showStringProto) {
     RelNode input = translate(showStringProto.getInput());
-    return new LogicalShowString(
+    RelTraitSet traits = input.getTraitSet().replace(BeamLogicalConvention.INSTANCE);
+    RelNode physicalInput =
+        org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule.convert(
+            input, traits);
+    return new BeamShowString(
         input.getCluster(),
-        input.getTraitSet(),
-        input,
+        traits,
+        physicalInput,
         showStringProto.getNumRows(),
-        showStringProto.getTruncate(),
-        showStringProto.getVertical());
+        showStringProto.getTruncate());
   }
 
   private RelNode translateToSchema(org.apache.spark.connect.proto.ToSchema toSchemaProto) {
@@ -366,7 +388,15 @@ public class SparkRelationToRelNode {
     if (projectProto.hasInput()) {
       inputNode = translate(projectProto.getInput());
     } else {
-      inputNode = LogicalValues.createOneRow(cluster);
+      inputNode =
+          new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+              cluster,
+              cluster
+                  .getTypeFactory()
+                  .createStructType(Collections.emptyList(), Collections.emptyList()),
+              ImmutableList.of(ImmutableList.of()),
+              cluster.traitSetOf(
+                  org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
     }
     RelDataType inputRowType = inputNode.getRowType();
 
@@ -1118,7 +1148,12 @@ public class SparkRelationToRelNode {
             ImmutableList.of(cluster.getRexBuilder().makeExactLiteral(BigDecimal.valueOf(i))));
       }
     }
-    return LogicalValues.create(cluster, rowType, tuples.build());
+    return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+        cluster,
+        rowType,
+        tuples.build(),
+        cluster.traitSetOf(
+            org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
   }
 
   private RelNode translateSample(org.apache.spark.connect.proto.Sample sampleProto) {
@@ -1239,10 +1274,14 @@ public class SparkRelationToRelNode {
   private RelNode translateHtmlString(org.apache.spark.connect.proto.HtmlString htmlStringProto) {
     LOG.error("Jetski: translateHtmlString called");
     RelNode input = translate(htmlStringProto.getInput());
-    return new LogicalHtmlString(
+    RelTraitSet traits = input.getTraitSet().replace(BeamLogicalConvention.INSTANCE);
+    RelNode physicalInput =
+        org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule.convert(
+            input, traits);
+    return new BeamHtmlString(
         input.getCluster(),
-        input.getCluster().traitSetOf(Convention.NONE),
-        input,
+        traits,
+        physicalInput,
         htmlStringProto.getNumRows(),
         htmlStringProto.getTruncate());
   }
@@ -1262,7 +1301,12 @@ public class SparkRelationToRelNode {
                             org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
                                 .SqlTypeName.INTEGER)),
                 ImmutableList.of("dummy"));
-    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+    return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+        cluster,
+        rowType,
+        ImmutableList.of(),
+        cluster.traitSetOf(
+            org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
   }
 
   private RelNode translateCachedRemoteRelation(
@@ -1280,7 +1324,12 @@ public class SparkRelationToRelNode {
                             org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
                                 .SqlTypeName.INTEGER)),
                 ImmutableList.of("dummy"));
-    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+    return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+        cluster,
+        rowType,
+        ImmutableList.of(),
+        cluster.traitSetOf(
+            org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
   }
 
   private RelNode translateCommonInlineUserDefinedTableFunction(
@@ -1299,7 +1348,12 @@ public class SparkRelationToRelNode {
                             org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
                                 .SqlTypeName.INTEGER)),
                 ImmutableList.of("dummy"));
-    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+    return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+        cluster,
+        rowType,
+        ImmutableList.of(),
+        cluster.traitSetOf(
+            org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
   }
 
   private RelNode translateAsOfJoin(org.apache.spark.connect.proto.AsOfJoin asOfJoinProto) {
@@ -1323,7 +1377,12 @@ public class SparkRelationToRelNode {
                             org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
                                 .SqlTypeName.INTEGER)),
                 ImmutableList.of("dummy"));
-    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+    return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+        cluster,
+        rowType,
+        ImmutableList.of(),
+        cluster.traitSetOf(
+            org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
   }
 
   private RelNode translateWithRelations(
@@ -1353,7 +1412,12 @@ public class SparkRelationToRelNode {
                             org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type
                                 .SqlTypeName.INTEGER)),
                 ImmutableList.of("dummy"));
-    return LogicalValues.create(cluster, rowType, ImmutableList.of());
+    return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+        cluster,
+        rowType,
+        ImmutableList.of(),
+        cluster.traitSetOf(
+            org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
   }
 
   private RelNode translateLateralJoin(
@@ -2003,8 +2067,12 @@ public class SparkRelationToRelNode {
         RelDataType rowType =
             new SparkDataTypeToRelDataType(cluster.getTypeFactory())
                 .sparkDataTypeToRelDataType(protoType);
-        return org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalValues
-            .create(cluster, rowType, ImmutableList.of());
+        return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+            cluster,
+            rowType,
+            ImmutableList.of(),
+            cluster.traitSetOf(
+                org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
       }
       throw new UnsupportedOperationException("LocalRelation must have `data` or `schema` field. ");
     }
@@ -2048,8 +2116,12 @@ public class SparkRelationToRelNode {
           }
 
           if (projects.isEmpty()) {
-            return org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical
-                .LogicalValues.create(cluster, rowType, ImmutableList.of());
+            return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+                cluster,
+                rowType,
+                ImmutableList.of(),
+                cluster.traitSetOf(
+                    org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
           } else if (projects.size() == 1) {
             return projects.get(0);
           } else {
@@ -2064,8 +2136,12 @@ public class SparkRelationToRelNode {
           while (streamReader.loadNextBatch()) {
             addRows(tuplesBuilder, cluster.getRexBuilder(), root, rowType);
           }
-          return org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalValues
-              .create(cluster, rowType, tuplesBuilder.build());
+          return new org.apache.beam.sdk.extensions.sql.impl.rel.BeamValuesRel(
+              cluster,
+              rowType,
+              tuplesBuilder.build(),
+              cluster.traitSetOf(
+                  org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention.INSTANCE));
         }
       } catch (IOException exc) {
         throw new RuntimeException("Failed to parse arrow data for LocalRelation", exc);
@@ -2134,5 +2210,351 @@ public class SparkRelationToRelNode {
       return val.toString();
     }
     return val;
+  }
+
+  private RelNode translateExtension(com.google.protobuf.Any extension) {
+    String typeUrl = extension.getTypeUrl();
+    try {
+      if (typeUrl.equals("type.googleapis.com/spark.connect.MlRelation.Transform")) {
+        return translateMlTransformRelation(extension.unpack(MlRelation.Transform.class));
+      } else if (typeUrl.equals("type.googleapis.com/spark.connect.Fetch")) {
+        return translateMlFetchRelation(extension.unpack(Fetch.class));
+      } else if (typeUrl.equals("type.googleapis.com/spark.connect.MlCommand.Write")) {
+        return translateMlWriteRelation(extension.unpack(MlCommand.Write.class));
+      } else if (typeUrl.equals("type.googleapis.com/spark.connect.MlCommand.Read")) {
+        return translateMlReadRelation(extension.unpack(MlCommand.Read.class));
+      } else if (typeUrl.equals("type.googleapis.com/spark.connect.MlRelation")) {
+        return translateMlRelation(extension.unpack(MlRelation.class));
+      }
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Failed to unpack extension. Type URL: " + typeUrl, e);
+    }
+    // Fallback for unknown extensions
+    throw new UnsupportedOperationException("Unknown extension: " + typeUrl);
+  }
+
+  private RelNode translateMlRelation(MlRelation mlRelation) {
+    if (mlRelation.hasTransform()) {
+      return translateMlTransformRelation(mlRelation.getTransform());
+    } else if (mlRelation.hasFetch()) {
+      return translateMlFetchRelation(mlRelation.getFetch());
+    }
+    throw new UnsupportedOperationException(
+        "Spark Connect MLlib generic MlRelation extension has unspecified ml_type: " + mlRelation);
+  }
+
+  private static String getMlOperatorBasename(String name) {
+    int lastDot = name.lastIndexOf('.');
+    return (lastDot >= 0) ? name.substring(lastDot + 1) : name;
+  }
+
+  private RelNode translateMlTransformRelation(MlRelation.Transform transform) {
+    RelNode inputRel = translate(transform.getInput());
+    MlParams params = transform.getParams();
+
+    if (transform.hasTransformer()) {
+      String transformerName = transform.getTransformer().getName();
+      String basename = getMlOperatorBasename(transformerName);
+
+      switch (basename) {
+          // 1. Stateless Feature Transformers
+        case "Binarizer":
+          return translateBinarizer(inputRel, params);
+        case "Bucketizer":
+          return translateBucketizer(inputRel, params);
+
+        case "SQLTransformer":
+        case "ElementwiseProduct":
+        case "HashingTF":
+        case "Tokenizer":
+        case "RegexTokenizer":
+        case "StopWordsRemover":
+        case "NGram":
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Stateless Spark ML feature transformer '%s' is not supported yet.",
+                  transformerName));
+
+          // 2. Stateful Models & Estimators (Stateful Feature Engineering)
+        case "StandardScalerModel":
+        case "MinMaxScalerModel":
+        case "MaxAbsScalerModel":
+        case "RobustScalerModel":
+        case "StringIndexerModel":
+        case "IndexToString":
+        case "OneHotEncoderModel":
+        case "ImputerModel":
+        case "PCAModel":
+        case "IDFModel":
+        case "Word2VecModel":
+        case "CountVectorizerModel":
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Stateful Spark ML fitted model '%s' is not supported yet.", transformerName));
+
+          // Default fallback for other custom user extensions
+        default:
+          return new BeamMlFeature(
+              inputRel.getCluster(), inputRel.getTraitSet(), inputRel, transformerName, params);
+      }
+    } else if (transform.hasObjRef()) {
+      String id = transform.getObjRef().getId();
+      SparkMLObjectRegistry.ObjectRefState state =
+          SparkMLObjectRegistry.getGlobalRegistry().get(id);
+      if (state == null) {
+        throw new IllegalArgumentException("ObjectRef ID not found in ML Registry: " + id);
+      }
+
+      String basename = getMlOperatorBasename(state.getOperatorName());
+      switch (basename) {
+          // 3. Predictors / Machine Learning Models
+        case "LogisticRegressionModel":
+        case "LinearRegressionModel":
+        case "DecisionTreeClassificationModel":
+        case "DecisionTreeRegressionModel":
+        case "RandomForestClassificationModel":
+        case "RandomForestRegressionModel":
+        case "GBTClassificationModel":
+        case "GBTRegressionModel":
+        case "MultilayerPerceptronClassificationModel":
+        case "LinearSVCModel":
+        case "NaiveBayesModel":
+        case "KMeansModel":
+        case "GaussianMixtureModel":
+          return new BeamMlPredict(
+              inputRel.getCluster(), inputRel.getTraitSet(), inputRel, state, params);
+
+        default:
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Spark ML Predict model '%s' (ObjectRef ID: %s) is not supported yet.",
+                  state.getOperatorName(), id));
+      }
+    }
+    throw new UnsupportedOperationException(
+        "Spark Connect MLlib Transform has unspecified operator");
+  }
+
+  private RelNode translateBinarizer(RelNode inputRel, MlParams params) {
+    java.util.Map<String, org.apache.spark.connect.proto.Expression.Literal> paramsMap =
+        params.getParamsMap();
+    org.apache.spark.connect.proto.Expression.Literal inputColLit = paramsMap.get("inputCol");
+    org.apache.spark.connect.proto.Expression.Literal outputColLit = paramsMap.get("outputCol");
+    if (inputColLit == null || outputColLit == null) {
+      throw new IllegalArgumentException(
+          "Binarizer requires both 'inputCol' and 'outputCol' parameters.");
+    }
+    String inputColName = inputColLit.getString();
+    String outputColName = outputColLit.getString();
+    double threshold = 0.0;
+    org.apache.spark.connect.proto.Expression.Literal threshLit = paramsMap.get("threshold");
+    if (threshLit != null) {
+      if (threshLit.getLiteralTypeCase()
+          == org.apache.spark.connect.proto.Expression.Literal.LiteralTypeCase.DOUBLE) {
+        threshold = threshLit.getDouble();
+      } else if (threshLit.getLiteralTypeCase()
+          == org.apache.spark.connect.proto.Expression.Literal.LiteralTypeCase.FLOAT) {
+        threshold = threshLit.getFloat();
+      }
+    }
+
+    RelDataType inputRowType = inputRel.getRowType();
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField inputField =
+        inputRowType.getField(inputColName, false, false);
+    if (inputField == null) {
+      throw new IllegalArgumentException("Binarizer input column not found: " + inputColName);
+    }
+
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder rexBuilder =
+        cluster.getRexBuilder();
+
+    // Build projection expressions for all existing input fields
+    List<RexNode> projections = new java.util.ArrayList<>();
+    List<String> fieldNames = new java.util.ArrayList<>();
+    for (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField field :
+        inputRowType.getFieldList()) {
+      projections.add(rexBuilder.makeInputRef(field.getType(), field.getIndex()));
+      fieldNames.add(field.getName());
+    }
+
+    // Build Binarizer CASE WHEN inputField > threshold THEN 1.0 ELSE 0.0 END expression
+    RexNode inputRef = rexBuilder.makeInputRef(inputField.getType(), inputField.getIndex());
+    RexNode threshNode =
+        rexBuilder.makeApproxLiteral(
+            java.math.BigDecimal.valueOf(threshold),
+            cluster.getTypeFactory().createSqlType(SqlTypeName.DOUBLE));
+
+    RexNode condition =
+        rexBuilder.makeCall(
+            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+                .GREATER_THAN,
+            inputRef,
+            threshNode);
+
+    RexNode oneLiteral =
+        rexBuilder.makeApproxLiteral(
+            java.math.BigDecimal.ONE, cluster.getTypeFactory().createSqlType(SqlTypeName.DOUBLE));
+    RexNode zeroLiteral =
+        rexBuilder.makeApproxLiteral(
+            java.math.BigDecimal.ZERO, cluster.getTypeFactory().createSqlType(SqlTypeName.DOUBLE));
+
+    RexNode binarizedExpr =
+        rexBuilder.makeCall(
+            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+                .CASE,
+            condition,
+            oneLiteral,
+            zeroLiteral);
+
+    projections.add(binarizedExpr);
+    fieldNames.add(outputColName);
+
+    return LogicalProject.create(
+        inputRel,
+        java.util.Collections.emptyList(),
+        projections,
+        fieldNames,
+        java.util.Collections.emptySet());
+  }
+
+  private RelNode translateBucketizer(RelNode inputRel, MlParams params) {
+    java.util.Map<String, org.apache.spark.connect.proto.Expression.Literal> paramsMap =
+        params.getParamsMap();
+    org.apache.spark.connect.proto.Expression.Literal inputColLit = paramsMap.get("inputCol");
+    org.apache.spark.connect.proto.Expression.Literal outputColLit = paramsMap.get("outputCol");
+    org.apache.spark.connect.proto.Expression.Literal splitsLit = paramsMap.get("splits");
+    if (inputColLit == null || outputColLit == null || splitsLit == null) {
+      throw new IllegalArgumentException(
+          "Bucketizer requires 'inputCol', 'outputCol', and 'splits' parameters.");
+    }
+    String inputColName = inputColLit.getString();
+    String outputColName = outputColLit.getString();
+
+    if (splitsLit.getLiteralTypeCase()
+        != org.apache.spark.connect.proto.Expression.Literal.LiteralTypeCase.ARRAY) {
+      throw new IllegalArgumentException("Bucketizer 'splits' parameter must be an ARRAY.");
+    }
+
+    List<Double> splits = new java.util.ArrayList<>();
+    for (org.apache.spark.connect.proto.Expression.Literal element :
+        splitsLit.getArray().getElementsList()) {
+      if (element.getLiteralTypeCase()
+          == org.apache.spark.connect.proto.Expression.Literal.LiteralTypeCase.DOUBLE) {
+        splits.add(element.getDouble());
+      } else if (element.getLiteralTypeCase()
+          == org.apache.spark.connect.proto.Expression.Literal.LiteralTypeCase.FLOAT) {
+        splits.add((double) element.getFloat());
+      }
+    }
+
+    if (splits.size() < 3) {
+      throw new IllegalArgumentException(
+          "Bucketizer 'splits' parameter must have at least 3 elements.");
+    }
+
+    // Verify splits are strictly increasing
+    for (int i = 0; i < splits.size() - 1; i++) {
+      if (splits.get(i) >= splits.get(i + 1)) {
+        throw new IllegalArgumentException("Bucketizer 'splits' must be strictly increasing.");
+      }
+    }
+
+    RelDataType inputRowType = inputRel.getRowType();
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField inputField =
+        inputRowType.getField(inputColName, false, false);
+    if (inputField == null) {
+      throw new IllegalArgumentException("Bucketizer input column not found: " + inputColName);
+    }
+
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder rexBuilder =
+        cluster.getRexBuilder();
+
+    List<RexNode> projections = new java.util.ArrayList<>();
+    List<String> fieldNames = new java.util.ArrayList<>();
+    for (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeField field :
+        inputRowType.getFieldList()) {
+      projections.add(rexBuilder.makeInputRef(field.getType(), field.getIndex()));
+      fieldNames.add(field.getName());
+    }
+
+    RelDataType doubleType = cluster.getTypeFactory().createSqlType(SqlTypeName.DOUBLE);
+    RexNode inputRef = rexBuilder.makeInputRef(inputField.getType(), inputField.getIndex());
+
+    List<RexNode> caseArgs = new java.util.ArrayList<>();
+    for (int i = 0; i < splits.size() - 1; i++) {
+      RexNode lowerSplit =
+          rexBuilder.makeApproxLiteral(java.math.BigDecimal.valueOf(splits.get(i)), doubleType);
+      RexNode upperSplit =
+          rexBuilder.makeApproxLiteral(java.math.BigDecimal.valueOf(splits.get(i + 1)), doubleType);
+
+      RexNode ge =
+          rexBuilder.makeCall(
+              org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+                  .GREATER_THAN_OR_EQUAL,
+              inputRef,
+              lowerSplit);
+      RexNode lt =
+          rexBuilder.makeCall(
+              org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+                  .LESS_THAN,
+              inputRef,
+              upperSplit);
+      RexNode condition =
+          rexBuilder.makeCall(
+              org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+                  .AND,
+              ge,
+              lt);
+
+      RexNode bucketIndex =
+          rexBuilder.makeApproxLiteral(java.math.BigDecimal.valueOf(i), doubleType);
+
+      caseArgs.add(condition);
+      caseArgs.add(bucketIndex);
+    }
+    // Else null
+    caseArgs.add(rexBuilder.makeNullLiteral(doubleType));
+
+    RexNode bucketizedExpr =
+        rexBuilder.makeCall(
+            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable
+                .CASE,
+            caseArgs);
+
+    projections.add(bucketizedExpr);
+    fieldNames.add(outputColName);
+
+    return LogicalProject.create(
+        inputRel,
+        java.util.Collections.emptyList(),
+        projections,
+        fieldNames,
+        java.util.Collections.emptySet());
+  }
+
+  private RelNode translateMlFetchRelation(Fetch fetch) {
+    throw new UnsupportedOperationException(
+        "Spark Connect MLlib Fetch relation is not supported yet. Methods count: "
+            + fetch.getMethodsCount());
+  }
+
+  private RelNode translateMlWriteRelation(MlCommand.Write write) {
+    throw new UnsupportedOperationException(
+        "Spark Connect MLlib Write extension is not supported yet. Path: " + write.getPath());
+  }
+
+  private RelNode translateMlReadRelation(MlCommand.Read read) {
+    String id =
+        SparkMLObjectRegistry.getGlobalRegistry()
+            .register(read.getOperator().getName(), read.getOperator().getUid(), read.getPath());
+    throw new UnsupportedOperationException(
+        "Spark Connect MLlib Read extension registered successfully. Registered ID: "
+            + id
+            + ", Operator Name: "
+            + read.getOperator().getName()
+            + ", UID: "
+            + read.getOperator().getUid()
+            + ", Path: "
+            + read.getPath());
   }
 }

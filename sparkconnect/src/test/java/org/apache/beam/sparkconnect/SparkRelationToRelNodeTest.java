@@ -19,8 +19,10 @@ package org.apache.beam.sparkconnect;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.google.protobuf.Any;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -29,7 +31,15 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sparkconnect.beamrel.BeamMlFeature;
+import org.apache.beam.sparkconnect.beamrel.BeamMlPredict;
+import org.apache.beam.sparkconnect.beamrel.BeamShowString;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.spark.connect.proto.Fetch;
+import org.apache.spark.connect.proto.MlCommand;
+import org.apache.spark.connect.proto.MlOperator;
+import org.apache.spark.connect.proto.MlRelation;
+import org.apache.spark.connect.proto.ObjectRef;
 import org.apache.spark.connect.proto.Relation;
 import org.apache.spark.connect.proto.SQL;
 import org.junit.Before;
@@ -53,8 +63,6 @@ public class SparkRelationToRelNodeTest {
     List<org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule> allRules =
         new java.util.ArrayList<>();
     allRules.addAll(org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets.getAllRules());
-    allRules.add(org.apache.beam.sparkconnect.rule.BeamShowStringRule.INSTANCE);
-    allRules.add(org.apache.beam.sparkconnect.rule.BeamHtmlStringRule.INSTANCE);
     allRules.add(org.apache.beam.sparkconnect.rule.BeamParseRule.INSTANCE);
     allRules.add(org.apache.beam.sparkconnect.rule.BeamMapPartitionsRule.INSTANCE);
 
@@ -970,11 +978,37 @@ public class SparkRelationToRelNodeTest {
     assertEquals("name", row.getSchema().getFieldNames().get(1));
   }
 
+  @Test
+  public void testShowStringPhysicalRelTranslation() {
+    Relation inputRelation =
+        Relation.newBuilder()
+            .setSql(SQL.newBuilder().setQuery("SELECT 1 AS id, 'a' AS name"))
+            .build();
+
+    org.apache.spark.connect.proto.ShowString showString =
+        org.apache.spark.connect.proto.ShowString.newBuilder()
+            .setInput(inputRelation)
+            .setNumRows(5)
+            .setTruncate(15)
+            .setVertical(false)
+            .build();
+
+    Relation relation = Relation.newBuilder().setShowString(showString).build();
+
+    RelNode relNode = translator.translate(relation);
+    assertNotNull(relNode);
+    assertTrue(relNode instanceof BeamShowString);
+
+    BeamShowString physicalNode = (BeamShowString) relNode;
+    assertEquals(5, physicalNode.getNumRows());
+    assertEquals(15, physicalNode.getTruncate());
+    assertNotNull(physicalNode.getInput());
+  }
+
   /**
    * Tests a show string operation. Relevant compliance test: test_show in
    * python/pyspark/sql/tests/connect/test_connect_basic.py
    */
-  @Ignore("Fails exact match assertion for ShowString output")
   @Test
   public void testShowString() {
     Relation inputRelation =
@@ -1005,6 +1039,31 @@ public class SparkRelationToRelNodeTest {
             + "| 1  | a    |\n"
             + "+----+------+\n";
     assertEquals(expected, output);
+  }
+
+  @Test
+  public void testShowStringWithLocalRelation() {
+    org.apache.spark.connect.proto.LocalRelation localRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, name STRING")
+            .build();
+    Relation inputRelation = Relation.newBuilder().setLocalRelation(localRel).build();
+
+    org.apache.spark.connect.proto.ShowString showString =
+        org.apache.spark.connect.proto.ShowString.newBuilder()
+            .setInput(inputRelation)
+            .setNumRows(1)
+            .setTruncate(20)
+            .setVertical(false)
+            .build();
+
+    Relation relation = Relation.newBuilder().setShowString(showString).build();
+
+    RelNode relNode = translator.translate(relation);
+    assertNotNull(relNode);
+
+    List<Row> rows = executeRelNode(relNode);
+    assertNotNull(rows);
   }
 
   /**
@@ -2253,5 +2312,306 @@ public class SparkRelationToRelNodeTest {
     // Assuming fraction is not set, it might return empty or all.
     // Let's assert we get at most 1 row.
     assertTrue(rows.size() <= 1);
+  }
+
+  @Test
+  public void testMlBinarizerTranslationAndExecution() {
+    org.apache.spark.connect.proto.LocalRelation localRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, feature DOUBLE")
+            .build();
+    Relation inputRelation = Relation.newBuilder().setLocalRelation(localRel).build();
+
+    org.apache.spark.connect.proto.MlParams params =
+        org.apache.spark.connect.proto.MlParams.newBuilder()
+            .putParams(
+                "inputCol",
+                org.apache.spark.connect.proto.Expression.Literal.newBuilder()
+                    .setString("feature")
+                    .build())
+            .putParams(
+                "outputCol",
+                org.apache.spark.connect.proto.Expression.Literal.newBuilder()
+                    .setString("binarized")
+                    .build())
+            .putParams(
+                "threshold",
+                org.apache.spark.connect.proto.Expression.Literal.newBuilder()
+                    .setDouble(5.0)
+                    .build())
+            .build();
+
+    MlRelation.Transform transform =
+        MlRelation.Transform.newBuilder()
+            .setTransformer(MlOperator.newBuilder().setName("Binarizer").build())
+            .setInput(inputRelation)
+            .setParams(params)
+            .build();
+
+    Any any = Any.pack(transform);
+    Relation relation = Relation.newBuilder().setExtension(any).build();
+
+    RelNode relNode = translator.translate(relation);
+    assertNotNull(relNode);
+    assertTrue(
+        relNode
+            instanceof
+            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject);
+
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject
+        projectNode =
+            (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject)
+                relNode;
+    assertNotNull(projectNode.getRowType());
+    assertEquals(3, projectNode.getRowType().getFieldCount());
+    assertEquals("id", projectNode.getRowType().getFieldNames().get(0));
+    assertEquals("feature", projectNode.getRowType().getFieldNames().get(1));
+    assertEquals("binarized", projectNode.getRowType().getFieldNames().get(2));
+
+    // Verify it compiles and executes cleanly on the Beam Direct Runner via SQL pipeline
+    List<Row> rows = executeRelNode(relNode);
+    assertEquals(0, rows.size());
+  }
+
+  @Test
+  public void testMlBucketizerTranslationAndExecution() {
+    org.apache.spark.connect.proto.LocalRelation localRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, feature DOUBLE")
+            .build();
+    Relation inputRelation = Relation.newBuilder().setLocalRelation(localRel).build();
+
+    java.util.List<org.apache.spark.connect.proto.Expression.Literal> splitsList =
+        java.util.Arrays.asList(
+            org.apache.spark.connect.proto.Expression.Literal.newBuilder().setDouble(0.0).build(),
+            org.apache.spark.connect.proto.Expression.Literal.newBuilder().setDouble(5.0).build(),
+            org.apache.spark.connect.proto.Expression.Literal.newBuilder().setDouble(10.0).build());
+
+    org.apache.spark.connect.proto.Expression.Literal splitsLiteral =
+        org.apache.spark.connect.proto.Expression.Literal.newBuilder()
+            .setArray(
+                org.apache.spark.connect.proto.Expression.Literal.Array.newBuilder()
+                    .addAllElements(splitsList)
+                    .build())
+            .build();
+
+    org.apache.spark.connect.proto.MlParams params =
+        org.apache.spark.connect.proto.MlParams.newBuilder()
+            .putParams(
+                "inputCol",
+                org.apache.spark.connect.proto.Expression.Literal.newBuilder()
+                    .setString("feature")
+                    .build())
+            .putParams(
+                "outputCol",
+                org.apache.spark.connect.proto.Expression.Literal.newBuilder()
+                    .setString("bucketized")
+                    .build())
+            .putParams("splits", splitsLiteral)
+            .build();
+
+    MlRelation.Transform transform =
+        MlRelation.Transform.newBuilder()
+            .setTransformer(MlOperator.newBuilder().setName("Bucketizer").build())
+            .setInput(inputRelation)
+            .setParams(params)
+            .build();
+
+    Any any = Any.pack(transform);
+    Relation relation = Relation.newBuilder().setExtension(any).build();
+
+    RelNode relNode = translator.translate(relation);
+    assertNotNull(relNode);
+    assertTrue(
+        relNode
+            instanceof
+            org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject);
+
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject
+        projectNode =
+            (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject)
+                relNode;
+    assertNotNull(projectNode.getRowType());
+    assertEquals(3, projectNode.getRowType().getFieldCount());
+    assertEquals("id", projectNode.getRowType().getFieldNames().get(0));
+    assertEquals("feature", projectNode.getRowType().getFieldNames().get(1));
+    assertEquals("bucketized", projectNode.getRowType().getFieldNames().get(2));
+
+    // Verify execution compiles and executes successfully on Beam Direct Runner
+    List<Row> rows = executeRelNode(relNode);
+    assertEquals(0, rows.size());
+  }
+
+  @Test
+  public void testMlRelationTransformUnpacking() {
+    org.apache.spark.connect.proto.LocalRelation localRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, name STRING")
+            .build();
+    Relation inputRelation = Relation.newBuilder().setLocalRelation(localRel).build();
+
+    MlRelation.Transform transform =
+        MlRelation.Transform.newBuilder()
+            .setTransformer(MlOperator.newBuilder().setName("VectorAssembler").build())
+            .setInput(inputRelation)
+            .build();
+
+    Any any = Any.pack(transform);
+    Relation relation = Relation.newBuilder().setExtension(any).build();
+
+    RelNode relNode = translator.translate(relation);
+    assertNotNull(relNode);
+    assertTrue(relNode instanceof BeamMlFeature);
+
+    BeamMlFeature featureRel = (BeamMlFeature) relNode;
+    assertEquals("VectorAssembler", featureRel.getTransformerName());
+    assertNotNull(featureRel.getRowType());
+    assertEquals(2, featureRel.getRowType().getFieldCount());
+    assertEquals("id", featureRel.getRowType().getFieldNames().get(0));
+    assertThrows(UnsupportedOperationException.class, () -> featureRel.buildPTransform());
+  }
+
+  @Test
+  public void testMlRelationTransformWithObjRefRegistryLookup() {
+    String objRefId =
+        SparkMLObjectRegistry.getGlobalRegistry()
+            .register("LogisticRegressionModel", "lr_54321", "/tmp/my_lr_model");
+
+    org.apache.spark.connect.proto.LocalRelation localRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, label DOUBLE")
+            .build();
+    Relation inputRelation = Relation.newBuilder().setLocalRelation(localRel).build();
+
+    MlRelation.Transform transform =
+        MlRelation.Transform.newBuilder()
+            .setObjRef(ObjectRef.newBuilder().setId(objRefId).build())
+            .setInput(inputRelation)
+            .build();
+
+    Any any = Any.pack(transform);
+    Relation relation = Relation.newBuilder().setExtension(any).build();
+
+    RelNode relNode = translator.translate(relation);
+    assertNotNull(relNode);
+    assertTrue(relNode instanceof BeamMlPredict);
+
+    BeamMlPredict predictRel = (BeamMlPredict) relNode;
+    assertNotNull(predictRel.getModelState());
+    assertEquals("LogisticRegressionModel", predictRel.getModelState().getOperatorName());
+    assertEquals("lr_54321", predictRel.getModelState().getUid());
+    assertEquals("/tmp/my_lr_model", predictRel.getModelState().getPath());
+    assertNotNull(predictRel.getRowType());
+    assertEquals(2, predictRel.getRowType().getFieldCount());
+    assertEquals("id", predictRel.getRowType().getFieldNames().get(0));
+    assertThrows(UnsupportedOperationException.class, () -> predictRel.buildPTransform());
+  }
+
+  @Test
+  public void testMlRelationFetchUnpacking() {
+    Fetch fetch =
+        Fetch.newBuilder()
+            .setObjRef(ObjectRef.newBuilder().setId("model_123").build())
+            .addMethods(Fetch.Method.newBuilder().setMethod("summary").build())
+            .build();
+
+    Any any = Any.pack(fetch);
+    Relation relation = Relation.newBuilder().setExtension(any).build();
+
+    UnsupportedOperationException exception =
+        assertThrows(UnsupportedOperationException.class, () -> translator.translate(relation));
+
+    assertTrue(
+        "Actual message: " + exception.getMessage(),
+        exception.getMessage().contains("Spark Connect MLlib Fetch relation is not supported yet"));
+    assertTrue(
+        "Actual message: " + exception.getMessage(),
+        exception.getMessage().contains("Methods count: 1"));
+  }
+
+  @Test
+  public void testMlWriteUnpacking() {
+    MlCommand.Write write =
+        MlCommand.Write.newBuilder()
+            .setOperator(MlOperator.newBuilder().setName("LogisticRegression").build())
+            .setPath("/tmp/lr_model")
+            .build();
+
+    Any any = Any.pack(write);
+    Relation relation = Relation.newBuilder().setExtension(any).build();
+
+    UnsupportedOperationException exception =
+        assertThrows(UnsupportedOperationException.class, () -> translator.translate(relation));
+
+    assertTrue(
+        "Actual message: " + exception.getMessage(),
+        exception
+            .getMessage()
+            .contains("Spark Connect MLlib Write extension is not supported yet"));
+    assertTrue(
+        "Actual message: " + exception.getMessage(),
+        exception.getMessage().contains("/tmp/lr_model"));
+  }
+
+  @Test
+  public void testMlReadUnpacking() {
+    MlCommand.Read read =
+        MlCommand.Read.newBuilder()
+            .setOperator(
+                MlOperator.newBuilder().setName("LogisticRegression").setUid("lr_12345").build())
+            .setPath("/tmp/lr_model")
+            .build();
+
+    Any any = Any.pack(read);
+    Relation relation = Relation.newBuilder().setExtension(any).build();
+
+    UnsupportedOperationException exception =
+        assertThrows(UnsupportedOperationException.class, () -> translator.translate(relation));
+
+    assertTrue(
+        "Actual message: " + exception.getMessage(),
+        exception.getMessage().contains("Read extension registered successfully"));
+    assertTrue(
+        "Actual message: " + exception.getMessage(),
+        exception.getMessage().contains("Registered ID: model_"));
+    assertTrue(
+        "Actual message: " + exception.getMessage(),
+        exception.getMessage().contains("LogisticRegression"));
+    assertTrue(
+        "Actual message: " + exception.getMessage(), exception.getMessage().contains("lr_12345"));
+    assertTrue(
+        "Actual message: " + exception.getMessage(),
+        exception.getMessage().contains("/tmp/lr_model"));
+  }
+
+  @Test
+  public void testMlGenericRelationUnpacking() {
+    org.apache.spark.connect.proto.LocalRelation localRel =
+        org.apache.spark.connect.proto.LocalRelation.newBuilder()
+            .setSchema("id INT, name STRING")
+            .build();
+    Relation inputRelation = Relation.newBuilder().setLocalRelation(localRel).build();
+
+    MlRelation.Transform transform =
+        MlRelation.Transform.newBuilder()
+            .setTransformer(MlOperator.newBuilder().setName("StandardScaler").build())
+            .setInput(inputRelation)
+            .build();
+
+    MlRelation mlRelation = MlRelation.newBuilder().setTransform(transform).build();
+
+    Any any = Any.pack(mlRelation);
+    Relation relation = Relation.newBuilder().setExtension(any).build();
+
+    RelNode relNode = translator.translate(relation);
+    assertNotNull(relNode);
+    assertTrue(relNode instanceof BeamMlFeature);
+
+    BeamMlFeature featureRel = (BeamMlFeature) relNode;
+    assertEquals("StandardScaler", featureRel.getTransformerName());
+    assertNotNull(featureRel.getRowType());
+    assertEquals(2, featureRel.getRowType().getFieldCount());
+    assertEquals("id", featureRel.getRowType().getFieldNames().get(0));
+    assertThrows(UnsupportedOperationException.class, () -> featureRel.buildPTransform());
   }
 }

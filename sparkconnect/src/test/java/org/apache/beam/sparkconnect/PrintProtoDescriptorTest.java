@@ -15,21 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sparkconnect.rule;
+package org.apache.beam.sparkconnect;
 
-import java.util.Iterator;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-
-public class SparkConnectRuleSet implements RuleSet {
-
-  public static final SparkConnectRuleSet INSTANCE = new SparkConnectRuleSet();
-
-  private SparkConnectRuleSet() {}
-
-  @Override
-  public Iterator<RelOptRule> iterator() {
-    return ImmutableList.<RelOptRule>of(BeamMapPartitionsRule.INSTANCE).iterator();
-  }
-}
+public class PrintProtoDescriptorTest {}

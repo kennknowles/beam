@@ -43,6 +43,11 @@ Always use the Gradle task from the root of the repository to update the ignore 
 
 ## Important Considerations
 
+*   **Check for Resource Constraints and Infrastructure Failures**: Before accepting a newly generated ignore list—especially if there is an unexpected spike in test failures—you MUST verify that the failures represent genuine code or compatibility gaps rather than temporary system resource constraints or infrastructure crashes.
+    1. **Read Test Logs**: Always inspect the execution logs for failed tests (typically found in the task log or `sparkconnect/full_compliance_run.log`).
+    2. **Chunked Log Reading**: Because test logs can be extremely large, start by reading just the last bit (e.g. using `tail` or reading the final chunk) to look for crash summaries or fatal errors. If the cause is not clear at the end, chunk backward through the log.
+    3. **Identify Infrastructure Issues**: Look for signs such as fatal JVM/Python crashes (`Segmentation fault`, `Out of memory`), connection pool exhaustion, or testing harness timeouts.
+    4. **Action**: If you see evidence that a bunch of tests failed due to testing infrastructure issues or resource limits, **do NOT update the ignore list**. Alert the user immediately with the relevant log snippets and restore the original ignore list.
 *   **Skip Verification run**: We used to run the tests again to ensure we got it right. We don't need to do that. However, if the number of tests ignored or unignored is large, it is a good idea to alert the user and have them review the change. If a large number of tests have been regressed, it could mean that there was a failure unrelated to code changes (such as the whole test run failing due to a server issue). If a large number of tests have started passing, it could mean that we are accidentally skipping them but don't realize it.
 *   **Time to Run**: Even without the verification run, running the full test suite in Step 1 may take several minutes. Please be patient.
 

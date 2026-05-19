@@ -92,6 +92,14 @@ public class BeamShowString extends SingleRel implements BeamRelNode {
     return BeamCostModel.FACTORY.makeTinyCost();
   }
 
+  public int getNumRows() {
+    return numRows;
+  }
+
+  public int getTruncate() {
+    return truncate;
+  }
+
   @Override
   public final BeamShowString copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new BeamShowString(getCluster(), traitSet, sole(inputs), numRows, truncate);

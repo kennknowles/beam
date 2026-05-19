@@ -34,3 +34,7 @@ Whenever you are working on tasks related to the Spark Connect server in the `sp
      - `service/ExecuteHolder.scala`: Manages the state of a specific execution request within a session.
      - `service/SparkConnectExecutePlanHandler.scala`: Handles the execution of plans by invoking the planner and execution engine.
      - `service/SparkConnectAnalyzeHandler.scala`: Handles analysis requests (e.g., getting schema, explain strings).
+     - `ml/MLHandler.scala`: Handles machine learning extension commands and relations (training, inference, evaluation).
+     - `ml/MLUtils.scala`: Utilities for machine learning plan transformations and model mapping.
+     - `ml/MLCache.scala`: Server-side caching mechanism for loaded and fitted ML models.
+     - `pipelines/PipelinesHandler.scala`: Handles ML pipeline definitions and execution workflows.

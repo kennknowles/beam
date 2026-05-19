@@ -334,7 +334,7 @@ public final class AnalyzePlanHandler {
       arrayBuilder.setContainsNull(true);
       return DataType.newBuilder().setArray(arrayBuilder.build()).build();
     }
-    throw new RuntimeException("Unsupported type: " + typeStr);
+    return parsePrimitiveDataType(typeStr);
   }
 
   private DataType parseJsonDataType(com.fasterxml.jackson.databind.JsonNode node) {

@@ -26,56 +26,59 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sparkconnect.SparkMLObjectRegistry;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.SingleRel;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.spark.connect.proto.CommonInlineUserDefinedFunction;
+import org.apache.spark.connect.proto.MlParams;
 
-public class BeamMapPartitions extends SingleRel implements BeamRelNode {
+public class BeamMlPredict extends SingleRel implements BeamRelNode {
+  private final SparkMLObjectRegistry.ObjectRefState modelState;
+  private final MlParams params;
 
-  public final CommonInlineUserDefinedFunction func;
-  private final RelDataType outputRowType;
-
-  public BeamMapPartitions(
+  public BeamMlPredict(
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode input,
-      CommonInlineUserDefinedFunction func,
-      RelDataType outputRowType) {
+      SparkMLObjectRegistry.ObjectRefState modelState,
+      MlParams params) {
     super(cluster, traits, input);
-    this.func = func;
-    this.outputRowType = outputRowType;
+    this.modelState = modelState;
+    this.params = params;
+  }
+
+  @Override
+  public RelDataType deriveRowType() {
+    return getInput().getRowType();
   }
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     throw new UnsupportedOperationException(
-        "mapInArrow / MapPartitions is not yet supported in execution.");
-  }
-
-  @Override
-  public RelDataType deriveRowType() {
-    return outputRowType;
+        "ML Predict stateful model '"
+            + modelState.getOperatorName()
+            + "' is not yet supported in execution.");
   }
 
   @Override
   public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
-    // We don't know how many rows the UDF will produce.
-    // Let's assume it's the same as input for now.
-    return mq.getNodeStats(input);
+    return mq.getNodeStats(getInput());
   }
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
-    // Assume some cost for running UDF
     return BeamCostModel.FACTORY.makeTinyCost();
   }
 
   @Override
-  public BeamMapPartitions copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new BeamMapPartitions(getCluster(), traitSet, sole(inputs), func, outputRowType);
+  public BeamMlPredict copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    return new BeamMlPredict(getCluster(), traitSet, sole(inputs), modelState, params);
+  }
+
+  public SparkMLObjectRegistry.ObjectRefState getModelState() {
+    return modelState;
   }
 }

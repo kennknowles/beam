@@ -32,50 +32,50 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSe
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.SingleRel;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.spark.connect.proto.CommonInlineUserDefinedFunction;
+import org.apache.spark.connect.proto.MlParams;
 
-public class BeamMapPartitions extends SingleRel implements BeamRelNode {
+public class BeamMlFeature extends SingleRel implements BeamRelNode {
+  private final String transformerName;
+  private final MlParams params;
 
-  public final CommonInlineUserDefinedFunction func;
-  private final RelDataType outputRowType;
-
-  public BeamMapPartitions(
+  public BeamMlFeature(
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode input,
-      CommonInlineUserDefinedFunction func,
-      RelDataType outputRowType) {
+      String transformerName,
+      MlParams params) {
     super(cluster, traits, input);
-    this.func = func;
-    this.outputRowType = outputRowType;
+    this.transformerName = transformerName;
+    this.params = params;
+  }
+
+  @Override
+  public RelDataType deriveRowType() {
+    return getInput().getRowType();
   }
 
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     throw new UnsupportedOperationException(
-        "mapInArrow / MapPartitions is not yet supported in execution.");
-  }
-
-  @Override
-  public RelDataType deriveRowType() {
-    return outputRowType;
+        "ML Feature transformer '" + transformerName + "' is not yet supported in execution.");
   }
 
   @Override
   public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
-    // We don't know how many rows the UDF will produce.
-    // Let's assume it's the same as input for now.
-    return mq.getNodeStats(input);
+    return mq.getNodeStats(getInput());
   }
 
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
-    // Assume some cost for running UDF
     return BeamCostModel.FACTORY.makeTinyCost();
   }
 
   @Override
-  public BeamMapPartitions copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new BeamMapPartitions(getCluster(), traitSet, sole(inputs), func, outputRowType);
+  public BeamMlFeature copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    return new BeamMlFeature(getCluster(), traitSet, sole(inputs), transformerName, params);
+  }
+
+  public String getTransformerName() {
+    return transformerName;
   }
 }
